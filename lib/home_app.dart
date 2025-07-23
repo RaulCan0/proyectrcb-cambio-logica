@@ -1,7 +1,8 @@
-// ignore: unused_import
+// HomeScreen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../custom/appcolors.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
@@ -36,18 +37,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
       body: PageView(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         children: _pages,
       ),
       bottomNavigationBar: NavigationBar(
-        height: 60,
-        backgroundColor: AppColors.primary,
-        elevation: 1,
+        height: 70,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
         destinations: const [
@@ -63,7 +62,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 class _DashboardView extends ConsumerWidget {
   const _DashboardView();
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final textSize = ref.watch(textSizeProvider);
@@ -71,16 +69,13 @@ class _DashboardView extends ConsumerWidget {
 
     return SafeArea(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppColors.primary, Color.fromARGB(255, 75, 33, 129)],
-              ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
+                colors: [AppColors.primary, const Color.fromARGB(255, 75, 33, 129)],
               ),
             ),
             child: Row(
@@ -97,25 +92,27 @@ class _DashboardView extends ConsumerWidget {
                       builder: (context, snapshot) {
                         final fotoUrl = snapshot.data?['foto_url'] ?? user?.userMetadata?['avatar_url'] ?? '';
                         if (fotoUrl.isNotEmpty) {
-                          return CircleAvatar(radius: 30, backgroundImage: NetworkImage(fotoUrl));
+                          return CircleAvatar(radius: 35, backgroundImage: NetworkImage(fotoUrl));
                         } else {
-                          return const CircleAvatar(radius: 30, child: Icon(Icons.person, size: 30));
+                          return const CircleAvatar(radius: 35, child: Icon(Icons.person, size: 40));
                         }
                       },
                     ),
-                    const SizedBox(width: 15),
+                    const SizedBox(width: 20),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user?.email ?? 'Sin email',
-                            style: TextStyle(color: Colors.white, fontSize: textSize, fontWeight: FontWeight.bold)),
+                        Text(
+                          user?.email ?? 'Sin email',
+                          style: TextStyle(color: Colors.white, fontSize: textSize, fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(height: 4),
                         const Text('Bienvenido', style: TextStyle(color: Colors.white70)),
                       ],
                     ),
                   ],
                 ),
-                const _WeatherWidget(),
+                const _WeatherWidget(lat: 20.5888, lon: -100.3899), // coords de Querétaro
               ],
             ),
           ),
@@ -129,7 +126,6 @@ class _DashboardView extends ConsumerWidget {
 
 class _DashboardCards extends StatefulWidget {
   const _DashboardCards();
-
   @override
   State<_DashboardCards> createState() => _DashboardCardsState();
 }
@@ -154,25 +150,25 @@ class _DashboardCardsState extends State<_DashboardCards> {
         ListView(
           controller: _scrollController,
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 30),
+          padding: const EdgeInsets.symmetric(horizontal: 50),
           children: [
             _DashboardCard(
               title: 'Diagnóstico',
               icon: Icons.analytics_outlined,
-              bgColor:  const Color(0xFFE0E0E0),
+              bgColor: const Color.fromARGB(255, 171, 172, 173),
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmpresasScreen())),
             ),
             const SizedBox(width: 20),
             const _DashboardCard(
               title: 'Próximamente EVSM',
               icon: Icons.upcoming,
-              bgColor: Color(0xFFE0E0E0),
+              bgColor: Color.fromARGB(255, 171, 172, 173),
             ),
             const SizedBox(width: 20),
             const _DashboardCard(
               title: 'No Disponible',
               icon: Icons.extension,
-              bgColor: Color(0xFFE0E0E0),
+              bgColor: Color.fromARGB(255, 171, 172, 173),
             ),
           ],
         ),
@@ -196,20 +192,10 @@ class _DashboardCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.6,
+        width: MediaQuery.of(context).size.width * 0.7,
         margin: const EdgeInsets.symmetric(vertical: 20),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 10,
-              offset: Offset(0, 5),
-            ),
-          ],
-        ),
+        padding: const EdgeInsets.all(30),
+        decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(20)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -221,9 +207,9 @@ class _DashboardCard extends StatelessWidget {
                 ),
               )
             else
-              Icon(icon, size: 50, color: AppColors.primary),
+              Icon(icon, size: 60, color: Colors.black87),
             const SizedBox(height: 20),
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87), textAlign: TextAlign.center),
+            Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87), textAlign: TextAlign.center),
           ],
         ),
       ),
@@ -232,16 +218,18 @@ class _DashboardCard extends StatelessWidget {
 }
 
 class _WeatherWidget extends StatelessWidget {
-  const _WeatherWidget();
+  final double lat;
+  final double lon;
+  const _WeatherWidget({required this.lat, required this.lon});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(Icons.wb_sunny, color: Colors.white),
+        const Icon(Icons.thermostat, color: Colors.white),
         const SizedBox(width: 5),
         FutureBuilder<Map<String, dynamic>>(
-          future: fetchWeather(),
+            future: fetchWeatherCelsius(lat, lon).then((temp) => {'temp': temp}),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Text('Cargando...', style: TextStyle(color: Colors.white));
@@ -249,20 +237,31 @@ class _WeatherWidget extends StatelessWidget {
             if (snapshot.hasError || !snapshot.hasData) {
               return const Text('Sin datos', style: TextStyle(color: Colors.white));
             }
-            final temp = snapshot.data!['temp'];
-            final city = snapshot.data!['city'];
-            return Text('$temp°C • $city', style: const TextStyle(color: Colors.white));
+            final temp = snapshot.data!['temp'] as double;
+            return Text('${temp.toStringAsFixed(1)} °C', style: const TextStyle(color: Colors.white));
           },
         ),
       ],
     );
   }
 }
+Future<double> fetchWeatherCelsius(double lat, double lon) async {
+  final uri = Uri.https('api.open-meteo.com', '/v1/forecast', {
+    'latitude': lat.toString(),
+    'longitude': lon.toString(),
+    'current_weather': 'true',
+    'timezone': 'auto',
+  });
 
-Future<Map<String, dynamic>> fetchWeather() async {
-  await Future.delayed(const Duration(seconds: 2));
-  return {
-    'temp': 22,
-    'city': 'Madrid',
-  };
+  final resp = await http.get(uri);
+  if (resp.statusCode != 200) {
+    throw Exception('Error al obtener clima: ${resp.statusCode}');
+  }
+
+  final Map<String, dynamic> data = json.decode(resp.body);
+
+  // Extraer la temperatura actual directamente del JSON (por defecto es en °C)
+  final tempCelsius = (data['current_weather']['temperature'] as num).toDouble();
+
+  return tempCelsius;
 }

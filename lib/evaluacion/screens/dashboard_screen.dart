@@ -1,10 +1,10 @@
 // ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures
 
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
+import 'package:applensys/evaluacion/widgets/donut.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:applensys/evaluacion/widgets/grouped_bar_chart.dart';
 import 'package:applensys/evaluacion/widgets/horizontal_bar_systems_chart.dart';
-import 'package:applensys/evaluacion/widgets/multiring.dart';
 import '../services/helpers/reporte_utils_final.dart';
 import 'package:flutter/material.dart';
 import '../models/empresa.dart';
@@ -16,6 +16,9 @@ import '../services/local/evaluacion_cache_service.dart';
 import '../widgets/scatter_bubble_chart.dart';
 import 'package:applensys/custom/table_names.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// import 'package:applensys/models/level_averages.dart'; // Comentado o eliminado
+
 class DashboardScreen extends StatefulWidget {
   final String evaluacionId;
   final Empresa empresa;
@@ -260,23 +263,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   /// Datos para el gráfico de Dona (promedio general por dimensión).
-  Map<String, double> _buildMultiringData() {
-    // Las claves deben coincidir exactamente con las de puntosTotales en MultiRingChart
+  Map<String, double> _buildDonutData() {
     const nombresDimensiones = {
-      '1': 'Impulsores Culturales',
-      '2': 'Mejora Continua',
-      '3': 'Alineamiento Empresarial',
+      '1': 'IMPULSORES CULTURALES',
+      '2': 'MEJORA CONTINUA',
+      '3': 'ALINEAMIENTO EMPRESARIAL',
     };
-    final Map<String, double> data = {
-      'Impulsores Culturales': 0,
-      'Mejora Continua': 0,
-      'Alineamiento Empresarial': 0,
-    };
+    final Map<String, double> data = {};
     for (final dim in _dimensiones) {
       final nombre = nombresDimensiones[dim.id] ?? dim.nombre;
-      if (data.containsKey(nombre)) {
-        data[nombre] = dim.promedioGeneral;
-      }
+      data[nombre] = dim.promedioGeneral;
     }
     return data;
   }
@@ -566,10 +562,15 @@ List<ScatterData> _buildScatterData() {
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 children: [
                    _buildChartContainer(
-                      child: MultiRingChart(
-                        puntosObtenidos: _buildMultiringData(),
+                      child: DonutChart(
+                        data: _buildDonutData(),
+                        dataMap: const {
+                          'IMPULSORES CULTURALES': Colors.redAccent,
+                          'MEJORA CONTINUA': Colors.yellow,
+                          'ALINEAMIENTO EMPRESARIAL': Colors.lightBlueAccent,
+                        },
                         isDetail: false,
-                      ), color: const Color.fromARGB(255, 171, 172, 173), title: 'EVALUACION DIMENSION-ROL',
+                      ), color: const Color.fromARGB(255, 171, 172, 173), title: 'Promedio por Dimensión',
                     ),
               
                   _buildChartContainer(
@@ -578,12 +579,12 @@ List<ScatterData> _buildScatterData() {
                       data: _buildScatterData(),
                       isDetail: false, 
                     ),
-                    title: 'EVALUACION-PRINCIPIO-ROL',
+                    title: 'Promedio por Principio', // <-- corregido aquí
                   ),
 
                   _buildChartContainer(
                     color: const Color.fromARGB(255, 231, 220, 187),
-                    title: 'EVALUACION COMPORTAMIENTO-ROL',
+                     title: 'Distribución por Comportamiento y Nivel',
                     child: GroupedBarChart(
                       data: _buildGroupedBarData(),
                       minY: 0,
@@ -595,7 +596,7 @@ List<ScatterData> _buildScatterData() {
                
                   _buildChartContainer(
                     color: const Color.fromARGB(255, 202, 208, 219),
-                    title: 'EVALUACION SISTEMAS ROL',
+                    title: 'Promedios por Sistema y Nivel', // Título actualizado
                     child: HorizontalBarSystemsChart(
                       data: horizontalData, 
                       minY: 0, 
@@ -649,26 +650,26 @@ List<ScatterData> _buildScatterData() {
       ),
       child: Column(
         children: [
-          if (title.isNotEmpty)
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Center(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Color(0xFF003056),
-                  ),
+          // Encabezado interno (subtítulo) con fondo blanco y título
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Color(0xFF003056),
                 ),
               ),
             ),
-          // Espacio para el gráfico (alto fijo de 500px)
+          ),
+          // Espacio para el gráfico (alto fijo de 420px)
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: SizedBox(

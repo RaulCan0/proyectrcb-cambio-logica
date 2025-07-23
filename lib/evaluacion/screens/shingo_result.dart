@@ -1,11 +1,7 @@
-// lib/screens/shingo_result_screen.dart
-
 import 'dart:io';
-import 'package:applensys/evaluacion/services/shingo_result_service.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-/// Lista de etiquetas por hoja
 const List<String> sheetLabels = [
   'seguridad/medio ambiente/moral',
   'satisfacción del cliente',
@@ -14,7 +10,6 @@ const List<String> sheetLabels = [
   'entregas',
 ];
 
-/// Modelo para guardar los datos de cada hoja
 class ShingoResultData {
   Map<String, String> campos;
   File? imagen;
@@ -35,7 +30,6 @@ class ShingoResultData {
         };
 }
 
-/// Pantalla principal con los 5 botones grises
 class ShingoResultsScreen extends StatefulWidget {
   const ShingoResultsScreen({super.key});
 
@@ -52,56 +46,51 @@ class _ShingoResultsScreenState extends State<ShingoResultsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Shingo Prize – Resultados')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: sheetLabels.map((label) {
-            return GestureDetector(
-              onTap: () async {
-                final resultado = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ShingoResultSheet(
-                      title: label,
-                      initialData: hojasGuardadas[label]!,
-                    ),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        children: sheetLabels.map((label) {
+          return GestureDetector(
+            onTap: () async {
+              final resultado = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ShingoResultSheet(
+                    title: label,
+                    initialData: hojasGuardadas[label]!,
                   ),
-                );
-                if (resultado != null && resultado is ShingoResultData) {
-                  setState(() {
-                    hojasGuardadas[label] = resultado;
-                    ShingoResultService().guardarResultado(label, resultado);
-                  });
-                }
-              },
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                width: 200,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Center(
-                  child: Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
+              );
+              if (resultado != null && resultado is ShingoResultData) {
+                setState(() {
+                  hojasGuardadas[label] = resultado;
+                });
+              }
+            },
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ),
-            );
-          }).toList(),
-        ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 }
 
-/// Hoja editable
 class ShingoResultSheet extends StatefulWidget {
   final String title;
   final ShingoResultData initialData;
@@ -163,7 +152,7 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
               value: calificacion.toDouble(),
               min: 0.0,
               max: 5.0,
-              divisions: 4,
+              divisions: 5,
               label: calificacion.toString(),
               onChanged: (value) {
                 setState(() {
@@ -176,32 +165,25 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
         ],
       );
 
-  Widget buildSeccion(String titulo, [String? valorPorDefecto]) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 12),
-        Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-        const SizedBox(height: 4),
-        GestureDetector(
-          onTap: () => editarCampo(titulo),
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey),
-              color: Colors.grey.shade100,
-            ),
-            child: Text(
-              campos[titulo]?.isEmpty ?? true
-                  ? (valorPorDefecto ?? 'Tocar para escribir...')
-                  : campos[titulo]!,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-        ),
-      ],
-    );
+  String _tooltipForField(String campo) {
+    switch (campo) {
+      case 'Cómo se calcula':
+        return 'Explica claramente cómo se mide y calcula este resultado.';
+      case 'Cómo se mide':
+        return 'Describe la fuente de datos y la frecuencia de medición.';
+      case 'Por qué es importante':
+        return 'Explica el impacto que tiene este resultado en la organización.';
+      case 'Sistemas usados para mejorar':
+        return 'Describe qué sistemas se usan para mejorar este resultado.';
+      case 'Explicación de desviaciones':
+        return 'Expón las razones de cualquier desviación significativa.';
+      case 'Cambios en 3 años':
+        return 'Describe si ha habido cambios en la medición durante los últimos 3 años.';
+      case 'Cómo se definen metas':
+        return 'Explica cómo se establecen los objetivos y metas para este resultado.';
+      default:
+        return 'Campo informativo';
+    }
   }
 
   @override
@@ -226,33 +208,85 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: seleccionarImagen,
-              child: Container(
-                height: 180,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.black),
-                  color: Colors.grey.shade200,
-                  image: imagen != null
-                      ? DecorationImage(image: FileImage(imagen!), fit: BoxFit.cover)
-                      : null,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.black87, width: 2),
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(2, 2)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Text(
+                  widget.title,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                child: imagen == null
-                    ? const Center(child: Text('Tocar para agregar imagen del gráfico'))
-                    : null,
               ),
-            ),
-            const SizedBox(height: 12),
-            ...campos.keys.map(buildSeccion),
-            const SizedBox(height: 16),
-            const Center(child: Text('Calificación (1-5)', style: TextStyle(fontSize: 16))),
-            calificacionWidget(),
-          ],
+              const SizedBox(height: 12),
+              Tooltip(
+                message: 'Incluye la gráfica de tendencia (ej. rendimiento, calidad).',
+                child: GestureDetector(
+                  onTap: seleccionarImagen,
+                  child: Container(
+                    height: 180,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.black),
+                      color: Colors.grey.shade200,
+                      image: imagen != null
+                          ? DecorationImage(image: FileImage(imagen!), fit: BoxFit.cover)
+                          : null,
+                    ),
+                    child: imagen == null
+                        ? const Center(child: Text('Tocar para agregar imagen del gráfico'))
+                        : null,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...campos.keys.map((campo) => Tooltip(
+                    message: _tooltipForField(campo),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 12),
+                        Text(campo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => editarCampo(campo),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              color: Colors.grey.shade100,
+                            ),
+                            child: Text(
+                              campos[campo]?.isEmpty ?? true ? 'Tocar para escribir...' : campos[campo]!,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+              const SizedBox(height: 16),
+              Tooltip(
+                message: 'Asegúrate de explicar las tendencias y desviaciones.',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Calificación (1-5)', style: TextStyle(fontWeight: FontWeight.bold)),
+                    calificacionWidget(),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
