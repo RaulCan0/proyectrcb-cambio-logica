@@ -1,0 +1,100 @@
+# Análisis completo de clases y métodos en lib/evaluacion y subcarpetas
+
+---
+
+## 1. Pantallas (screens)
+
+### TablasDimensionScreen (tablas_screen.dart)
+- **Función:** Tabla de resultados por dimensión.
+- **Métodos:**
+  - `cargarDatosPersistidos`, `actualizarDato` (solo local, NO colaborativo).
+- **Estado:** NO FUNCIONA para colaboración.
+
+### _TablasDimensionScreenState
+- **Función:** Lógica de UI y cálculo de promedios.
+- **Métodos:** `_cargarDesdeCache`, `_normalizeNivel`, `_irADetalles`, `_buildRows`.
+- **Estado:** NO FUNCIONA para colaboración.
+
+### SistemasPromedio
+- **Función:** Calcula promedios de sistemas asociados.
+- **Métodos:** `agregar`, `promedio`.
+- **Estado:** Depende de datos locales.
+
+### AsociadoScreen (asociado_screen.dart)
+- **Función:** Lista y gestiona asociados.
+- **Métodos:** `_cargarAsociados`, `_mostrarDialogoAgregarAsociado`, `_buildLista`.
+- **Estado:** FUNCIONA con Supabase.
+
+### PrincipiosScreen (principios_screen.dart)
+- **Función:** Muestra principios y comportamientos.
+- **Métodos:** `cargarDatos`, `agregarComportamientoEvaluado`.
+- **Estado:** FUNCIONA con Supabase.
+
+### ComportamientoEvaluacionScreen (comportamiento_evaluacion_screen.dart)
+- **Función:** Evalúa un comportamiento.
+- **Métodos:** `_guardarEvaluacion` (guarda en calificaciones/Supabase).
+- **Estado:** FUNCIONA y es la ÚNICA que guarda en la tabla correcta.
+
+### Otras screens:
+- **EmpresasScreen, DimensionesScreen, PerfilScreen, HistorialScreen, DetallesEvaluacionScreen, ShingoResultsScreen, TablaScoreGlobal**
+  - **Función:** Navegación, selección, perfil, historial, detalles, resultados, resumen global.
+  - **Estado:** FUNCIONAN para UI, pero no guardan ni cargan calificaciones.
+
+---
+
+## 2. Servicios (services)
+
+### EvaluacionCacheService (local)
+- **Función:** Caché local (SharedPreferences).
+- **Métodos:** `guardarTablas`, `cargarTablas`, `limpiarCacheTablaDatos`, etc.
+- **Estado:** NO FUNCIONA para colaboración.
+
+### CalificacionService, EvaluacionService, SupabaseService, EmpresaService, EvidenceService, DashboardService, ShingoResultService, ChatService, ReporteUtils, JsonService, AnotacionesService, CalificacionesSyncService, DashboardNotifier
+- **Función:** CRUD y lógica de negocio para calificaciones, evaluaciones, empresas, evidencias, dashboard, chat, reportes, anotaciones, sincronización, notificaciones.
+- **Métodos:**
+  - Métodos CRUD (`add`, `update`, `delete`, `get`), sincronización, generación de reportes, subida de archivos, etc.
+- **Estado:**
+  - **FUNCIONAN** si se usan correctamente y se conectan a Supabase.
+  - **CalificacionService**: Solo se usa bien en ComportamientoEvaluacionScreen.
+  - **CalificacionesSyncService**: Sincroniza local <-> Supabase, pero depende de que la app lo use.
+
+---
+
+## 3. Modelos (models)
+
+- **Calificacion, Evaluacion, Empresa, Asociado, Principio, Comportamiento, Message, LevelAverages, SistemaAsociado, ShingoResultModel, Users, PrincipioJson, etc.**
+  - **Función:** Representan entidades de negocio y datos.
+  - **Métodos:**
+    - `fromMap`, `toMap`, `fromJson`, `toJson`, constructores, copyWith, etc.
+  - **Estado:** FUNCIONAN, pero algunos modelos no se usan en toda la app (ejemplo: LevelAverages, Message, SistemaAsociado solo en partes específicas).
+
+---
+
+## 4. Utils
+
+- **EvaluacionChartData, NumberFeedService, etc.**
+  - **Función:** Utilidades para gráficos, feeds de datos, helpers.
+  - **Métodos:** Métodos estáticos para construir datos de gráficos, cargar promedios, etc.
+  - **Estado:** FUNCIONAN si reciben datos correctos.
+
+---
+
+## 5. Widgets
+
+- **MultiRingChart, GroupedBarChart, HorizontalBarSystemsChart, DonutChart, ScatterBubbleChart, SistemasScreen, DrawerLensys, ChatWidgetDrawer, etc.**
+  - **Función:** Visualización de datos, gráficos, selección de sistemas, chat, drawer, etc.
+  - **Métodos:**
+    - Métodos de construcción de UI (`build`), callbacks, helpers.
+  - **Estado:** FUNCIONAN si reciben datos correctos.
+
+---
+
+## RESUMEN DE PROBLEMAS Y FUNCIONALIDAD
+- **NO FUNCIONA** la colaboración en TablasDimensionScreen, EvaluacionCacheService y todo lo que dependa de caché local.
+- **FUNCIONA** la colaboración en ComportamientoEvaluacionScreen (guarda en calificaciones/Supabase), PrincipiosScreen (lee de Supabase), AsociadoScreen (lee de Supabase).
+- **Widgets, models y utils** funcionan si reciben datos correctos.
+- **Services** funcionan si se usan bien y se conectan a Supabase.
+
+---
+
+**Este análisis cubre todas las clases principales en lib/evaluacion y subcarpetas, con su función, métodos y estado de funcionamiento respecto a la colaboración y persistencia.**
