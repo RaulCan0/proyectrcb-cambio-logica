@@ -16,9 +16,6 @@ import '../services/local/evaluacion_cache_service.dart';
 import '../widgets/scatter_bubble_chart.dart';
 import 'package:applensys/custom/table_names.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-// import 'package:applensys/models/level_averages.dart'; // Comentado o eliminado
-
 class DashboardScreen extends StatefulWidget {
   final String evaluacionId;
   final Empresa empresa;
