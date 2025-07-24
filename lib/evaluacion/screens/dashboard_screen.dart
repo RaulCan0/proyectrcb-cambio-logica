@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures
 
+import 'package:applensys/custom/appcolors.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
 import 'package:applensys/evaluacion/widgets/donut.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
@@ -446,6 +447,7 @@ List<ScatterData> _buildScatterData() {
   return promedioData;
 }
 
+  // ignore: unused_element
   Future<void> _generarReporteWord() async {
   setState(() => _isLoading = true);
 
@@ -526,15 +528,10 @@ List<ScatterData> _buildScatterData() {
 
     return Scaffold(
       key: _scaffoldKey,
-
-      // Drawer izquierdo para chat (80% del ancho)
       drawer: const ChatWidgetDrawer(),
-
-      // EndDrawer derecho normal (sin envolver en SizedBox)
       endDrawer: const DrawerLensys(),
-
       appBar: AppBar(
-        backgroundColor: const Color(0xFF003056),
+        backgroundColor: AppColors.primary,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
@@ -546,22 +543,21 @@ List<ScatterData> _buildScatterData() {
           style: const TextStyle(
             color: Colors.white, 
             fontSize: 20,
-            fontFamily: 'Arial', // Aplicar la fuente Arial aquí
+            fontFamily: 'Arial',
           ),
         ),
         centerTitle: true,
       ),
-
-      body: Row(
-        children: [
-          // ► Lado izquierdo: ListView con los 4 gráficos (ocupa todo el espacio restante)
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12.0),
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                children: [
-                   _buildChartContainer(
+      body: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  children: [
+                    _buildChartContainer(
                       child: DonutChart(
                         data: _buildDonutData(),
                         dataMap: const {
@@ -570,70 +566,95 @@ List<ScatterData> _buildScatterData() {
                           'ALINEAMIENTO EMPRESARIAL': Colors.lightBlueAccent,
                         },
                         isDetail: false,
-                      ), color: const Color.fromARGB(255, 171, 172, 173), title: 'Promedio por Dimensión',
+                      ),
+                      color: const Color.fromARGB(255, 171, 172, 173),
+                      title: 'Promedio por Dimensión',
                     ),
-              
-                  _buildChartContainer(
-                    color: const Color.fromARGB(255, 160, 163, 163),
-                    child: ScatterBubbleChart(
-                      data: _buildScatterData(),
-                      isDetail: false, 
+                    _buildChartContainer(
+                      color: const Color.fromARGB(255, 160, 163, 163),
+                      child: ScatterBubbleChart(
+                        data: _buildScatterData(),
+                        isDetail: false,
+                      ),
+                      title: 'Promedio por Principio',
                     ),
-                    title: 'Promedio por Principio', // <-- corregido aquí
-                  ),
-
-                  _buildChartContainer(
-                    color: const Color.fromARGB(255, 231, 220, 187),
-                     title: 'Distribución por Comportamiento y Nivel',
-                    child: GroupedBarChart(
-                      data: _buildGroupedBarData(),
-                      minY: 0,
-                      maxY: 5,
-                      isDetail: false,
-                    ), 
-                  ),
-
-               
-                  _buildChartContainer(
-                    color: const Color.fromARGB(255, 202, 208, 219),
-                    title: 'Promedios por Sistema y Nivel', // Título actualizado
-                    child: HorizontalBarSystemsChart(
-                      data: horizontalData, 
-                      minY: 0, 
-                      maxY: 5, // Adecuado para promedios en escala 0-5
-                      sistemasOrdenados: _sistemasOrdenados, 
+                    _buildChartContainer(
+                      color: const Color.fromARGB(255, 231, 220, 187),
+                      title: 'Distribución por Comportamiento y Nivel',
+                      child: GroupedBarChart(
+                        data: _buildGroupedBarData(),
+                        minY: 0,
+                        maxY: 5,
+                        isDetail: false,
+                      ),
                     ),
+                    _buildChartContainer(
+                      color: const Color.fromARGB(255, 202, 208, 219),
+                      title: 'Promedios por Sistema y Nivel',
+                      child: HorizontalBarSystemsChart(
+                        data: horizontalData,
+                        minY: 0,
+                        maxY: 5,
+                        sistemasOrdenados: _sistemasOrdenados,
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Tooltip(
+                          message: 'Ejecutivo',
+                          child: Icon(
+                            Icons.help_outline,
+                            color: Colors.orange,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Tooltip(
+                          message: 'Gerente',
+                          child: Icon(
+                            Icons.help_outline,
+                            color: Colors.green,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Tooltip(
+                          message: 'Miembro de equipo',
+                          child: Icon(
+                            Icons.help_outline,
+                            color: Colors.blue,
+                            size: 32,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+            Container(
+              width: 56,
+              color: AppColors.primary,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chat, color: Colors.white),
+                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                    tooltip: 'Chat Interno',
                   ),
-
-                  const SizedBox(height: 24),
+                  // Puedes agregar más IconButton aquí si es necesario
                 ],
               ),
             ),
-          ),
-          Container(
-            width: 56, // ancho normal de sidebar
-            color: const Color(0xFF003056), // mismo color del AppBar
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Chat interno
-                IconButton(
-                  icon: const Icon(Icons.chat, color: Colors.white),
-                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                  tooltip: 'Chat Interno',
-                ),
-                IconButton(
-  icon: const Icon(Icons.description, color: Colors.white),
-  onPressed: _generarReporteWord, // <-- Llama a tu función
-  tooltip: 'Generar Reporte Word',
-), // El IconButton para generar reportes ha sido eliminado.
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
-  }
+  // ...existing code...
+}
 
   /// Cada gráfico está dentro de un contenedor redondeado, con encabezado y margen.
   Widget _buildChartContainer({
@@ -664,7 +685,7 @@ List<ScatterData> _buildScatterData() {
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
-                  color: Color(0xFF003056),
+                  color: AppColors.primary,
                 ),
               ),
             ),

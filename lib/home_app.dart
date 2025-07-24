@@ -75,7 +75,7 @@ class _DashboardView extends ConsumerWidget {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppColors.primary, const Color.fromARGB(255, 75, 33, 129)],
+                colors: [AppColors.primary, AppColors.primary],
               ),
             ),
             child: Row(

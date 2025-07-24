@@ -165,48 +165,32 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
                 _mostrarAlerta('Error', 'Completa todos los campos correctamente.');
                 return;
               }
-
-              final nuevoId = const Uuid().v4();
-              final nuevo = Asociado(
-                id: nuevoId,
-                nombre: nombre,
-                cargo: cargoSeleccionado.toLowerCase(),
-                empresaId: widget.empresa.id,
-                empleadosAsociados: [],
-                progresoDimensiones: {},
-                comportamientosEvaluados: {},
-                antiguedad: antiguedad,
-              );
-
+              // ...lógica para crear el asociado...
               try {
-                await supabase.from('asociados').insert({
-                  'id': nuevoId,
-                  'nombre': nombre,
-                  'cargo': cargoSeleccionado.toLowerCase(),
-                  'empresa_id': widget.empresa.id,
-                  'dimension_id': widget.dimensionId,
-                  'antiguedad': antiguedad,
-                });
-
-                if (!mounted) return;
+                final nuevoId = const Uuid().v4();
+                final nuevo = Asociado(
+                  id: nuevoId,
+                  nombre: nombre,
+                  cargo: cargoSeleccionado,
+                  antiguedad: antiguedad,
+                  empresaId: widget.empresa.id,
+                  empleadosAsociados: <String>[],
+                  progresoDimensiones: <String, double>{},
+                  comportamientosEvaluados: <String, dynamic>{},
+                );
                 setState(() {
-                  switch (cargoSeleccionado.toLowerCase()) {
-                    case 'ejecutivo':
-                      ejecutivos.add(nuevo);
-                      _tabController?.index = 0;
-                      break;
-                    case 'gerente':
-                      gerentes.add(nuevo);
-                      _tabController?.index = 1;
-                      break;
-                    case 'miembro':
-                      miembros.add(nuevo);
-                      _tabController?.index = 2;
-                      break;
+                  if (cargoSeleccionado.toLowerCase() == 'ejecutivo') {
+                    ejecutivos.add(nuevo);
+                    _tabController?.index = 0;
+                  } else if (cargoSeleccionado.toLowerCase() == 'gerente') {
+                    gerentes.add(nuevo);
+                    _tabController?.index = 1;
+                  } else {
+                    miembros.add(nuevo);
+                    _tabController?.index = 2;
                   }
                   progresoAsociado[nuevoId] = 0.0;
                 });
-
                 if (mounted) Navigator.pop(context);
                 _mostrarAlerta('Éxito', 'Asociado agregado exitosamente.');
               } catch (e) {

@@ -1,8 +1,7 @@
+
 import 'package:applensys/evaluacion/screens/shingo_result.dart';
 
-
 class ShingoResultService {
-
   static final ShingoResultService _instance = ShingoResultService._internal();
   factory ShingoResultService() => _instance;
   ShingoResultService._internal();
@@ -17,5 +16,7 @@ class ShingoResultService {
     _resultados[label] = data;
   }
 
-  int? getCalificacion(String label) => _resultados[label]?.calificacion;
+  void limpiarResultados() {
+    _resultados.clear();
+  }
 }

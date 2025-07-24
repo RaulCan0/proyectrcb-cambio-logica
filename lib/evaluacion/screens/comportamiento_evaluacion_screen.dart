@@ -1,7 +1,9 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:typed_data';
+import 'package:applensys/evaluacion/models/asociado.dart';
 import 'package:applensys/evaluacion/models/calificacion.dart';
+import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:applensys/evaluacion/services/domain/calificacion_service.dart';
 import 'package:applensys/evaluacion/services/remote/storage_service.dart';
 import 'package:applensys/evaluacion/widgets/sistemas_asociados.dart';
@@ -74,7 +76,7 @@ class ComportamientoEvaluacionScreen extends ConsumerStatefulWidget {
     required this.dimensionId,
     required this.empresaId,
     required this.asociadoId,
-    this.calificacionExistente, required String dimension, 
+    this.calificacionExistente, required String dimension, required Empresa empresa, required void Function(String comportamiento, Calificacion calificacion) onEvaluado, required Asociado asociado, 
   });
 
   @override

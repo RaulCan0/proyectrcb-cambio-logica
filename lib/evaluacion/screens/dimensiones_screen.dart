@@ -128,170 +128,172 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
         ],
       ),
       endDrawer: const DrawerLensys(),
-      body: Column(
-        children: [
-          const SizedBox(height: 24),
-          Expanded(
-            child: ListView.builder(
-              itemCount: dimensiones.length + 2,
-              itemBuilder: (context, index) {
-                Widget cardItem;
-                if (index < dimensiones.length) {
-                  final dimension = dimensiones[index];
-                  cardItem = _buildCard(
-                    color: dimension['color'],
-                    title: dimension['nombre'],
-                    child: FutureBuilder<Map<String, double>>(
-                      future: Future.wait([
-                        evaluacionService.obtenerProgresoDimensionPorCargo(
-                          empresaId: widget.empresa.id,
-                          dimensionId: dimension['id'],
-                          cargo: 'ejecutivo',
-                        ),
-                        evaluacionService.obtenerProgresoDimensionPorCargo(
-                          empresaId: widget.empresa.id,
-                          dimensionId: dimension['id'],
-                          cargo: 'gerente',
-                        ),
-                        evaluacionService.obtenerProgresoDimensionPorCargo(
-                          empresaId: widget.empresa.id,
-                          dimensionId: dimension['id'],
-                          cargo: 'miembro',
-                        ),
-                      ]).then((results) {
-                        return {
-                          'ejecutivo': results[0]['ejecutivo'] ?? 0.0,
-                          'gerente': results[1]['gerente'] ?? 0.0,
-                          'miembro': results[2]['miembro'] ?? 0.0,
-                        };
-                      }),
-                      builder: (context, snapshot) {
-                        final progresoEj = (snapshot.data?['ejecutivo'] ?? 0.0).clamp(0.0, 1.0);
-                        final progresoGe = (snapshot.data?['gerente'] ?? 0.0).clamp(0.0, 1.0);
-                        final progresoMi = (snapshot.data?['miembro'] ?? 0.0).clamp(0.0, 1.0);
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildProgressCircle(progresoEj, Colors.orange, 'Ejecutivo'),
-                            _buildProgressCircle(progresoGe, Colors.green, 'Gerente'),
-                            _buildProgressCircle(progresoMi, Colors.blue, 'Miembro'),
-                          ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 24),
+            Expanded(
+              child: ListView.builder(
+                itemCount: dimensiones.length + 2,
+                itemBuilder: (context, index) {
+                  Widget cardItem;
+                  if (index < dimensiones.length) {
+                    final dimension = dimensiones[index];
+                    cardItem = _buildCard(
+                      color: dimension['color'],
+                      title: dimension['nombre'],
+                      child: FutureBuilder<Map<String, double>>(
+                        future: Future.wait([
+                          evaluacionService.obtenerProgresoDimensionPorCargo(
+                            empresaId: widget.empresa.id,
+                            dimensionId: dimension['id'],
+                            cargo: 'ejecutivo',
+                          ),
+                          evaluacionService.obtenerProgresoDimensionPorCargo(
+                            empresaId: widget.empresa.id,
+                            dimensionId: dimension['id'],
+                            cargo: 'gerente',
+                          ),
+                          evaluacionService.obtenerProgresoDimensionPorCargo(
+                            empresaId: widget.empresa.id,
+                            dimensionId: dimension['id'],
+                            cargo: 'miembro',
+                          ),
+                        ]).then((results) {
+                          return {
+                            'ejecutivo': results[0]['ejecutivo'] ?? 0.0,
+                            'gerente': results[1]['gerente'] ?? 0.0,
+                            'miembro': results[2]['miembro'] ?? 0.0,
+                          };
+                        }),
+                        builder: (context, snapshot) {
+                          final progresoEj = (snapshot.data?['ejecutivo'] ?? 0.0).clamp(0.0, 1.0);
+                          final progresoGe = (snapshot.data?['gerente'] ?? 0.0).clamp(0.0, 1.0);
+                          final progresoMi = (snapshot.data?['miembro'] ?? 0.0).clamp(0.0, 1.0);
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _buildProgressCircle(progresoEj, Colors.orange, 'Ejecutivo'),
+                              _buildProgressCircle(progresoGe, Colors.green, 'Gerente'),
+                              _buildProgressCircle(progresoMi, Colors.blue, 'Miembro'),
+                            ],
+                          );
+                        },
+                      ),
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AsociadoScreen(
+                              empresa: widget.empresa,
+                              dimensionId: dimension['id'],
+                              evaluacionId: widget.evaluacionId,
+                            ),
+                          ),
+                        );
+                        if (mounted) setState(() {});
+                      },
+                    );
+                  } else if (index == dimensiones.length) {
+                    cardItem = _buildCard(
+                      color: Colors.orange,
+                      title: 'Resultados',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ShingoResultSheet(
+                              title: 'Resultados',
+                              initialData: ShingoResultData(),
+                            ),
+                          ),
                         );
                       },
-                    ),
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AsociadoScreen(
-                            empresa: widget.empresa,
-                            dimensionId: dimension['id'],
-                            evaluacionId: widget.evaluacionId,
-                          ),
-                        ),
-                      );
-                      if (mounted) setState(() {});
-                    },
-                  );
-                } else if (index == dimensiones.length) {
-                  cardItem = _buildCard(
-                    color: Colors.orange,
-                    title: 'Resultados',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ShingoResultSheet(
-                            title: 'Resultados',
-                            initialData: ShingoResultData(),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                } else {
-                  cardItem = _buildCard(
-                    color: Colors.blue,
-                    title: 'Evaluación Final',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => TablaScoreGlobal(
-                            empresa: widget.empresa,
-                            detalles: const [],
-                            evaluaciones: const [],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                }
-                return SizedBox(height: cardHeight, child: cardItem);
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.save),
-                  label: const Text('Continuar más tarde'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF003056),
-                    foregroundColor: const Color.fromARGB(255, 212, 209, 209),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  ),
-                  onPressed: () async {
-                    await EvaluacionCacheService().guardarPendiente(widget.evaluacionId);
-                    await EvaluacionCacheService().guardarTablas(TablasDimensionScreen.tablaDatos);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Progreso guardado localmente')),
                     );
-                  },
-                ),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.check_circle, color: Colors.white),
-                  label: const Text('Finalizar evaluación', style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 94, 156, 96)),
-                  onPressed: () async {
-                    try {
-                      final cache = EvaluacionCacheService();
-                      await cache.eliminarPendiente();
-                      await cache.limpiarCacheTablaDatos();
-                      TablasDimensionScreen.tablaDatos.clear();
-                      TablasDimensionScreen.dataChanged.value =
-                          !TablasDimensionScreen.dataChanged.value;
-
-                      final prefs = await SharedPreferences.getInstance();
-                      final hist = prefs.getStringList('empresas_historial') ?? [];
-                      if (!hist.contains(widget.empresa.id)) {
-                        hist.add(widget.empresa.id);
-                        await prefs.setStringList('empresas_historial', hist);
-                      }
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Evaluación finalizada y datos limpiados')),
-                      );
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const EmpresasScreen()),
-                        (route) => false,
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error al finalizar: $e')),
-                      );
-                    }
-                  },
-                ),
-              ],
+                  } else {
+                    cardItem = _buildCard(
+                      color: Colors.blue,
+                      title: 'Evaluación Final',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TablaScoreGlobal(
+                              empresa: widget.empresa,
+                              detalles: const [],
+                              evaluaciones: const [], evaluacionId: '',
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }
+                  return SizedBox(height: cardHeight, child: cardItem);
+                },
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.save),
+                    label: const Text('Continuar más tarde'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF003056),
+                      foregroundColor: const Color.fromARGB(255, 212, 209, 209),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    ),
+                    onPressed: () async {
+                      await EvaluacionCacheService().guardarPendiente(widget.evaluacionId);
+                      await EvaluacionCacheService().guardarTablas(TablasDimensionScreen.tablaDatos);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Progreso guardado localmente')),
+                      );
+                    },
+                  ),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.check_circle, color: Colors.white),
+                    label: const Text('Finalizar evaluación', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 94, 156, 96)),
+                    onPressed: () async {
+                      try {
+                        final cache = EvaluacionCacheService();
+                        await cache.eliminarPendiente();
+                        await cache.limpiarCacheTablaDatos();
+                        TablasDimensionScreen.tablaDatos.clear();
+                        TablasDimensionScreen.dataChanged.value =
+                            !TablasDimensionScreen.dataChanged.value;
+
+                        final prefs = await SharedPreferences.getInstance();
+                        final hist = prefs.getStringList('empresas_historial') ?? [];
+                        if (!hist.contains(widget.empresa.id)) {
+                          hist.add(widget.empresa.id);
+                          await prefs.setStringList('empresas_historial', hist);
+                        }
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Evaluación finalizada y datos limpiados')),
+                        );
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (_) => const EmpresasScreen()),
+                          (route) => false,
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error al finalizar: $e')),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -24,31 +24,35 @@ class HorizontalBarSystemsChart extends StatelessWidget {
     final barGroups = sistemasOrdenados.asMap().entries.map((entry) {
       final index = entry.key;
       final sistema = entry.value;
-      final levels = data[sistema] ?? {'E': 0.0, 'G': 0.0, 'M': 0.0};
+      final valores = [
+        data[sistema]?['E'] ?? 0.0,
+        data[sistema]?['G'] ?? 0.0,
+        data[sistema]?['M'] ?? 0.0,
+      ];
 
       return BarChartGroupData(
         x: index,
+        barsSpace: 4,
         barRods: [
           BarChartRodData(
-            toY: levels['E'] ?? 0,
-            width: 8,
+            toY: valores[0],
             color: Colors.orange,
-            borderRadius: BorderRadius.circular(4),
+            width: 16,
+            borderRadius: BorderRadius.zero,
           ),
           BarChartRodData(
-            toY: levels['G'] ?? 0,
-            width: 8,
+            toY: valores[1],
             color: Colors.green,
-            borderRadius: BorderRadius.circular(4),
+            width: 16,
+            borderRadius: BorderRadius.zero,
           ),
           BarChartRodData(
-            toY: levels['M'] ?? 0,
-            width: 8,
+            toY: valores[2],
             color: Colors.blue,
-            borderRadius: BorderRadius.circular(4),
+            width: 16,
+            borderRadius: BorderRadius.zero,
           ),
         ],
-        barsSpace: 4,
       );
     }).toList();
 
@@ -57,14 +61,16 @@ class HorizontalBarSystemsChart extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: SizedBox(
-          width: sistemasOrdenados.length * 100,
+          width: sistemasOrdenados.length * 80,
           height: 400,
           child: BarChart(
             BarChartData(
               maxY: maxY,
               minY: minY,
               barGroups: barGroups,
-              titlesData: FlTitlesData(
+              alignment: BarChartAlignment.spaceAround,
+              groupsSpace: 24,
+             titlesData: FlTitlesData(
                 leftTitles: const AxisTitles(),
                 rightTitles: const AxisTitles(),
                 topTitles: const AxisTitles(),
@@ -79,6 +85,7 @@ class HorizontalBarSystemsChart extends StatelessWidget {
                           child: Text(
                             sistemasOrdenados[index],
                             style: const TextStyle(fontSize: 10),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         );
                       }
