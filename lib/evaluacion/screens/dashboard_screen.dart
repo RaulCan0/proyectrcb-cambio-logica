@@ -2,10 +2,11 @@
 
 import 'package:applensys/custom/appcolors.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
-import 'package:applensys/evaluacion/widgets/donut.dart';
+
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:applensys/evaluacion/widgets/grouped_bar_chart.dart';
 import 'package:applensys/evaluacion/widgets/horizontal_bar_systems_chart.dart';
+import 'package:applensys/evaluacion/widgets/multiring.dart';
 import '../services/helpers/reporte_utils_final.dart';
 import 'package:flutter/material.dart';
 import '../models/empresa.dart';
@@ -175,15 +176,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           for (final row in filasComp) {
             final valor = (row['valor'] as num?)?.toDouble() ?? 0.0;
-            final cargoRaw =
-                (row['cargo_raw'] as String?)?.toLowerCase().trim() ?? '';
+            final cargoRaw = (row['cargo_raw'] as String?)?.toLowerCase() ?? '';
+
+            // Permite que una fila cuente para varios cargos si corresponde
             if (cargoRaw.contains('ejecutivo')) {
               sumaEj += valor;
               countEj++;
-            } else if (cargoRaw.contains('gerente')) {
+            }
+            if (cargoRaw.contains('gerente')) {
               sumaGe += valor;
               countGe++;
-            } else if (cargoRaw.contains('miembro')) {
+            }
+            if (cargoRaw.contains('miembro')) {
               sumaMi += valor;
               countMi++;
             }
@@ -263,17 +267,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  /// Datos para el gráfico de Dona (promedio general por dimensión).
-  Map<String, double> _buildDonutData() {
+
+  /// Suma los puntos obtenidos por dimensión (todos los comportamientos evaluados).
+  Map<String, double> _buildPuntosObtenidosPorDimension() {
+    // Nombres amigables según tu estructura base y MultiRingChart
     const nombresDimensiones = {
-      '1': 'IMPULSORES CULTURALES',
-      '2': 'MEJORA CONTINUA',
-      '3': 'ALINEAMIENTO EMPRESARIAL',
+      '1': 'Impulsores Culturales',
+      '2': 'Mejora Continua',
+      '3': 'Alineamiento Empresarial',
     };
-    final Map<String, double> data = {};
-    for (final dim in _dimensiones) {
-      final nombre = nombresDimensiones[dim.id] ?? dim.nombre;
-      data[nombre] = dim.promedioGeneral;
+    final Map<String, double> data = {
+      'Impulsores Culturales': 0,
+      'Mejora Continua': 0,
+      'Alineamiento Empresarial': 0,
+    };
+    for (final row in _dimensionesRaw) {
+      final dimId = row['dimension_id']?.toString();
+      final nombre = nombresDimensiones[dimId];
+      final valor = (row['valor'] as num?)?.toDouble() ?? 0.0;
+      if (nombre != null) {
+        data[nombre] = (data[nombre] ?? 0) + valor;
+      }
     }
     return data;
   }
@@ -558,17 +572,27 @@ List<ScatterData> _buildScatterData() {
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   children: [
                     _buildChartContainer(
-                      child: DonutChart(
-                        data: _buildDonutData(),
-                        dataMap: const {
-                          'IMPULSORES CULTURALES': Colors.redAccent,
-                          'MEJORA CONTINUA': Colors.yellow,
-                          'ALINEAMIENTO EMPRESARIAL': Colors.lightBlueAccent,
-                        },
-                        isDetail: false,
-                      ),
                       color: const Color.fromARGB(255, 171, 172, 173),
-                      title: 'Promedio por Dimensión',
+                      title: 'EVALUACION DIMENSION-ROL',
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          MultiRingChart(
+                            puntosObtenidos: _buildPuntosObtenidosPorDimension(),
+                            isDetail: false,
+                          ),
+                          const SizedBox(height: 12),
+                          // Mostrar los puntos obtenidos y totales por dimensión
+                          ...MultiRingChart.puntosTotales.keys.map((nombre) {
+                            final obtenido = _buildPuntosObtenidosPorDimension()[nombre]?.toStringAsFixed(1) ?? '0';
+                            final total = MultiRingChart.puntosTotales[nombre]?.toStringAsFixed(0) ?? '0';
+                            return Text(
+                              '$nombre: $obtenido / $total puntos',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                            );
+                          }),
+                        ],
+                      ),
                     ),
                     _buildChartContainer(
                       color: const Color.fromARGB(255, 160, 163, 163),
@@ -576,11 +600,11 @@ List<ScatterData> _buildScatterData() {
                         data: _buildScatterData(),
                         isDetail: false,
                       ),
-                      title: 'Promedio por Principio',
+                      title: 'EVALUACION PRINCIPIO-ROL',
                     ),
                     _buildChartContainer(
                       color: const Color.fromARGB(255, 231, 220, 187),
-                      title: 'Distribución por Comportamiento y Nivel',
+                      title: 'EVALUACION COMPORTAMIENTO-ROL',
                       child: GroupedBarChart(
                         data: _buildGroupedBarData(),
                         minY: 0,
@@ -590,7 +614,7 @@ List<ScatterData> _buildScatterData() {
                     ),
                     _buildChartContainer(
                       color: const Color.fromARGB(255, 202, 208, 219),
-                      title: 'Promedios por Sistema y Nivel',
+                      title: 'EVALUACION SISTEMA-ROL',
                       child: HorizontalBarSystemsChart(
                         data: horizontalData,
                         minY: 0,

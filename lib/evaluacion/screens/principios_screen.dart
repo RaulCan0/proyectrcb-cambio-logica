@@ -251,6 +251,8 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                                       ),
                                       trailing: const Icon(Icons.arrow_forward_ios),
                                       onTap: () {
+                                        // Buscar la calificación existente para este comportamiento
+                                        final calificacionExistente = calificacionesExistentes[nombre];
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
@@ -258,7 +260,14 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                                               principio: p,
                                               empresa: widget.empresa,
                                               asociado: widget.asociado,
-                                              onEvaluado: agregarComportamientoEvaluado, cargo: '', evaluacionId: '', dimensionId: '', empresaId: '', asociadoId: '', dimension: '',
+                                              onEvaluado: agregarComportamientoEvaluado,
+                                              calificacionExistente: calificacionExistente,
+                                              cargo: widget.asociado.cargo,
+                                              evaluacionId: '',
+                                              dimensionId: widget.dimensionId,
+                                              empresaId: widget.empresa.id,
+                                              asociadoId: widget.asociado.id,
+                                              dimension: '',
                                             ),
                                           ),
                                         );

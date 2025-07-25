@@ -1,11 +1,12 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
 import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
-import 'package:applensys/evaluacion/services/helpers/services.dart';
 import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:flutter/material.dart';
-import 'dart:ui';
+
 extension CapitalizeExtension on String {
   String capitalize() {
     if (isEmpty) return this;
@@ -30,27 +31,6 @@ class TablasDimensionScreen extends StatefulWidget {
     }
   }
 
-  static Future<void> cargarDatosDesdeSupabase(String evaluacionId) async {
-    final calificaciones = await SupabaseCalificacionesService().obtenerCalificaciones(evaluacionId);
-    final Map<String, Map<String, List<Map<String, dynamic>>>> resultado = {
-      'Dimensión 1': {},
-      'Dimensión 2': {},
-      'Dimensión 3': {},
-    };
-
-    for (var c in calificaciones) {
-      final dimension = c['dimension'];
-      final evalId = c['evaluacion_id'];
-      resultado.putIfAbsent(dimension, () => {});
-      resultado[dimension]!.putIfAbsent(evalId, () => []);
-      resultado[dimension]![evalId]!.add(c);
-    }
-
-    tablaDatos = resultado;
-    await EvaluacionCacheService().guardarTablas(tablaDatos);
-    dataChanged.value = !dataChanged.value;
-  }
-
   static Future<void> actualizarDato(
     String evaluacionId, {
     required String dimension,
@@ -73,28 +53,25 @@ class TablasDimensionScreen extends StatefulWidget {
         item['dimension_id'] == dimensionId &&
         item['asociado_id'] == asociadoId);
 
-    final nuevo = {
-      'evaluacion_id': evaluacionId,
-      'dimension': dimension,
-      'principio': principio,
-      'comportamiento': comportamiento,
-      'cargo': cargo.trim().capitalize(),
-      'cargo_raw': cargo,
-      'valor': valor,
-      'sistemas': sistemas,
-      'dimension_id': dimensionId,
-      'asociado_id': asociadoId,
-      'observaciones': observaciones,
-    };
-
     if (idx != -1) {
-      lista[idx] = nuevo;
+      lista[idx]['valor'] = valor;
+      lista[idx]['sistemas'] = sistemas;
+      lista[idx]['observaciones'] = observaciones;
     } else {
-      lista.add(nuevo);
+      lista.add({
+        'principio': principio,
+        'comportamiento': comportamiento,
+        'cargo': cargo.trim().capitalize(),
+        'cargo_raw': cargo,
+        'valor': valor,
+        'sistemas': sistemas,
+        'dimension_id': dimensionId,
+        'asociado_id': asociadoId,
+        'observaciones': observaciones,
+      });
     }
 
     await EvaluacionCacheService().guardarTablas(tablaDatos);
-    await SupabaseCalificacionesService().guardarCalificacion(nuevo);
     dataChanged.value = !dataChanged.value;
   }
 
@@ -130,7 +107,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> {
   void initState() {
     super.initState();
     TablasDimensionScreen.dataChanged.addListener(_onDataChanged);
-    _cargarDesdeCacheYRemoto();
+    _cargarDesdeCache();
   }
 
   @override
@@ -141,9 +118,11 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> {
 
   void _onDataChanged() => setState(() {});
 
-  Future<void> _cargarDesdeCacheYRemoto() async {
-    await TablasDimensionScreen.cargarDatosPersistidos();
-    await TablasDimensionScreen.cargarDatosDesdeSupabase(widget.evaluacionId);
+  Future<void> _cargarDesdeCache() async {
+    final data = await EvaluacionCacheService().cargarTablas();
+    if (data.values.any((m) => m.isNotEmpty)) {
+      setState(() => TablasDimensionScreen.tablaDatos = data);
+    }
     setState(() {
       dimensiones = dimensionInterna.keys.toList();
     });
@@ -204,7 +183,41 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> {
                     backgroundColor: const Color(0xFF003056),
                     foregroundColor: Colors.white,
                   ),
-                  onPressed: () => _irADetalles(context),
+                  onPressed: () {
+                    final currentIndex = DefaultTabController.of(context).index;
+                    final dimensionActual = dimensiones[currentIndex];
+                    final keyInterna = dimensionInterna[dimensionActual] ?? dimensionActual;
+                    final filas = TablasDimensionScreen.tablaDatos[keyInterna]?.values.expand((l) => l).toList() ?? [];
+
+                    final sumas = {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0};
+                    final conteos = {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0};
+
+                    for (var f in filas) {
+                      final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
+                      final valor = (f['valor'] ?? 0).toDouble();
+                      sumas[nivel] = sumas[nivel]! + valor;
+                      conteos[nivel] = conteos[nivel]! + 1;
+                    }
+
+                    final promedio = <String, double>{};
+                    sumas.forEach((nivel, suma) {
+                      final count = conteos[nivel]!;
+                      promedio[nivel] = count > 0 ? double.parse((suma / count).toStringAsFixed(2)) : 0.0;
+                    });
+
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => DetallesEvaluacionScreen(
+                          dimensionesPromedios: {dimensionActual: promedio},
+                          empresa: widget.empresa,
+                          evaluacionId: widget.evaluacionId,
+                          dimension: dimensionActual,
+                          promedios: promedio,
+                          initialTabIndex: currentIndex,
+                        ),
+                      ),
+                    );
+                  },
                   child: const Text('Ver detalles y avance'),
                 ),
               ),
@@ -222,38 +235,28 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> {
                   return InteractiveViewer(
                     constrained: false,
                     scaleEnabled: false,
-                    child: ScrollConfiguration(
-                      behavior: const MaterialScrollBehavior().copyWith(
-                        dragDevices: {
-                          PointerDeviceKind.touch,
-                          PointerDeviceKind.mouse,
-                          PointerDeviceKind.stylus,
-                          PointerDeviceKind.unknown,
-                        },
-                      ),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.all(8),
-                        child: DataTable(
-                          columnSpacing: 36,
-                          headingRowColor: WidgetStateProperty.all(isDark ? Colors.grey.shade800 : const Color(0xFF003056)),
-                          dataRowColor: WidgetStateProperty.all(isDark ? Colors.black26 : Colors.grey.shade200),
-                          border: TableBorder.all(color: const Color(0xFF003056)),
-                          columns: const [
-                            DataColumn(label: Text('Principio', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Comportamiento', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Ejecutivo', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Gerente', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Miembro', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Ejecutivo Sistemas', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Gerente Sistemas', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Miembro Sistemas', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Obs. Ejecutivo', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Obs. Gerente', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Obs. Miembro', style: TextStyle(color: Colors.white))),
-                          ],
-                          rows: _buildRows(filas, isDark),
-                        ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.all(8),
+                      child: DataTable(
+                        columnSpacing: 36,
+                        headingRowColor: WidgetStateProperty.all(isDark ? Colors.grey.shade800 : const Color(0xFF003056)),
+                        dataRowColor: WidgetStateProperty.all(isDark ? Colors.black26 : Colors.grey.shade200),
+                        border: TableBorder.all(color: const Color(0xFF003056)),
+                        columns: const [
+                          DataColumn(label: Text('Principio', style: TextStyle(color: Colors.white))),
+                          DataColumn(label: Text('Comportamiento', style: TextStyle(color: Colors.white))),
+                          DataColumn(label: Text('Ejecutivo', style: TextStyle(color: Colors.white))),
+                          DataColumn(label: Text('Gerente', style: TextStyle(color: Colors.white))),
+                          DataColumn(label: Text('Miembro', style: TextStyle(color: Colors.white))),
+                          DataColumn(label: Text('Ejecutivo Sistemas', style: TextStyle(color: Colors.white))),
+                          DataColumn(label: Text('Gerente Sistemas', style: TextStyle(color: Colors.white))),
+                          DataColumn(label: Text('Miembro Equipo Sistemas', style: TextStyle(color: Colors.white))),
+                          DataColumn(label: Text('Observaciones Ejecutivo', style: TextStyle(color: Colors.white))),
+                          DataColumn(label: Text('Observaciones Gerente', style: TextStyle(color: Colors.white))),
+                          DataColumn(label: Text('Observaciones Miembro Equipo', style: TextStyle(color: Colors.white))),
+                        ],
+                        rows: _buildRows(filas, isDark),
                       ),
                     ),
                   );
@@ -266,91 +269,44 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> {
     );
   }
 
-  void _irADetalles(BuildContext context) {
-    final currentIndex = DefaultTabController.of(context).index;
-    final dimensionActual = dimensiones[currentIndex];
-    final dimensionKey = dimensionInterna[dimensionActual] ?? dimensionActual;
-    final filas = TablasDimensionScreen.tablaDatos[dimensionKey]?.values.expand((l) => l).toList() ?? [];
 
-    final sumas = {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0};
-    final conteos = {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0};
-
-    for (var f in filas) {
-      final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
-      final valor = (f['valor'] ?? 0).toDouble();
-      sumas[nivel] = sumas[nivel]! + valor;
-      conteos[nivel] = conteos[nivel]! + 1;
-    }
-
-    final promedio = <String, double>{};
-    sumas.forEach((nivel, suma) {
-      final count = conteos[nivel]!;
-      promedio[nivel] = count > 0 ? double.parse((suma / count).toStringAsFixed(2)) : 0.0;
-    });
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DetallesEvaluacionScreen(
-          dimensionesPromedios: {dimensionActual: promedio},
-          empresa: widget.empresa,
-          evaluacionId: widget.evaluacionId,
-          dimension: dimensionActual,
-          promedios: promedio,
-          initialTabIndex: currentIndex,
-        ),
-      ),
-    );
-  }
 
   List<DataRow> _buildRows(List<Map<String, dynamic>> filas, bool isDark) {
     final rows = <DataRow>[];
-    final niveles = ['Ejecutivo', 'Gerente', 'Miembro'];
-
-    final agrupado = <String, Map<String, Map<String, List<String>>>>{};
-    final observaciones = <String, Map<String, Map<String, List<String>>>>{};
-
+    // Agrupar por principio y comportamiento
+    final Map<String, Map<String, Map<String, Map<String, dynamic>>>> agrupado = {};
     for (var f in filas) {
       final p = f['principio'] ?? '';
       final c = f['comportamiento'] ?? '';
       final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
-      final valor = ((f['valor'] ?? 0) as num).toInt();
-      final sistemas = (f['sistemas'] as List?)?.join(', ') ?? '-';
-      final obs = f['observaciones'] ?? '-';
-
       agrupado.putIfAbsent(p, () => {});
-      agrupado[p]!.putIfAbsent(c, () => {for (var n in niveles) n: []});
-
-      observaciones.putIfAbsent(p, () => {});
-      observaciones[p]!.putIfAbsent(c, () => {for (var n in niveles) n: []});
-
-      agrupado[p]![c]![nivel]?.add(valor.toString());
-      agrupado[p]![c]!['$nivel Sistemas']?.add(sistemas);
-      observaciones[p]![c]![nivel]?.add(obs);
+      agrupado[p]!.putIfAbsent(c, () => {});
+      agrupado[p]![c]![nivel] = f;
     }
-
+    final niveles = ['Ejecutivo', 'Gerente', 'Miembro'];
     agrupado.forEach((principio, comps) {
       comps.forEach((comp, nivelesData) {
         final cells = <DataCell>[
           DataCell(Text(principio, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF003056)))),
           DataCell(Text(comp, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF003056)))),
           ...niveles.map((n) => DataCell(Text(
-            nivelesData[n]?.join(', ') ?? '-',
+            nivelesData[n]?['valor']?.toString() ?? '-',
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF003056)),
           ))),
           ...niveles.map((n) => DataCell(Text(
-            nivelesData['$n Sistemas']?.join(', ') ?? '-',
+            (nivelesData[n]?['sistemas'] is List && (nivelesData[n]?['sistemas'] as List).isNotEmpty)
+                ? (nivelesData[n]?['sistemas'] as List).join(', ')
+                : '-',
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF003056)),
           ))),
           ...niveles.map((n) => DataCell(Text(
-            observaciones[principio]?[comp]?[n]?.join(' | ') ?? '-',
+            nivelesData[n]?['observaciones']?.toString() ?? '-',
             style: TextStyle(color: isDark ? Colors.white : const Color(0xFF003056)),
           ))),
         ];
         rows.add(DataRow(cells: cells));
       });
     });
-
     return rows;
   }
 }

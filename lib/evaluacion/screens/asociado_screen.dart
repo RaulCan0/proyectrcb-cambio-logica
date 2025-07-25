@@ -6,7 +6,6 @@ import 'package:applensys/evaluacion/widgets/chat_screen.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -61,16 +60,13 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
         );
         progresoAsociado[asociado.id] = progreso;
 
-        switch (asociado.cargo.toLowerCase()) {
-          case 'ejecutivo':
-            ejecutivos.add(asociado);
-            break;
-          case 'gerente':
-            gerentes.add(asociado);
-            break;
-          case 'miembro':
-            miembros.add(asociado);
-            break;
+        final cargo = asociado.cargo.toLowerCase().trim();
+        if (cargo == 'ejecutivo') {
+          ejecutivos.add(asociado);
+        } else if (cargo == 'gerente') {
+          gerentes.add(asociado);
+        } else if (cargo.contains('miembro')) {
+          miembros.add(asociado);
         }
       }
       if (mounted) setState(() {});
@@ -142,7 +138,7 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
                   cargoSeleccionado = value!;
                 },
                 decoration: InputDecoration(
-                  labelText: 'Nivel',
+                  labelText: 'Cargo',
                   labelStyle: GoogleFonts.roboto(),
                   border: const OutlineInputBorder(),
                 ),
