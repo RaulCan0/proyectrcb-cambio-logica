@@ -133,7 +133,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  /// Procesa las filas crudas a modelos [Dimension], [Principio] y [Comportamiento].
   void _procesarDimensionesDesdeRaw(List<Map<String, dynamic>> raw) {
     final Map<String, List<Map<String, dynamic>>> porDimension = {};
     for (final fila in raw) {
@@ -292,95 +291,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return data;
   }
 
-  /// Construye ScatterData solo con promedios > 0 y usando orElse que
-  /// devuelve un Principio vacío en lugar de null.
-List<ScatterData> _buildScatterData() {
-  // Radio fijo para cada punto
-  const double dotRadius = 8.0;
+  /// Construye ScatterData con promedios correctos por nivel, sumando solo calificaciones > 0
+  List<ScatterData> _buildScatterData() {
+    const double dotRadius = 8.0;
+    final principios = EvaluacionChartData.extractPrincipios(_dimensiones).cast<Principio>();
+    final List<ScatterData> list = [];
 
-  // Extraemos la lista de Principio en orden natural
-  final principios =
-      EvaluacionChartData.extractPrincipios(_dimensiones).cast<Principio>();
-
-  final List<ScatterData> list = [];
-
-  for (var pri in principios) { // Cambiado el bucle para no depender de 'i' directamente para yIndex
-    // Encontrar el índice del principio actual en la lista de nombres del gráfico
-    int yRawIndex = ScatterBubbleChart.principleName.indexOf(pri.nombre);
-
-    // Si el principio no está en la lista de nombres del gráfico, lo omitimos.
-    // Podrías manejar esto de otra manera si es necesario (ej. log, error, valor por defecto).
-    if (yRawIndex == -1) {
-      debugPrint('Principio "${pri.nombre}" no encontrado en ScatterBubbleChart.principleName. Omitiendo del gráfico.');
-      continue;
-    }
-    
-    final double yIndex = (yRawIndex + 1).toDouble(); // El índice base 0 se convierte a base 1 para el gráfico
-
-    // Calcular promedios por nivel
-    double sumaEj = 0, sumaGe = 0, sumaMi = 0;
-    int cuentaEj = 0, cuentaGe = 0, cuentaMi = 0;
-
-    for (final comp in pri.comportamientos) {
-      if (comp.promedioEjecutivo > 0) {
-        sumaEj += comp.promedioEjecutivo;
-        cuentaEj++;
+    for (var pri in principios) {
+      int yRawIndex = ScatterBubbleChart.principleName.indexOf(pri.nombre);
+      if (yRawIndex == -1) {
+        debugPrint('Principio "${pri.nombre}" no encontrado en ScatterBubbleChart.principleName. Omitiendo del gráfico.');
+        continue;
       }
-      if (comp.promedioGerente > 0) {
-        sumaGe += comp.promedioGerente;
-        cuentaGe++;
-      }
-      if (comp.promedioMiembro > 0) {
-        sumaMi += comp.promedioMiembro;
-        cuentaMi++;
-      }
-    }
+      final double yIndex = (yRawIndex + 1).toDouble();
 
-    final double promEj = (cuentaEj > 0) ? (sumaEj / cuentaEj) : 0.0;
-    final double promGe = (cuentaGe > 0) ? (sumaGe / cuentaGe) : 0.0;
-    final double promMi = (cuentaMi > 0) ? (sumaMi / cuentaMi) : 0.0;
+      // Recolecta todas las calificaciones por nivel
+      final List<double> califEj = [];
+      final List<double> califGe = [];
+      final List<double> califMi = [];
 
-    // Añadimos un ScatterData por cada serie, si tiene valor > 0
-    if (promEj > 0) {
-      list.add(
-        ScatterData(
-          x: promEj.clamp(0.0, 5.0),
-          y: yIndex, // Usar el yIndex calculado
-          color: Colors.orange,
-          radius: dotRadius,
-          seriesName: 'Ejecutivo',
-          principleName: pri.nombre,
-        ),
-      );
+      for (final comp in pri.comportamientos) {
+        if (comp.promedioEjecutivo > 0) califEj.add(comp.promedioEjecutivo);
+        if (comp.promedioGerente > 0) califGe.add(comp.promedioGerente);
+        if (comp.promedioMiembro > 0) califMi.add(comp.promedioMiembro);
+      }
+
+      final double promEj = califEj.isNotEmpty ? califEj.reduce((a, b) => a + b) / califEj.length : 0.0;
+      final double promGe = califGe.isNotEmpty ? califGe.reduce((a, b) => a + b) / califGe.length : 0.0;
+      final double promMi = califMi.isNotEmpty ? califMi.reduce((a, b) => a + b) / califMi.length : 0.0;
+
+      if (promEj > 0) {
+        list.add(
+          ScatterData(
+            x: promEj.clamp(0.0, 5.0),
+            y: yIndex,
+            color: Colors.orange,
+            radius: dotRadius,
+            seriesName: 'Ejecutivo',
+            principleName: pri.nombre,
+          ),
+        );
+      }
+      if (promGe > 0) {
+        list.add(
+          ScatterData(
+            x: promGe.clamp(0.0, 5.0),
+            y: yIndex,
+            color: Colors.green,
+            radius: dotRadius,
+            seriesName: 'Gerente',
+            principleName: pri.nombre,
+          ),
+        );
+      }
+      if (promMi > 0) {
+        list.add(
+          ScatterData(
+            x: promMi.clamp(0.0, 5.0),
+            y: yIndex,
+            color: Colors.blue,
+            radius: dotRadius,
+            seriesName: 'Miembro',
+            principleName: pri.nombre,
+          ),
+        );
+      }
     }
-    if (promGe > 0) {
-      list.add(
-        ScatterData(
-          x: promGe.clamp(0.0, 5.0),
-          y: yIndex, // Usar el yIndex calculado
-          color: Colors.green,
-          radius: dotRadius,
-          seriesName: 'Gerente',
-          principleName: pri.nombre,
-        ),
-      );
-    }
-    if (promMi > 0) {
-      list.add(
-        ScatterData(
-          x: promMi.clamp(0.0, 5.0),
-          y: yIndex, // Usar el yIndex calculado
-          color: Colors.blue,
-          radius: dotRadius,
-          seriesName: 'Miembro',
-          principleName: pri.nombre,
-        ),
-      );
-    }
+    return list;
   }
-
-  return list;
-}
 
   Map<String, List<double>> _buildGroupedBarData() {
     final Map<String, List<double>> data = {};
@@ -577,9 +555,11 @@ List<ScatterData> _buildScatterData() {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          MultiRingChart(
-                            puntosObtenidos: _buildPuntosObtenidosPorDimension(),
-                            isDetail: false,
+                          Center(
+                            child: MultiRingChart(
+                              puntosObtenidos: _buildPuntosObtenidosPorDimension(),
+                              isDetail: false,
+                            ),
                           ),
                           const SizedBox(height: 12),
                           // Mostrar los puntos obtenidos y totales por dimensión

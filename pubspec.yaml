@@ -47,6 +47,7 @@ dependencies:
   file_selector: ^1.0.3
   open_file: ^3.5.10
   convex_bottom_bar: ^3.2.0
+  connectivity_plus: ^6.1.4
 
 dev_dependencies:
   flutter_test:

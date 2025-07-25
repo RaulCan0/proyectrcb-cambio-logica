@@ -55,7 +55,7 @@ class _LoaderScreenState extends State<LoaderScreen> {
                 const SizedBox(height: 50),
                 Center(
                   child: SizedBox(
-                    height: 140,
+                    height: 250,
                     child: Image.asset(
                       Theme.of(context).brightness == Brightness.dark
                           ? 'assets/logoblanco.webp'
