@@ -69,7 +69,7 @@ class HorizontalBarSystemsChart extends StatelessWidget {
               minY: minY,
               barGroups: barGroups,
               alignment: BarChartAlignment.spaceAround,
-              groupsSpace: 24,
+              groupsSpace: 30,
              titlesData: FlTitlesData(
                 leftTitles: const AxisTitles(),
                 rightTitles: const AxisTitles(),

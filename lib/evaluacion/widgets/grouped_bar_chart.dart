@@ -58,7 +58,7 @@ class GroupedBarChart extends StatelessWidget {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final chartWidth = max(labels.length * 70.0, constraints.maxWidth);
+              final chartWidth = max(labels.length * 65.0, constraints.maxWidth);
              return ScrollConfiguration(
   behavior: const ScrollBehavior().copyWith(scrollbars: true),
   child: SingleChildScrollView(

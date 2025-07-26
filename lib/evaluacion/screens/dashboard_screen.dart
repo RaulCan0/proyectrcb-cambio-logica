@@ -133,6 +133,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  /// Procesa las filas crudas a modelos [Dimension], [Principio] y [Comportamiento].
   void _procesarDimensionesDesdeRaw(List<Map<String, dynamic>> raw) {
     final Map<String, List<Map<String, dynamic>>> porDimension = {};
     for (final fila in raw) {
@@ -153,31 +154,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
         porPrincipio.putIfAbsent(priNombre, () => []).add(fila);
       }
 
+
       final List<Principio> principiosModel = [];
 
       porPrincipio.forEach((priNombre, filasPri) {
-        double sumaPri = 0;
-        int conteoPri = 0;
-
         // Agrupar por 'comportamiento'
         final Map<String, List<Map<String, dynamic>>> porComportamiento = {};
         for (final filaP in filasPri) {
-          final compNombre =
-              (filaP['comportamiento'] as String?) ?? 'Sin comportamiento';
+          final compNombre = (filaP['comportamiento'] as String?) ?? 'Sin comportamiento';
           porComportamiento.putIfAbsent(compNombre, () => []).add(filaP);
         }
 
         final List<Comportamiento> compsModel = [];
 
-        porComportamiento.forEach((compNombre, filasComp) {
+        for (final compNombre in porComportamiento.keys) {
+          final filasComp = porComportamiento[compNombre]!;
           double sumaEj = 0, sumaGe = 0, sumaMi = 0;
           int countEj = 0, countGe = 0, countMi = 0;
-
           for (final row in filasComp) {
             final valor = (row['valor'] as num?)?.toDouble() ?? 0.0;
             final cargoRaw = (row['cargo_raw'] as String?)?.toLowerCase() ?? '';
-
-            // Permite que una fila cuente para varios cargos si corresponde
             if (cargoRaw.contains('ejecutivo')) {
               sumaEj += valor;
               countEj++;
@@ -191,56 +187,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
               countMi++;
             }
           }
-
           final double promEj = (countEj > 0) ? (sumaEj / countEj) : 0.0;
           final double promGe = (countGe > 0) ? (sumaGe / countGe) : 0.0;
           final double promMi = (countMi > 0) ? (sumaMi / countMi) : 0.0;
-
           compsModel.add(
             Comportamiento(
               nombre: compNombre,
               promedioEjecutivo: promEj,
               promedioGerente: promGe,
-              promedioMiembro: promMi, sistemas: [], nivel: null, principioId: '', id: '', cargo: null,
+              promedioMiembro: promMi,
+              sistemas: [],
+              nivel: null,
+              principioId: '',
+              id: '',
+              cargo: null,
             ),
           );
+        }
 
-          // Promedio general del comportamiento (solo niveles con datos)
-          double sumaPromediosNivel = 0;
-          int conteoNiveles = 0;
-          if (countEj > 0) {
-            sumaPromediosNivel += promEj;
-            conteoNiveles++;
+        // CORREGIDO: Calcular promedios de principio por nivel correctamente
+        double sumaEjPri = 0, sumaGePri = 0, sumaMiPri = 0;
+        int countEjPri = 0, countGePri = 0, countMiPri = 0;
+        for (final comp in compsModel) {
+          if (comp.promedioEjecutivo > 0) {
+            sumaEjPri += comp.promedioEjecutivo;
+            countEjPri++;
           }
-          if (countGe > 0) {
-            sumaPromediosNivel += promGe;
-            conteoNiveles++;
+          if (comp.promedioGerente > 0) {
+            sumaGePri += comp.promedioGerente;
+            countGePri++;
           }
-          if (countMi > 0) {
-            sumaPromediosNivel += promMi;
-            conteoNiveles++;
+          if (comp.promedioMiembro > 0) {
+            sumaMiPri += comp.promedioMiembro;
+            countMiPri++;
           }
-          if (conteoNiveles > 0) {
-            sumaPri += (sumaPromediosNivel / conteoNiveles);
-            conteoPri++;
-          }
-        });
-
-        final double promedioPri =
-            (conteoPri > 0) ? (sumaPri / conteoPri) : 0.0;
+        }
+        final double promedioEjPri = (countEjPri > 0) ? (sumaEjPri / countEjPri) : 0.0;
+        final double promedioGePri = (countGePri > 0) ? (sumaGePri / countGePri) : 0.0;
+        final double promedioMiPri = (countMiPri > 0) ? (sumaMiPri / countMiPri) : 0.0;
+        // El promedio general del principio puede ser el promedio de todos los promedios por nivel con datos
+        final List<double> promsPrincipio = [];
+        if (promedioEjPri > 0) promsPrincipio.add(promedioEjPri);
+        if (promedioGePri > 0) promsPrincipio.add(promedioGePri);
+        if (promedioMiPri > 0) promsPrincipio.add(promedioMiPri);
+        final double promedioGeneralPri = promsPrincipio.isNotEmpty ? promsPrincipio.reduce((a, b) => a + b) / promsPrincipio.length : 0.0;
 
         principiosModel.add(
           Principio(
             id: priNombre,
             dimensionId: dimNombre,
             nombre: priNombre,
-            promedioGeneral: promedioPri,
+            promedioGeneral: promedioGeneralPri,
             comportamientos: compsModel,
           ),
         );
 
-        if (promedioPri > 0) {
-          sumaGeneralDim += promedioPri;
+        if (promedioGeneralPri > 0) {
+          sumaGeneralDim += promedioGeneralPri;
           conteoGeneralDim++;
         }
       });
@@ -271,14 +274,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, double> _buildPuntosObtenidosPorDimension() {
     // Nombres amigables según tu estructura base y MultiRingChart
     const nombresDimensiones = {
-      '1': 'Impulsores Culturales',
-      '2': 'Mejora Continua',
-      '3': 'Alineamiento Empresarial',
+      '1': 'IMPULSORES CULTURALES',
+      '2': 'MEJORA CONTINUA',
+      '3': 'ALINEAMIENTO EMPRESARIAL',
     };
     final Map<String, double> data = {
-      'Impulsores Culturales': 0,
-      'Mejora Continua': 0,
-      'Alineamiento Empresarial': 0,
+      'IMPULSORES CULTURALES': 0,
+      'MEJORA CONTINUA': 0,
+      'ALINEAMIENTO EMPRESARIAL': 0,
     };
     for (final row in _dimensionesRaw) {
       final dimId = row['dimension_id']?.toString();
@@ -298,7 +301,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final List<ScatterData> list = [];
 
     for (var pri in principios) {
-      int yRawIndex = ScatterBubbleChart.principleName.indexOf(pri.nombre);
+      int yRawIndex = ScatterBubbleChart.principleNames.indexOf(pri.nombre);
       if (yRawIndex == -1) {
         debugPrint('Principio "${pri.nombre}" no encontrado en ScatterBubbleChart.principleName. Omitiendo del gráfico.');
         continue;
@@ -555,11 +558,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Center(
-                            child: MultiRingChart(
-                              puntosObtenidos: _buildPuntosObtenidosPorDimension(),
-                              isDetail: false,
-                            ),
+                          MultiRingChart(
+                            puntosObtenidos: _buildPuntosObtenidosPorDimension(),
+                            isDetail: false,
                           ),
                           const SizedBox(height: 12),
                           // Mostrar los puntos obtenidos y totales por dimensión

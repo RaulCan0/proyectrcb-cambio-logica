@@ -14,27 +14,41 @@ class _RecoveryState extends State<Recovery> {
   bool _isLoading = false;
 
   Future<void> _recover() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ingresa tu correo electrónico')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
-    final result = await AuthService().resetPassword(_emailController.text);
-    // ignore: unrelated_type_equality_checks
-    final bool success = result == true;
+    final result = await AuthService().resetPassword(email);
     setState(() => _isLoading = false);
 
     if (!mounted) return;
+    final success = result['success'] == true;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(success
-          ? 'Correo enviado para restablecer contraseña'
-          : 'Error al enviar correo'),
+      content: Text(success
+        ? (result['message'] ?? 'Correo enviado para restablecer la contraseña')
+        : (result['message'] ?? 'Error al enviar el correo')),
       ),
     );
-    if (success) Navigator.pop(context);
+
+    if (success) {
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) Navigator.pop(context); // volver al login
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       backgroundColor: AppColors.primary,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -44,28 +58,47 @@ class _RecoveryState extends State<Recovery> {
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    // ignore: deprecated_member_use
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 40,
+                bottom: bottomInset + 10,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset('assets/logo.webp', height: 100),
-                  const SizedBox(height: 20),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: IntrinsicHeight(
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color.fromRGBO(0, 0, 0, 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 30),
+                        AnimatedPadding(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.ease,
+                          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 10 : 60),
+                          child: SizedBox(
+                            height: 100,
+                            child: Image.asset('assets/logo.webp'),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                   const Text(
                     'Recuperar Contraseña',
                     style: TextStyle(
@@ -106,10 +139,14 @@ class _RecoveryState extends State<Recovery> {
                             ),
                     ),
                   ),
-                ],
+                  SizedBox(height: bottomInset + 10),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

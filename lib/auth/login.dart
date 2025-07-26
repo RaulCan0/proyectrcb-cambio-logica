@@ -1,9 +1,7 @@
+// ignore_for_file: deprecated_member_use
 
 import 'package:applensys/evaluacion/services/remote/auth_service.dart';
-import 'package:applensys/home_app.dart';
 import 'package:flutter/material.dart';
-import '../auth/recovery.dart';
-
 import '../custom/appcolors.dart';
 
 class Login extends StatefulWidget {
@@ -19,28 +17,23 @@ class _LoginState extends State<Login> {
   bool _isLoading = false;
 
   Future<void> _login() async {
-    // Validar campos vacíos
-    if (_emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
+    final email = _emailController.text.trim().toLowerCase();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, completa todos los campos')),
       );
       return;
     }
-
     setState(() => _isLoading = true);
     final supabaseService = AuthService();
-    final result = await supabaseService.login(
-      _emailController.text.trim(),
-      _passwordController.text.trim(),
-    );
+    final result = await supabaseService.login(email, password);
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } else {
       if (mounted) {
@@ -53,8 +46,11 @@ class _LoginState extends State<Login> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       backgroundColor: AppColors.primary,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -64,39 +60,53 @@ class _LoginState extends State<Login> {
         ),
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color.fromARGB(255, 95, 95, 95)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    // ignore: deprecated_member_use
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 40,
+                bottom: bottomInset + 10,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Center(
-                    child: SizedBox(
-                      height: 140,
-                      child: Image.asset(
-                        Theme.of(context).brightness == Brightness.dark
-                            ? 'assets/logoblanco.webp'
-                            : 'assets/logo.webp',
-                      ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: IntrinsicHeight(
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color.fromARGB(255, 95, 95, 95)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 30),
+                        AnimatedPadding(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.ease,
+                          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 10 : 60),
+                          child: SizedBox(
+                            height: 120,
+                            child: Image.asset(
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? 'assets/logoblanco.webp'
+                                  : 'assets/logo.webp',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                   const Text(
                     'Bienvenido de nuevo',
                     style: TextStyle(
@@ -129,12 +139,12 @@ class _LoginState extends State<Login> {
                       ),
                     ),
                   ),
-                  TextButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const Recovery()),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.pushNamed(context, '/recovery'),
+                      child: const Text('¿Olvidaste tu contraseña?'),
                     ),
-                    child: const Text('¿Olvidaste tu contraseña?'),
                   ),
                   const SizedBox(height: 20),
                   SizedBox(
@@ -156,11 +166,16 @@ class _LoginState extends State<Login> {
                             ),
                     ),
                   ),
+                  SizedBox(height: bottomInset + 10),
                 ],
               ),
             ),
           ),
         ),
-      ),
-    );
-    }}
+      );
+    },
+  ),
+),
+);
+}
+}

@@ -1,4 +1,3 @@
-// HomeScreen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,33 +7,29 @@ import '../../custom/appcolors.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 import 'package:applensys/evaluacion/screens/empresas_screen.dart';
 import 'package:applensys/evaluacion/screens/perfil_screen.dart';
-
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
-
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _selectedIndex = 0;
-  final PageController _pageController = PageController();
-
-  final List<Widget> _pages = const [
+  int _selectedIndex = 1; // Inicio es el centro
+  final PageController _pageController = PageController(initialPage: 1);
+   final List<Widget> _pages = const [
+    SizedBox(), // Placeholder para salir
     _DashboardView(),
-    EmpresasScreen(),
     PerfilScreen(),
   ];
-
-  void _onItemTapped(int index) {
-    if (index == 3) {
-      Supabase.instance.client.auth.signOut();
+  void _onItemTapped(int index) async {
+    if (index == 0) {
+      await Supabase.instance.client.auth.signOut();
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/loader');
       return;
     }
     setState(() => _selectedIndex = index);
     _pageController.jumpToPage(index);
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,15 +40,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       bottomNavigationBar: NavigationBar(
         height: 70,
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.primary,
         surfaceTintColor: Colors.white,
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Inicio'),
-          NavigationDestination(icon: Icon(Icons.analytics_outlined), label: 'Diagnóstico'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Perfil'),
           NavigationDestination(icon: Icon(Icons.logout), label: 'Salir'),
+          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Inicio'),
+          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Perfil'),
         ],
       ),
     );
@@ -66,7 +60,6 @@ class _DashboardView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final textSize = ref.watch(textSizeProvider);
     final user = Supabase.instance.client.auth.currentUser;
-
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,9 +67,7 @@ class _DashboardView extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primary],
-              ),
+              gradient: LinearGradient(colors: [AppColors.primary, AppColors.primary]),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -112,7 +103,7 @@ class _DashboardView extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const _WeatherWidget(lat: 20.5888, lon: -100.3899), // coords de Querétaro
+                const _WeatherWidget(lat: 20.5888, lon: -100.3899),
               ],
             ),
           ),
@@ -123,26 +114,21 @@ class _DashboardView extends ConsumerWidget {
     );
   }
 }
-
 class _DashboardCards extends StatefulWidget {
   const _DashboardCards();
   @override
   State<_DashboardCards> createState() => _DashboardCardsState();
 }
-
 class _DashboardCardsState extends State<_DashboardCards> {
   final ScrollController _scrollController = ScrollController();
-
   void _scrollLeft() {
     final newOffset = (_scrollController.offset - 200).clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController.animateTo(newOffset, duration: const Duration(milliseconds: 300), curve: Curves.ease);
   }
-
   void _scrollRight() {
     final newOffset = (_scrollController.offset + 200).clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController.animateTo(newOffset, duration: const Duration(milliseconds: 300), curve: Curves.ease);
   }
-
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -178,15 +164,12 @@ class _DashboardCardsState extends State<_DashboardCards> {
     );
   }
 }
-
 class _DashboardCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color bgColor;
   final VoidCallback? onTap;
-
   const _DashboardCard({required this.title, required this.icon, required this.bgColor, this.onTap});
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -216,20 +199,18 @@ class _DashboardCard extends StatelessWidget {
     );
   }
 }
-
 class _WeatherWidget extends StatelessWidget {
   final double lat;
   final double lon;
   const _WeatherWidget({required this.lat, required this.lon});
-
-  @override
+ @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         const Icon(Icons.thermostat, color: Colors.white),
         const SizedBox(width: 5),
         FutureBuilder<Map<String, dynamic>>(
-            future: fetchWeatherCelsius(lat, lon).then((temp) => {'temp': temp}),
+          future: fetchWeatherCelsius(lat, lon).then((temp) => {'temp': temp}),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Text('Cargando...', style: TextStyle(color: Colors.white));
@@ -252,16 +233,8 @@ Future<double> fetchWeatherCelsius(double lat, double lon) async {
     'current_weather': 'true',
     'timezone': 'auto',
   });
-
   final resp = await http.get(uri);
-  if (resp.statusCode != 200) {
-    throw Exception('Error al obtener clima: ${resp.statusCode}');
-  }
-
-  final Map<String, dynamic> data = json.decode(resp.body);
-
-  // Extraer la temperatura actual directamente del JSON (por defecto es en °C)
-  final tempCelsius = (data['current_weather']['temperature'] as num).toDouble();
-
-  return tempCelsius;
+  if (resp.statusCode != 200) throw Exception('Error al obtener clima: ${resp.statusCode}');
+  final data = json.decode(resp.body);
+  return (data['current_weather']['temperature'] as num).toDouble();
 }

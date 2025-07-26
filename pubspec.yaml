@@ -20,14 +20,15 @@ dependencies:
   font_awesome_flutter: ^10.5.0
   responsive_framework: ^1.5.1
   flutter_slidable: ^4.0.0
-  flutter_local_notifications: ^19.3.1
+  flutter_local_notifications: ^19.4.0
   timezone: ^0.10.1
   path: ^1.8.3
-  meta: ^1.16.0
   intl: ^0.20.2
   shared_preferences: ^2.2.3
   path_provider: ^2.1.5
   get_it: ^8.0.3
+  google_sign_in: ^6.1.5
+  googleapis: ^14.0.0
   flutter_riverpod: ^2.6.1
   flutter_localizations:
     sdk: flutter
@@ -54,7 +55,6 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0 
   pubspec_checker: ^1.0.9
-
 
 flutter:
   uses-material-design: true

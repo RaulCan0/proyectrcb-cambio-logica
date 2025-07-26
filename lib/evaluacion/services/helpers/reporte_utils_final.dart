@@ -1,5 +1,9 @@
+// Cliente de autenticación para Google APIs
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:path_provider/path_provider.dart';
 
 class ReporteComportamiento {
@@ -169,9 +173,49 @@ class ReporteUtils {
     }
     buffer.writeln('</table></body></html>');
 
+    // Guardar en almacenamiento interno (Documents) según plataforma
     final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/reporte_unificado.doc');
+    String filePath = '';
+    if (Platform.isAndroid || Platform.isIOS) {
+      filePath = '${dir.path}/reporte_unificado.doc';
+    } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      filePath = '${dir.path}/reporte_unificado.doc';
+    } else {
+      filePath = '${dir.path}/reporte_unificado.doc';
+    }
+    final file = File(filePath);
     await file.writeAsString(buffer.toString(), encoding: const Utf8Codec());
+
+    // Subir automáticamente a Google Drive
+    await subirReporteADrive(filePath);
+
     return file.path;
+  }
+
+  static Future<void> subirReporteADrive(String filePath) async {
+    final googleSignIn = GoogleSignIn(scopes: [drive.DriveApi.driveFileScope]);
+    final account = await googleSignIn.signInSilently() ?? await googleSignIn.signIn();
+    if (account == null) throw Exception('No se pudo autenticar con Google');
+    final authHeaders = await account.authHeaders;
+    final client = GoogleAuthClient(authHeaders);
+    final driveApi = drive.DriveApi(client);
+
+    final fileToUpload = drive.File();
+    fileToUpload.name = 'reporte_unificado.doc';
+    final file = File(filePath);
+    await driveApi.files.create(
+      fileToUpload,
+      uploadMedia: drive.Media(file.openRead(), file.lengthSync()),
+    );
+  }
+}
+
+class GoogleAuthClient extends http.BaseClient {
+  final Map<String, String> _headers;
+  final http.Client _client = http.Client();
+  GoogleAuthClient(this._headers);
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    return _client.send(request..headers.addAll(_headers));
   }
 }

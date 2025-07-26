@@ -155,7 +155,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
     final lower = raw.toLowerCase();
     if (lower.contains('miembro')) return 'Miembro';
     if (lower.contains('gerente')) return 'Gerente';
-    return 'Ejecutivo';
+    return 'ejecutivo';
   }
 
   @override

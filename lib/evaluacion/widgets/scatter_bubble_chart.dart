@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-/// Datos individuales de cada burbuja
 class ScatterData {
-  final double x; // Promedio: 0.0 - 5.0
-  final double y; // Índice del principio: 1 - 10
+  final double x;
+  final double y;
   final Color color;
   final String seriesName;
   final String principleName;
@@ -20,7 +19,6 @@ class ScatterData {
   });
 }
 
-/// Gráfico de burbujas (scatter) con interacción táctil
 class ScatterBubbleChart extends StatelessWidget {
   final List<ScatterData> data;
   final bool isDetail;
@@ -28,10 +26,10 @@ class ScatterBubbleChart extends StatelessWidget {
   const ScatterBubbleChart({
     super.key,
     required this.data,
-    this.isDetail = false, 
+    this.isDetail = false,
   });
 
-  static const List<String> principleName = [
+  static const List<String> principleNames = [
     'Respetar a Cada Individuo',
     'Liderar con Humildad',
     'Buscar la Perfección',
@@ -62,96 +60,91 @@ class ScatterBubbleChart extends StatelessWidget {
     const offset = 0.2;
     final dotRadius = isDetail ? 30.0 : 20.0;
 
-    return Column(
-      children: [
-        Expanded(
-          child: ScatterChart(
-            ScatterChartData(
-              minX: minX,
-              maxX: maxX,
-              minY: minY,
-              maxY: maxY,
-              gridData: const FlGridData(show: true),
-              borderData: FlBorderData(
-                show: true,
-                border: const Border(
-                  bottom: BorderSide(color: Colors.black, width: 2),
-                  left:   BorderSide(color: Colors.black, width: 2),
-                  right:  BorderSide(color: Colors.transparent),
-                  top:    BorderSide(color: Colors.transparent),
-                ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: 600, // Puedes ajustar esto dinámicamente según el número de datos
+        height: 400,
+        child: ScatterChart(
+          ScatterChartData(
+            minX: minX,
+            maxX: maxX,
+            minY: minY,
+            maxY: maxY,
+            gridData: const FlGridData(show: true),
+            borderData: FlBorderData(
+              show: true,
+              border: const Border(
+                bottom: BorderSide(color: Colors.black, width: 2),
+                left: BorderSide(color: Colors.black, width: 2),
               ),
-              titlesData: FlTitlesData(
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    interval: 1,
-                    reservedSize: 160,
-                    getTitlesWidget: (value, meta) {
-                      final idx = value.toInt();
-                      if (idx >= 1 && idx <= principleName.length) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 4.0),
-                          child: Text(
-                            principleName[idx - 1],
-                            style: const TextStyle(fontSize: 13, color: Colors.black),
-                            textAlign: TextAlign.right,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                ),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    interval: 0.5,
-                    getTitlesWidget: (value, meta) => Text(
-                      value.toStringAsFixed(1),
-                      style: const TextStyle(fontSize: 10, color: Colors.black, height: 1.5),
-                    ),
-                  ),
-                ),
-                topTitles:    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles:  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              ),
-              scatterSpots: data.map((d) {
-                // Desplazamiento horizontal según serie
-                double xPos = d.x;
-                if (d.seriesName == 'Ejecutivo') {
-                  xPos = (d.x - offset).clamp(minX, maxX);
-                } else if (d.seriesName == 'Miembro') {
-                  xPos = (d.x + offset).clamp(minX, maxX);
-                }
-                return ScatterSpot(
-                  xPos,
-                  d.y,
-                  dotPainter: FlDotCirclePainter(
-                    radius: d.radius > 0 ? d.radius : dotRadius,
-                    color: d.color,
-                    strokeWidth: 0,
-                  ),
-                );
-              }).toList(),
-              scatterTouchData: ScatterTouchData(
-                enabled: true,
-                handleBuiltInTouches: true,
-                touchTooltipData: ScatterTouchTooltipData(
-                  getTooltipItems: (ScatterSpot touchedSpot) {
-                    return ScatterTooltipItem(
-                      'Valor: ${touchedSpot.x.toStringAsFixed(2)}',
-                      textStyle: const TextStyle(color: Colors.white),
-                    );
+            ),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 1,
+                  reservedSize: 180, // Espacio suficiente para textos largos
+                  getTitlesWidget: (value, meta) {
+                    int index = value.toInt();
+                    if (index >= 1 && index <= principleNames.length) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: Text(
+                          principleNames[index - 1],
+                          style: const TextStyle(fontSize: 12),
+                          maxLines: 2,
+                          overflow: TextOverflow.visible, // Asegura que se vea completo
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
                   },
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 0.5,
+                  getTitlesWidget: (value, meta) => Text(
+                    value.toStringAsFixed(1),
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                ),
+              ),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            scatterSpots: data.map((d) {
+              double xPos = d.x;
+              if (d.seriesName == 'Ejecutivo') {
+                xPos = (d.x - offset).clamp(minX, maxX);
+              } else if (d.seriesName == 'Miembro') {
+                xPos = (d.x + offset).clamp(minX, maxX);
+              }
+              return ScatterSpot(
+                xPos,
+                d.y,
+                dotPainter: FlDotCirclePainter(
+                  radius: d.radius > 0 ? d.radius : dotRadius,
+                  color: d.color,
+                  strokeWidth: 0,
+                ),
+              );
+            }).toList(),
+            scatterTouchData: ScatterTouchData(
+              enabled: true,
+              handleBuiltInTouches: true,
+              touchTooltipData: ScatterTouchTooltipData(
+                getTooltipItems: (spot) => ScatterTooltipItem(
+                  'Valor: ${spot.x.toStringAsFixed(2)}',
+                  textStyle: const TextStyle(color: Colors.white),
                 ),
               ),
             ),
           ),
         ),
-      ],
+      ),
     );
   }
-
 }

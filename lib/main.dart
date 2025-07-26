@@ -5,43 +5,34 @@ import 'package:applensys/auth/register.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 import 'package:applensys/evaluacion/providers/theme_provider.dart';
 import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
-import 'package:applensys/home_app.dart';
+import 'package:applensys/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:applensys/custom/configurations.dart';
 import 'package:applensys/custom/service_locator.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
   };
-
   await Supabase.initialize(
     url: Configurations.mSupabaseUrl,
     anonKey: Configurations.mSupabaseKey,
   );
-
   setupLocator();
   await locator<EvaluacionCacheService>().init();
-
   runApp(const ProviderScope(child: MyApp()));
 }
-
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final textSize = ref.watch(textSizeProvider);
     final scaleFactor = (textSize / 14.0).clamp(0.8, 2.0);
-
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'applensys',
@@ -82,7 +73,7 @@ class MyApp extends ConsumerWidget {
         '/recovery': (_) => const Recovery(),
         '/home': (_) => const HomeScreen(),
       },
-      home: const HomeScreen(),
+      home: const LoaderScreen(),
     );
   }
 }

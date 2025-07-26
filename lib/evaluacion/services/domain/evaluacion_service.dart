@@ -8,8 +8,6 @@ class EvaluacionService {
   final SupabaseClient _client = Supabase.instance.client;
 
   static const _mapaTotales = {'1': 6, '2': 14, '3': 8};
-
-  // Evaluación CRUD
   Future<List<Evaluacion>> getEvaluaciones() async {
     final res = await _client.from('detalles_evaluacion').select();
     return (res as List).map((e) => Evaluacion.fromMap(e)).toList();
