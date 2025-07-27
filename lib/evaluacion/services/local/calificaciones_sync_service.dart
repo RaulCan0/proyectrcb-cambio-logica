@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class CalificacionesSyncService {
   final SupabaseClient _client = Supabase.instance.client;
   final EvaluacionCacheService _cacheService = EvaluacionCacheService();
+
   Future<void> sincronizarDesdeSupabase() async {
     await _cacheService.init();
     final List<dynamic> res = await _client.from('calificaciones').select();
@@ -17,6 +18,7 @@ class CalificacionesSyncService {
     }
     await _cacheService.guardarTablas(tablaDatos);
   }
+
   Future<void> sincronizarCacheASupabase() async {
     await _cacheService.init();
     final tabla = await _cacheService.cargarTablas();
@@ -31,5 +33,15 @@ class CalificacionesSyncService {
     if (items.isNotEmpty) {
       await _client.from('calificaciones').upsert(items, onConflict: 'id');
     }
+  }
+
+  Future<Map<String, Map<String, List<Map<String, dynamic>>>>> cargarTablas() async {
+    await _cacheService.init();
+    return await _cacheService.cargarTablas();
+  }
+
+  Future<void> guardarTablas(Map<String, Map<String, List<Map<String, dynamic>>>> tablaDatos) async {
+    await _cacheService.init();
+    await _cacheService.guardarTablas(tablaDatos);
   }
 }

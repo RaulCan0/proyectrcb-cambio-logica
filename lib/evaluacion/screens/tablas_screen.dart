@@ -3,7 +3,7 @@
 import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
 import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
-import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
+import 'package:applensys/evaluacion/services/local/calificaciones_sync_service.dart';
 // ignore: unused_import
 import 'package:applensys/evaluacion/services/domain/supabase_service.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
@@ -18,13 +18,57 @@ extension CapitalizeExtension on String {
 }
 
 class TablasDimensionScreen extends StatefulWidget {
-  static Map<String, Map<String, List<Map<String, dynamic>>>> tablaDatos = {
-    'Dimensión 1': {},
-    'Dimensión 2': {},
-    'Dimensión 3': {},
-  };
-
-  static final ValueNotifier<bool> dataChanged = ValueNotifier<bool>(false);
+  // Método estático para actualizar datos y sincronizar
+  static Future<void> actualizarDato(
+    String evaluacionId, {
+    required String dimension,
+    required String principio,
+    required String comportamiento,
+    required String cargo,
+    required int valor,
+    required List<String> sistemas,
+    required String dimensionId,
+    required String asociadoId,
+    required String observaciones,
+  }) async {
+    try {
+      final tablaDim = tablaDatos.putIfAbsent(dimension, () => {});
+      final lista = tablaDim.putIfAbsent(evaluacionId, () => []);
+      final indiceExistente = lista.indexWhere((item) =>
+        item['principio'] == principio &&
+        item['comportamiento'] == comportamiento &&
+        item['cargo_raw'] == cargo &&
+        item['dimension_id'] == dimensionId &&
+        item['asociado_id'] == asociadoId);
+      if (indiceExistente != -1) {
+        lista[indiceExistente]['valor'] = valor;
+        lista[indiceExistente]['sistemas'] = sistemas;
+        lista[indiceExistente]['observaciones'] = observaciones;
+      } else {
+        lista.add({
+          'principio': principio,
+          'comportamiento': comportamiento,
+          'cargo': cargo.trim().capitalize(),
+          'cargo_raw': cargo,
+          'valor': valor,
+          'sistemas': sistemas,
+          'dimension_id': dimensionId,
+          'asociado_id': asociadoId,
+          'observaciones': observaciones,
+        });
+      }
+      // Guardar y sincronizar
+      final syncService = CalificacionesSyncService();
+      await syncService.guardarTablas(tablaDatos);
+      await syncService.sincronizarCacheASupabase();
+      dataChanged.value = !dataChanged.value;
+    } catch (e) {
+      debugPrint('Error al guardar: $e');
+    }
+  }
+  // Variables estáticas públicas para acceso global
+  static Map<String, Map<String, List<Map<String, dynamic>>>> tablaDatos = {};
+  static ValueNotifier<bool> dataChanged = ValueNotifier(false);
 
   final Empresa empresa;
   final String evaluacionId;
@@ -41,113 +85,41 @@ class TablasDimensionScreen extends StatefulWidget {
     required this.dimension,
   });
 
-  static Future<void> cargarDatosPersistidos() async {
-    final data = await EvaluacionCacheService().cargarTablas();
-    if (data.isNotEmpty) {
-      tablaDatos = data;
-      dataChanged.value = !dataChanged.value;
-    }
-  }
-
-  static Future<void> actualizarDato(
-    String evaluacionId, {
-    required String dimension,
-    required String principio,
-    required String comportamiento,
-    required String cargo,
-    required int valor,
-    required List<String> sistemas,
-    required String dimensionId,
-    required String asociadoId,
-    required String observaciones,
-  }) async {
-    final tablaDim = tablaDatos.putIfAbsent(dimension, () => {});
-    final lista = tablaDim.putIfAbsent(evaluacionId, () => []);
-
-    final indiceExistente = lista.indexWhere((item) =>
-        item['principio'] == principio &&
-        item['comportamiento'] == comportamiento &&
-        item['cargo_raw'] == cargo &&
-        item['dimension_id'] == dimensionId &&
-        item['asociado_id'] == asociadoId);
-
-    if (indiceExistente != -1) {
-      lista[indiceExistente]['valor'] = valor;
-      lista[indiceExistente]['sistemas'] = sistemas;
-      lista[indiceExistente]['observaciones'] = observaciones;
-    } else {
-      lista.add({
-        'principio': principio,
-        'comportamiento': comportamiento,
-        'cargo': cargo.trim().capitalize(),
-        'cargo_raw': cargo,
-        'valor': valor,
-        'sistemas': sistemas,
-        'dimension_id': dimensionId,
-        'asociado_id': asociadoId,
-        'observaciones': observaciones,
-      });
-    }
-
-    await EvaluacionCacheService().guardarTablas(tablaDatos);
-    dataChanged.value = !dataChanged.value;
-
-    try {
-      final supabaseService = SupabaseService();
-      await supabaseService.insertarOActualizarCalificacion(
-        evaluacionId: evaluacionId,
-        principio: principio,
-        comportamiento: comportamiento,
-        cargo: cargo,
-        valor: valor,
-        sistemas: sistemas,
-        dimensionId: int.parse(dimensionId),
-        asociadoId: asociadoId,
-        observaciones: observaciones,
-      );
-    } catch (e) {
-      debugPrint('Error al guardar en Supabase: \$e');
-    }
-  }
-
   @override
   State<TablasDimensionScreen> createState() => _TablasDimensionScreenState();
 }
 
 
 class _TablasDimensionScreenState extends State<TablasDimensionScreen> with TickerProviderStateMixin {
+  final CalificacionesSyncService syncService = CalificacionesSyncService();
+  bool isLoading = true;
+  String errorMsg = '';
   final Map<String, String> dimensionInterna = {
     'IMPULSORES CULTURALES': 'Dimensión 1',
     'MEJORA CONTINUA': 'Dimensión 2',
     'ALINEAMIENTO EMPRESARIAL': 'Dimensión 3',
   };
-
-  List<String> dimensiones = [];
+  List<String> dimensiones = [
+    'IMPULSORES CULTURALES',
+    'MEJORA CONTINUA',
+    'ALINEAMIENTO EMPRESARIAL',
+  ];
 
   @override
   void initState() {
     super.initState();
-    TablasDimensionScreen.dataChanged.addListener(_onDataChanged);
-    _cargarDesdeCache();
+    _loadData();
   }
 
-  @override
-  void dispose() {
-    TablasDimensionScreen.dataChanged.removeListener(_onDataChanged);
-    super.dispose();
-  }
-
-  void _onDataChanged() => setState(() {});
-
-  Future<void> _cargarDesdeCache() async {
-    final data = await EvaluacionCacheService().cargarTablas();
-    if (data.values.any((m) => m.isNotEmpty)) {
-      setState(() => TablasDimensionScreen.tablaDatos = data);
-    }
-    if (mounted) {
-      setState(() {
-        dimensiones = dimensionInterna.keys.toList();
-      });
+  Future<void> _loadData() async {
+    setState(() { isLoading = true; errorMsg = ''; });
+    try {
+      await syncService.sincronizarDesdeSupabase();
+      TablasDimensionScreen.tablaDatos = await syncService.cargarTablas();
+    } catch (e) {
+      errorMsg = 'Error al cargar datos: $e';
+    } finally {
+      if (mounted) setState(() { isLoading = false; });
     }
   }
 
@@ -160,20 +132,19 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
 
   @override
   Widget build(BuildContext context) {
-    dimensiones = dimensionInterna.keys.toList();
+    // Variable 'dims' eliminada porque no se utiliza
 
     return DefaultTabController(
       length: dimensiones.length,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: const Color(0xFF003056),
-          title: const Center(
-            child: Text(
-              'Resultados en tiempo real',
-              style: TextStyle(color: Colors.white),
-            ),
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
           ),
-          iconTheme: const IconThemeData(color: Colors.white),
+          title: const Text('Resultados en tiempo real', style: TextStyle(color: Colors.white)),
           actions: [
             IconButton(
               icon: const Icon(Icons.assessment, color: Colors.white),
@@ -204,7 +175,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
             tabs: dimensiones.map((d) => Tab(child: Text(d))).toList(),
           ),
         ),
-        endDrawer: const DrawerLensys(),
+        drawer: const DrawerLensys(),
         body: Column(
           children: [
             Padding(

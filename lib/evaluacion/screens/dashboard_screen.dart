@@ -556,11 +556,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: const Color.fromARGB(255, 171, 172, 173),
                       title: 'EVALUACION DIMENSION-ROL',
                       child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisSize: MainAxisSize.max,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          MultiRingChart(
-                            puntosObtenidos: _buildPuntosObtenidosPorDimension(),
-                            isDetail: false,
+                          Center(
+                            child: MultiRingChart(
+                              puntosObtenidos: _buildPuntosObtenidosPorDimension(),
+                              isDetail: false,
+                            ),
                           ),
                           const SizedBox(height: 12),
                           // Mostrar los puntos obtenidos y totales por dimensión
@@ -603,7 +606,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         sistemasOrdenados: _sistemasOrdenados,
                       ),
                     ),
-                    Row(
+                   
+                  ],
+                ),
+              ),
+            ),
+            Container(
+              width: 56,
+              color: AppColors.primary,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chat, color: Colors.white),
+                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                    tooltip: 'Chat Interno',
+                  ),
+                   Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Tooltip(
@@ -635,22 +654,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-            Container(
-              width: 56,
-              color: AppColors.primary,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chat, color: Colors.white),
-                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                    tooltip: 'Chat Interno',
-                  ),
-                  // Puedes agregar más IconButton aquí si es necesario
                 ],
               ),
             ),

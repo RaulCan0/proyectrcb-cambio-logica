@@ -167,6 +167,11 @@ class _ComportamientoEvaluacionScreenState
       _showAlert('Validación', 'Selecciona al menos un sistema.');
       return;
     }
+    if (widget.principio.nombre.isEmpty || widget.dimensionId.isEmpty) {
+      _showAlert('Error', 'Faltan datos de principio o dimensión.');
+      setState(() => isSaving = false);
+      return;
+    }
     setState(() => isSaving = true);
     try {
       final nombreComp =
@@ -219,7 +224,7 @@ class _ComportamientoEvaluacionScreenState
             evidenciaUrl: evidenciaUrl,
           );
           await calificacionService.updateCalificacionFull(calObj);
-          TablasDimensionScreen.actualizarDato(
+          await TablasDimensionScreen.actualizarDato(
             widget.evaluacionId,
             dimension: obtenerNombreDimensionInterna(widget.dimensionId),
             principio: widget.principio.nombre,
@@ -253,7 +258,7 @@ class _ComportamientoEvaluacionScreenState
         evidenciaUrl: evidenciaUrl,
       );
       await calificacionService.addCalificacion(calObj);
-      TablasDimensionScreen.actualizarDato(
+      await TablasDimensionScreen.actualizarDato(
         widget.evaluacionId,
         dimension: obtenerNombreDimensionInterna(widget.dimensionId), // Usar la nueva función
         principio: widget.principio.nombre,
