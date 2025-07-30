@@ -231,6 +231,15 @@ class _DashboardCard extends StatelessWidget {
   }
 }
 
+Future<Map<String, dynamic>> fetchWeather() async {
+  // Simulated weather data; replace with real API call if needed
+  await Future.delayed(const Duration(seconds: 1));
+  return {
+    'temp': 25,
+    'city': 'Ciudad Ejemplo',
+  };
+}
+
 class _WeatherWidget extends StatelessWidget {
   const _WeatherWidget();
 
@@ -257,12 +266,5 @@ class _WeatherWidget extends StatelessWidget {
       ],
     );
   }
-}
 
-Future<Map<String, dynamic>> fetchWeather() async {
-  await Future.delayed(const Duration(seconds: 2));
-  return {
-    'temp': 22,
-    'city': 'Madrid',
-  };
 }

@@ -240,6 +240,9 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
                             DataColumn(label: Text('Ejecutivo Sistemas', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Gerente Sistemas', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Miembro Sistemas', style: TextStyle(color: Colors.white))),
+                            DataColumn(label: Text('Ejecutivo observaciones', style: TextStyle(color: Colors.white))),
+                            DataColumn(label: Text('Gerente observaciones', style: TextStyle(color: Colors.white))),
+                            DataColumn(label: Text('Miembro observaciones', style: TextStyle(color: Colors.white))),
                           ],
                           rows: _buildRows(filas),
                         ),
@@ -309,6 +312,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
     final sumas = <String, Map<String, Map<String, int>>>{};
     final conteos = <String, Map<String, Map<String, int>>>{};
     final sistemasPorNivel = <String, Map<String, Map<String, Set<String>>>>{};
+    final observacionesPorNivel = <String, Map<String, Map<String, String>>>{};
 
     for (var f in filas) {
       final principio = f['principio'] ?? '';
@@ -316,6 +320,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
       final int valor = ((f['valor'] ?? 0) as num).toInt();
       final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
+      final observacion = f['observaciones'] ?? '';
 
       sumas.putIfAbsent(principio, () => {});
       sumas[principio]!.putIfAbsent(comportamiento, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
@@ -327,12 +332,20 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
         'Gerente': <String>{},
         'Miembro': <String>{},
       });
+      observacionesPorNivel.putIfAbsent(principio, () => {});
+      observacionesPorNivel[principio]!.putIfAbsent(comportamiento, () => {
+        'Ejecutivo': '',
+        'Gerente': '',
+        'Miembro': '',
+      });
 
       sumas[principio]![comportamiento]![nivel] = sumas[principio]![comportamiento]![nivel]! + valor;
       conteos[principio]![comportamiento]![nivel] = conteos[principio]![comportamiento]![nivel]! + 1;
       for (var s in sistemas) {
         sistemasPorNivel[principio]![comportamiento]![nivel]!.add(s);
       }
+      // Solo guarda la última observación para ese nivel, principio y comportamiento
+      observacionesPorNivel[principio]![comportamiento]![nivel] = observacion;
     }
 
     return sumas.entries.expand((e) {
@@ -352,6 +365,11 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
           ...niveles.map((n) {
             final sistemas = sistemasPorNivel[p]![c]![n]!;
             return DataCell(Text(sistemas.isEmpty ? '-' : sistemas.join(', '), style: const TextStyle(color: Color(0xFF003056))));
+          }),
+          ...niveles.map((n) {
+            final obs = observacionesPorNivel[p]![c]![n];
+            final obsText = (obs != null && obs.isNotEmpty) ? obs : '-';
+            return DataCell(Text(obsText, style: const TextStyle(color: Color(0xFF003056))));
           }),
         ]);
       });

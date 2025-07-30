@@ -264,49 +264,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// Datos para el gráfico de Dona (promedio general por dimensión).
   Map<String, double> _buildMultiringData() {
+    // Las claves deben coincidir exactamente con las de puntosTotales en MultiRingChart
     const nombresDimensiones = {
-      '1': 'IMPULSORES CULTURALES',
-      '2': 'MEJORA CONTINUA',
-      '3': 'ALINEAMIENTO EMPRESARIAL',
+      '1': 'Impulsores Culturales',
+      '2': 'Mejora Continua',
+      '3': 'Alineamiento Empresarial',
     };
-    final Map<String, double> data = {};
+    final Map<String, double> data = {
+      'Impulsores Culturales': 0,
+      'Mejora Continua': 0,
+      'Alineamiento Empresarial': 0,
+    };
     for (final dim in _dimensiones) {
       final nombre = nombresDimensiones[dim.id] ?? dim.nombre;
-      data[nombre] = dim.promedioGeneral;
+      if (data.containsKey(nombre)) {
+        data[nombre] = dim.promedioGeneral;
+      }
     }
     return data;
   }
-
-  /// Construye ScatterData solo con promedios > 0 y usando orElse que
-  /// devuelve un Principio vacío en lugar de null.
 List<ScatterData> _buildScatterData() {
-  // Radio fijo para cada punto
   const double dotRadius = 8.0;
-
-  // Extraemos la lista de Principio en orden natural
-  final principios =
-      EvaluacionChartData.extractPrincipios(_dimensiones).cast<Principio>();
-
   final List<ScatterData> list = [];
+  final niveles = {
+    'Ejecutivo': Colors.orange,
+    'Gerente': Colors.green,
+    'Miembro': Colors.blue,
+  };
 
-  for (var pri in principios) { // Cambiado el bucle para no depender de 'i' directamente para yIndex
-    // Encontrar el índice del principio actual en la lista de nombres del gráfico
-    int yRawIndex = ScatterBubbleChart.principleName.indexOf(pri.nombre);
+  // Lista fija de principios (1–10)
+  final principiosOrdenados = [
+    'Respetar a Cada Individuo',
+    'Liderar con Humildad',
+    'Buscar la Perfección',
+    'Abrazar el Pensamiento Científico',
+    'Enfocarse en el Proceso',
+    'Asegurar la Calidad en la Fuente',
+    'Mejorar el Flujo y Jalón de Valor',
+    'Pensar Sistémicamente',
+    'Crear Constancia de Propósito',
+    'Crear Valor para el Cliente',
+  ];
 
-    // Si el principio no está en la lista de nombres del gráfico, lo omitimos.
-    // Podrías manejar esto de otra manera si es necesario (ej. log, error, valor por defecto).
-    if (yRawIndex == -1) {
-      debugPrint('Principio "${pri.nombre}" no encontrado en ScatterBubbleChart.principleName. Omitiendo del gráfico.');
-      continue;
-    }
-    
-    final double yIndex = (yRawIndex + 1).toDouble(); // El índice base 0 se convierte a base 1 para el gráfico
+  // Recorremos siempre los 10 principios
+  principiosOrdenados.asMap().forEach((index, principioNombre) {
+    // Buscar principio real
+    final principio = _dimensiones
+        .expand((dim) => dim.principios)
+        .firstWhere(
+          (p) => p.nombre == principioNombre,
+          orElse: () => Principio(
+            id: '',
+            dimensionId: '',
+            nombre: principioNombre,
+            promedioGeneral: 0.0,
+            comportamientos: [],
+          ),
+        );
 
-    // Calcular promedios por nivel
     double sumaEj = 0, sumaGe = 0, sumaMi = 0;
     int cuentaEj = 0, cuentaGe = 0, cuentaMi = 0;
 
-    for (final comp in pri.comportamientos) {
+    for (final comp in principio.comportamientos) {
       if (comp.promedioEjecutivo > 0) {
         sumaEj += comp.promedioEjecutivo;
         cuentaEj++;
@@ -321,51 +340,45 @@ List<ScatterData> _buildScatterData() {
       }
     }
 
-    final double promEj = (cuentaEj > 0) ? (sumaEj / cuentaEj) : 0.0;
-    final double promGe = (cuentaGe > 0) ? (sumaGe / cuentaGe) : 0.0;
-    final double promMi = (cuentaMi > 0) ? (sumaMi / cuentaMi) : 0.0;
+    final double promEj = cuentaEj > 0 ? sumaEj / cuentaEj : 0.0;
+    final double promGe = cuentaGe > 0 ? sumaGe / cuentaGe : 0.0;
+    final double promMi = cuentaMi > 0 ? sumaMi / cuentaMi : 0.0;
 
-    // Añadimos un ScatterData por cada serie, si tiene valor > 0
     if (promEj > 0) {
-      list.add(
-        ScatterData(
-          x: promEj.clamp(0.0, 5.0),
-          y: yIndex, // Usar el yIndex calculado
-          color: Colors.orange,
-          radius: dotRadius,
-          seriesName: 'Ejecutivo',
-          principleName: pri.nombre,
-        ),
-      );
+      list.add(ScatterData(
+        x: promEj.clamp(0.0, 5.0),
+        y: (index + 1).toDouble(),
+        color: niveles['Ejecutivo']!,
+        radius: dotRadius,
+        seriesName: 'Ejecutivo',
+        principleName: principioNombre,
+      ));
     }
     if (promGe > 0) {
-      list.add(
-        ScatterData(
-          x: promGe.clamp(0.0, 5.0),
-          y: yIndex, // Usar el yIndex calculado
-          color: Colors.green,
-          radius: dotRadius,
-          seriesName: 'Gerente',
-          principleName: pri.nombre,
-        ),
-      );
+      list.add(ScatterData(
+        x: promGe.clamp(0.0, 5.0),
+        y: (index + 1).toDouble(),
+        color: niveles['Gerente']!,
+        radius: dotRadius,
+        seriesName: 'Gerente',
+        principleName: principioNombre,
+      ));
     }
     if (promMi > 0) {
-      list.add(
-        ScatterData(
-          x: promMi.clamp(0.0, 5.0),
-          y: yIndex, // Usar el yIndex calculado
-          color: Colors.blue,
-          radius: dotRadius,
-          seriesName: 'Miembro',
-          principleName: pri.nombre,
-        ),
-      );
+      list.add(ScatterData(
+        x: promMi.clamp(0.0, 5.0),
+        y: (index + 1).toDouble(),
+        color: niveles['Miembro']!,
+        radius: dotRadius,
+        seriesName: 'Miembro',
+        principleName: principioNombre,
+      ));
     }
-  }
+  });
 
   return list;
 }
+
 
   Map<String, List<double>> _buildGroupedBarData() {
     final Map<String, List<double>> data = {};

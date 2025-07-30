@@ -28,7 +28,7 @@ class ScatterBubbleChart extends StatelessWidget {
   const ScatterBubbleChart({
     super.key,
     required this.data,
-    this.isDetail = false, 
+    this.isDetail = false,
   });
 
   static const List<String> principleName = [
@@ -76,9 +76,9 @@ class ScatterBubbleChart extends StatelessWidget {
                 show: true,
                 border: const Border(
                   bottom: BorderSide(color: Colors.black, width: 2),
-                  left:   BorderSide(color: Colors.black, width: 2),
-                  right:  BorderSide(color: Colors.transparent),
-                  top:    BorderSide(color: Colors.transparent),
+                  left: BorderSide(color: Colors.black, width: 2),
+                  right: BorderSide(color: Colors.transparent),
+                  top: BorderSide(color: Colors.transparent),
                 ),
               ),
               titlesData: FlTitlesData(
@@ -86,7 +86,7 @@ class ScatterBubbleChart extends StatelessWidget {
                   sideTitles: SideTitles(
                     showTitles: true,
                     interval: 1,
-                    reservedSize: 160,
+                    reservedSize: 180,
                     getTitlesWidget: (value, meta) {
                       final idx = value.toInt();
                       if (idx >= 1 && idx <= principleName.length) {
@@ -94,7 +94,10 @@ class ScatterBubbleChart extends StatelessWidget {
                           padding: const EdgeInsets.only(right: 4.0),
                           child: Text(
                             principleName[idx - 1],
-                            style: const TextStyle(fontSize: 13, color: Colors.black),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.black,
+                            ),
                             textAlign: TextAlign.right,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -110,15 +113,21 @@ class ScatterBubbleChart extends StatelessWidget {
                     interval: 0.5,
                     getTitlesWidget: (value, meta) => Text(
                       value.toStringAsFixed(1),
-                      style: const TextStyle(fontSize: 10, color: Colors.black, height: 1.5),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.black,
+                        height: 1.5,
+                      ),
                     ),
                   ),
                 ),
-                topTitles:    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles:  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
               ),
               scatterSpots: data.map((d) {
-                // Desplazamiento horizontal según serie
+                // Ajuste horizontal por serie
                 double xPos = d.x;
                 if (d.seriesName == 'Ejecutivo') {
                   xPos = (d.x - offset).clamp(minX, maxX);
@@ -140,8 +149,13 @@ class ScatterBubbleChart extends StatelessWidget {
                 handleBuiltInTouches: true,
                 touchTooltipData: ScatterTouchTooltipData(
                   getTooltipItems: (ScatterSpot touchedSpot) {
+                    final idx = touchedSpot.y.toInt();
+                    final principle = (idx >= 1 &&
+                            idx <= ScatterBubbleChart.principleName.length)
+                        ? ScatterBubbleChart.principleName[idx - 1]
+                        : '';
                     return ScatterTooltipItem(
-                      'Valor: ${touchedSpot.x.toStringAsFixed(2)}',
+                      '$principle\nValor: ${touchedSpot.x.toStringAsFixed(2)}',
                       textStyle: const TextStyle(color: Colors.white),
                     );
                   },
@@ -153,5 +167,4 @@ class ScatterBubbleChart extends StatelessWidget {
       ],
     );
   }
-
 }
