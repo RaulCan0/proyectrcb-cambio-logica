@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'package:applensys/evaluacion/providers/theme_provider.dart';
 import 'package:applensys/evaluacion/services/domain/supabase_service.dart';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import '../providers/theme_provider.dart';
+
 
 class PerfilScreen extends ConsumerStatefulWidget {
   const PerfilScreen({super.key});
@@ -15,19 +17,31 @@ class PerfilScreen extends ConsumerStatefulWidget {
 
 class _PerfilScreenState extends ConsumerState<PerfilScreen> {
   final SupabaseService _supabaseService = SupabaseService();
-  final _nombreController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _telefonoController = TextEditingController();
-  final _newPasswordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  final TextEditingController _nombreController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _telefonoController = TextEditingController();
+  final TextEditingController _newPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
   String? _fotoUrl;
   bool _loading = false;
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void initState() {
     super.initState();
     _cargarPerfil();
+  }
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _emailController.dispose();
+    _telefonoController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarPerfil() async {
@@ -48,15 +62,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
   }
 
   Future<void> _actualizarPerfil() async {
-    if (_nombreController.text.trim().isEmpty ||
-        _emailController.text.trim().isEmpty ||
-        _telefonoController.text.trim().isEmpty) {
-      _showError('Todos los campos son obligatorios');
-      return;
-    }
-
     setState(() => _loading = true);
-
     try {
       await _supabaseService.actualizarPerfil({
         'nombre': _nombreController.text.trim(),
@@ -67,17 +73,18 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
 
       if (_newPasswordController.text.isNotEmpty) {
         if (_newPasswordController.text != _confirmPasswordController.text) {
-          _showError('Las contraseñas no coinciden');
+          _showError('Las nuevas contraseñas no coinciden.');
+          setState(() => _loading = false);
           return;
         }
-        await _supabaseService.actualizarContrasena(
-          newPassword: _newPasswordController.text.trim(),
-        );
+        await _supabaseService.actualizarContrasena(newPassword: _newPasswordController.text.trim());
         _newPasswordController.clear();
         _confirmPasswordController.clear();
+        _showMessage('Perfil y contraseña actualizados correctamente.');
+      } else {
+        _showMessage('Perfil actualizado correctamente.');
       }
 
-      _showMessage('Perfil actualizado correctamente');
       if (!mounted) return;
       Navigator.pop(context);
     } catch (e) {
@@ -94,101 +101,163 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
       if (picked == null) return;
       path = picked.path;
     } else {
-      final file = await openFile(acceptedTypeGroups: [
-        const XTypeGroup(label: 'images', extensions: ['jpg', 'jpeg', 'png']),
-      ]);
+      final file = await openFile(
+        acceptedTypeGroups: [
+          const XTypeGroup(label: 'images', extensions: ['jpg', 'jpeg', 'png']),
+        ],
+      );
       if (file == null) return;
       path = file.path;
     }
-
-    setState(() => _loading = true);
-
     try {
       final fileInBucket = await _supabaseService.subirFotoPerfil(path);
-      final url = _supabaseService.getPublicUrl(bucket: 'profile_photos', path: fileInBucket);
+      final url = _supabaseService.getPublicUrl(
+        bucket: 'profile_photos',
+        path: fileInBucket,
+      );
       setState(() => _fotoUrl = url);
-      _showMessage('Foto actualizada correctamente');
+      _showMessage('Foto actualizada');
     } catch (e) {
       _showError('Error al subir foto: $e');
-    } finally {
-      setState(() => _loading = false);
     }
   }
 
-  void _showMessage(String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
+  }
 
-  void _showError(String err) => ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(err), backgroundColor: Colors.red));
+  void _showError(String err) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(err), backgroundColor: Colors.red),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(themeModeProvider);
-    final isDark = themeMode == ThemeMode.dark;
+    final screenSize = MediaQuery.of(context).size;
+    final current = ref.watch(themeModeProvider);
+    final themeNotifier = ref.read(themeModeProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Perfil', style: TextStyle(fontSize: 16)),
+        title: const Text(
+          'Perfil',
+          style: TextStyle(fontSize: 16),
+        ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-            onPressed: () {
-              final newMode = isDark ? ThemeMode.light : ThemeMode.dark;
-              ref.read(themeModeProvider.notifier).setTheme(newMode);
-            },
-            
-          ),
-        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    children: [
-                      GestureDetector(
-                        onTap: _seleccionarFoto,
-                        child: CircleAvatar(
+          : SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                vertical: screenSize.height * 0.02,
+                horizontal: screenSize.width * 0.05,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
                           radius: 60,
                           backgroundImage: _fotoUrl != null ? NetworkImage(_fotoUrl!) : null,
                           child: _fotoUrl == null ? const Icon(Icons.person, size: 60) : null,
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(controller: _nombreController, decoration: const InputDecoration(labelText: 'Nombre')),
-                      const SizedBox(height: 16),
-                      TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'Correo')),
-                      const SizedBox(height: 16),
-                      TextField(controller: _telefonoController, decoration: const InputDecoration(labelText: 'Teléfono')),
-                      const SizedBox(height: 24),
-                      TextField(
-                        controller: _newPasswordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Nueva contraseña'),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _confirmPasswordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Confirmar nueva contraseña'),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _actualizarPerfil,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF003056),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        GestureDetector(
+                          onTap: _seleccionarFoto,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.grey.shade800,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            padding: const EdgeInsets.all(6),
+                            child: const Icon(Icons.camera_alt, color: Colors.white),
+                          ),
                         ),
-                        child: const Text('Actualizar Perfil', style: TextStyle(color: Colors.white, fontSize: 16)),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                  SizedBox(height: screenSize.height * 0.03),
+                  TextField(
+                    controller: _nombreController,
+                    decoration: const InputDecoration(labelText: 'Nombre'),
+                  ),
+                  SizedBox(height: screenSize.height * 0.02),
+                  TextField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(labelText: 'Correo'),
+                  ),
+                  SizedBox(height: screenSize.height * 0.02),
+                  TextField(
+                    controller: _telefonoController,
+                    decoration: const InputDecoration(labelText: 'Teléfono'),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  SizedBox(height: screenSize.height * 0.03),
+                  const Text('Cambiar Contraseña (opcional)', style: TextStyle(fontSize: 16)),
+                  SizedBox(height: screenSize.height * 0.02),
+                  TextField(
+                    controller: _newPasswordController,
+                    decoration: InputDecoration(
+                      labelText: 'Nueva Contraseña',
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscureNewPassword ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () => setState(() => _obscureNewPassword = !_obscureNewPassword),
+                      ),
+                    ),
+                    obscureText: _obscureNewPassword,
+                  ),
+                  SizedBox(height: screenSize.height * 0.02),
+                  TextField(
+                    controller: _confirmPasswordController,
+                    decoration: InputDecoration(
+                      labelText: 'Confirmar Contraseña',
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                      ),
+                    ),
+                    obscureText: _obscureConfirmPassword,
+                  ),
+                  SizedBox(height: screenSize.height * 0.03),
+                  const Text('Tema de la app', style: TextStyle(fontSize: 16)),
+                  SizedBox(height: screenSize.height * 0.02),
+                  SegmentedButton<ThemeMode>(
+                    segments: const [
+                      ButtonSegment(value: ThemeMode.system, label: Text('Auto'), icon: Icon(Icons.settings)),
+                      ButtonSegment(value: ThemeMode.light, label: Text('Claro'), icon: Icon(Icons.light_mode)),
+                      ButtonSegment(value: ThemeMode.dark, label: Text('Oscuro'), icon: Icon(Icons.dark_mode)),
+                    ],
+                    selected: {current},
+                    onSelectionChanged: (modes) {
+                      final selected = modes.first;
+                      themeNotifier.setTheme(selected);
+                    },
+                  ),
+                  SizedBox(height: screenSize.height * 0.03),
+                  ElevatedButton(
+                    onPressed: _actualizarPerfil,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF003056),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Actualizar Perfil', style: TextStyle(fontSize: 16, color: Colors.white)),
+                  ),
+                  SizedBox(height: screenSize.height * 0.02),
+                
+
+
+                    
+                
+                ],
               ),
             ),
     );

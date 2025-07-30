@@ -13,7 +13,7 @@ class TablaScoreGlobal extends StatelessWidget {
     super.key,
     required this.empresa,
     required this.detalles,
-    required this.evaluaciones, required String evaluacionId,
+    required this.evaluaciones,
   });
 
   @override
@@ -114,7 +114,7 @@ class TablaScoreGlobal extends StatelessWidget {
     ];
     final shingoService = ShingoResultService();
     final auxRows = auxLabels.map((label) {
-      final calif = shingoService.resultados[label]?.calificacion ?? 0;
+      final calif = shingoService.getCalificacion(label) ?? 0;
       return DataRow(
         color: WidgetStateProperty.all(Colors.grey.shade200),
         cells: [

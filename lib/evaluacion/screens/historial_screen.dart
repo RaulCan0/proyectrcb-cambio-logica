@@ -59,58 +59,56 @@ class _HistorialScreenState extends State<HistorialScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: empresas.length,
-                itemBuilder: (context, index) {
-                  final empresa = empresas[index];
-                  return GestureDetector(
-                    onTap: () {
-                      // Acción al tocar empresa
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              empresa.nombre,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: empresas.length,
+              itemBuilder: (context, index) {
+                final empresa = empresas[index];
+                return GestureDetector(
+                  onTap: () {
+                  
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            empresa.nombre,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text('Asociados: ${empresa.empleadosAsociados.length}'),
-                              Text('Empleados: ${empresa.empleadosTotal}'),
-                            ],
-                          ),
-                        ],
-                      ),
+                        ),
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('Asociados: \${empresa.empleadosAsociados.length}'),
+                            Text('Empleados: \${empresa.empleadosTotal}'),
+                          ],
+                        ),
+                      ],
                     ),
-                  );
-                },
-              ),
-      ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }

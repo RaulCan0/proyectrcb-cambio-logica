@@ -1,11 +1,10 @@
 // ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures
 
-import 'package:applensys/custom/appcolors.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
-import 'package:applensys/evaluacion/widgets/donut.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:applensys/evaluacion/widgets/grouped_bar_chart.dart';
 import 'package:applensys/evaluacion/widgets/horizontal_bar_systems_chart.dart';
+import 'package:applensys/evaluacion/widgets/multiring.dart';
 import '../services/helpers/reporte_utils_final.dart';
 import 'package:flutter/material.dart';
 import '../models/empresa.dart';
@@ -264,7 +263,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   /// Datos para el gráfico de Dona (promedio general por dimensión).
-  Map<String, double> _buildDonutData() {
+  Map<String, double> _buildMultiringData() {
     const nombresDimensiones = {
       '1': 'IMPULSORES CULTURALES',
       '2': 'MEJORA CONTINUA',
@@ -447,7 +446,6 @@ List<ScatterData> _buildScatterData() {
   return promedioData;
 }
 
-  // ignore: unused_element
   Future<void> _generarReporteWord() async {
   setState(() => _isLoading = true);
 
@@ -528,10 +526,15 @@ List<ScatterData> _buildScatterData() {
 
     return Scaffold(
       key: _scaffoldKey,
+
+      // Drawer izquierdo para chat (80% del ancho)
       drawer: const ChatWidgetDrawer(),
+
+      // EndDrawer derecho normal (sin envolver en SizedBox)
       endDrawer: const DrawerLensys(),
+
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
+        backgroundColor: const Color(0xFF003056),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
@@ -543,118 +546,89 @@ List<ScatterData> _buildScatterData() {
           style: const TextStyle(
             color: Colors.white, 
             fontSize: 20,
-            fontFamily: 'Arial',
+            fontFamily: 'Arial', // Aplicar la fuente Arial aquí
           ),
         ),
         centerTitle: true,
       ),
-      body: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12.0),
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  children: [
-                    _buildChartContainer(
-                      child: DonutChart(
-                        data: _buildDonutData(),
-                        dataMap: const {
-                          'IMPULSORES CULTURALES': Colors.redAccent,
-                          'MEJORA CONTINUA': Colors.yellow,
-                          'ALINEAMIENTO EMPRESARIAL': Colors.lightBlueAccent,
-                        },
-                        isDetail: false,
-                      ),
-                      color: const Color.fromARGB(255, 171, 172, 173),
-                      title: 'Promedio por Dimensión',
-                    ),
-                    _buildChartContainer(
-                      color: const Color.fromARGB(255, 160, 163, 163),
-                      child: ScatterBubbleChart(
-                        data: _buildScatterData(),
-                        isDetail: false,
-                      ),
-                      title: 'Promedio por Principio',
-                    ),
-                    _buildChartContainer(
-                      color: const Color.fromARGB(255, 231, 220, 187),
-                      title: 'Distribución por Comportamiento y Nivel',
-                      child: GroupedBarChart(
-                        data: _buildGroupedBarData(),
-                        minY: 0,
-                        maxY: 5,
-                        isDetail: false,
-                      ),
-                    ),
-                    _buildChartContainer(
-                      color: const Color.fromARGB(255, 202, 208, 219),
-                      title: 'Promedios por Sistema y Nivel',
-                      child: HorizontalBarSystemsChart(
-                        data: horizontalData,
-                        minY: 0,
-                        maxY: 5,
-                        sistemasOrdenados: _sistemasOrdenados,
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Tooltip(
-                          message: 'Ejecutivo',
-                          child: Icon(
-                            Icons.help_outline,
-                            color: Colors.orange,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Tooltip(
-                          message: 'Gerente',
-                          child: Icon(
-                            Icons.help_outline,
-                            color: Colors.green,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Tooltip(
-                          message: 'Miembro de equipo',
-                          child: Icon(
-                            Icons.help_outline,
-                            color: Colors.blue,
-                            size: 32,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-            Container(
-              width: 56,
-              color: AppColors.primary,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+
+      body: Row(
+        children: [
+          // ► Lado izquierdo: ListView con los 4 gráficos (ocupa todo el espacio restante)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.chat, color: Colors.white),
-                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                    tooltip: 'Chat Interno',
+                   _buildChartContainer(
+                      child: MultiRingChart(
+                        puntosObtenidos: _buildMultiringData(),
+                        isDetail: false,
+                      ), color: const Color.fromARGB(255, 171, 172, 173), title: 'EVALUACION DIMENSION-ROL',
+                    ),
+              
+                  _buildChartContainer(
+                    color: const Color.fromARGB(255, 160, 163, 163),
+                    child: ScatterBubbleChart(
+                      data: _buildScatterData(),
+                      isDetail: false, 
+                    ),
+                    title: 'EVALUACION-PRINCIPIO-ROL',
                   ),
-                  // Puedes agregar más IconButton aquí si es necesario
+
+                  _buildChartContainer(
+                    color: const Color.fromARGB(255, 231, 220, 187),
+                    title: 'EVALUACION COMPORTAMIENTO-ROL',
+                    child: GroupedBarChart(
+                      data: _buildGroupedBarData(),
+                      minY: 0,
+                      maxY: 5,
+                      isDetail: false,
+                    ), 
+                  ),
+
+               
+                  _buildChartContainer(
+                    color: const Color.fromARGB(255, 202, 208, 219),
+                    title: 'EVALUACION SISTEMAS ROL',
+                    child: HorizontalBarSystemsChart(
+                      data: horizontalData, 
+                      minY: 0, 
+                      maxY: 5, // Adecuado para promedios en escala 0-5
+                      sistemasOrdenados: _sistemasOrdenados, 
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+          Container(
+            width: 56, // ancho normal de sidebar
+            color: const Color(0xFF003056), // mismo color del AppBar
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Chat interno
+                IconButton(
+                  icon: const Icon(Icons.chat, color: Colors.white),
+                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                  tooltip: 'Chat Interno',
+                ),
+                IconButton(
+  icon: const Icon(Icons.description, color: Colors.white),
+  onPressed: _generarReporteWord, // <-- Llama a tu función
+  tooltip: 'Generar Reporte Word',
+), // El IconButton para generar reportes ha sido eliminado.
+              ],
+            ),
+          ),
+        ],
       ),
     );
-  // ...existing code...
-}
+  }
 
   /// Cada gráfico está dentro de un contenedor redondeado, con encabezado y margen.
   Widget _buildChartContainer({
@@ -671,26 +645,26 @@ List<ScatterData> _buildScatterData() {
       ),
       child: Column(
         children: [
-          // Encabezado interno (subtítulo) con fondo blanco y título
-          Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Center(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: AppColors.primary,
+          if (title.isNotEmpty)
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Color(0xFF003056),
+                  ),
                 ),
               ),
             ),
-          ),
-          // Espacio para el gráfico (alto fijo de 420px)
+          // Espacio para el gráfico (alto fijo de 500px)
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: SizedBox(
