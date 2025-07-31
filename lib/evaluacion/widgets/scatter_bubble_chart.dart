@@ -31,7 +31,7 @@ class ScatterBubbleChart extends StatelessWidget {
     this.isDetail = false,
   });
 
-  static const List<String> principleName = [
+  static const List<String> principiosOrdenados = [
     'Respetar a Cada Individuo',
     'Liderar con Humildad',
     'Buscar la Perfección',
@@ -89,11 +89,11 @@ class ScatterBubbleChart extends StatelessWidget {
                     reservedSize: 180,
                     getTitlesWidget: (value, meta) {
                       final idx = value.toInt();
-                      if (idx >= 1 && idx <= principleName.length) {
+                      if (idx >= 1 && idx <= principiosOrdenados.length) {
                         return Padding(
                           padding: const EdgeInsets.only(right: 4.0),
                           child: Text(
-                            principleName[idx - 1],
+                            principiosOrdenados[idx - 1],
                             style: const TextStyle(
                               fontSize: 13,
                               color: Colors.black,
@@ -151,8 +151,8 @@ class ScatterBubbleChart extends StatelessWidget {
                   getTooltipItems: (ScatterSpot touchedSpot) {
                     final idx = touchedSpot.y.toInt();
                     final principle = (idx >= 1 &&
-                            idx <= ScatterBubbleChart.principleName.length)
-                        ? ScatterBubbleChart.principleName[idx - 1]
+                            idx <= ScatterBubbleChart.principiosOrdenados.length)
+                        ? ScatterBubbleChart.principiosOrdenados[idx - 1]
                         : '';
                     return ScatterTooltipItem(
                       '$principle\nValor: ${touchedSpot.x.toStringAsFixed(2)}',

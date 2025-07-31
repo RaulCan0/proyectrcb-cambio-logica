@@ -64,10 +64,15 @@ class DashboardService {
     final comportamientos = _data[d]?[p];
     if (comportamientos == null) return 0.0;
 
-    final promedios = comportamientos.entries
-        .map((e) => obtenerPromedioComportamiento(d, p, e.key, nivel))
+    // Junta todas las calificaciones individuales de todos los comportamientos
+    final todasLasCalificaciones = comportamientos.values
+        .map((niveles) => niveles[nivel] ?? [])
+        .expand((list) => list)
         .toList();
-    return _promedio(promedios.cast<int>());
+
+    return todasLasCalificaciones.isEmpty
+        ? 0.0
+        : todasLasCalificaciones.reduce((a, b) => a + b) / todasLasCalificaciones.length;
   }
 
   double obtenerPromedioDimension(String d, String nivel) {

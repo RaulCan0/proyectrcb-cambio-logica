@@ -10,8 +10,9 @@ class DetallesEvaluacionScreen extends StatefulWidget {
   final Map<String, Map<String, double>> dimensionesPromedios;
   final Empresa empresa;
   final String evaluacionId;
-  final String? dimension; // Hacerlo un campo de clase y opcional
+  final String? dimension;
   final int? initialTabIndex;
+  final Map<String, Map<String, Map<String, double>>>? promediosPrincipios;
 
   const DetallesEvaluacionScreen({
     super.key,
@@ -19,7 +20,9 @@ class DetallesEvaluacionScreen extends StatefulWidget {
     required this.empresa,
     required this.evaluacionId,
     this.dimension,
-    this.initialTabIndex, Map<String, double>? promedios,
+    this.initialTabIndex,
+    this.promediosPrincipios,
+    Map<String, double>? promedios,
   });
 
   @override

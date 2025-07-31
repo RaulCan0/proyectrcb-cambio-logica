@@ -22,11 +22,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class DashboardScreen extends StatefulWidget {
   final String evaluacionId;
   final Empresa empresa;
+  final Map<String, Map<String, Map<String, double>>>? promediosPrincipios;
 
   const DashboardScreen({
     super.key,
     required this.evaluacionId,
     required this.empresa,
+    this.promediosPrincipios,
   });
 
   @override
@@ -262,6 +264,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  
   /// Datos para el gráfico de Dona (promedio general por dimensión).
   Map<String, double> _buildMultiringData() {
     // Las claves deben coincidir exactamente con las de puntosTotales en MultiRingChart
@@ -278,11 +281,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     for (final dim in _dimensiones) {
       final nombre = nombresDimensiones[dim.id] ?? dim.nombre;
       if (data.containsKey(nombre)) {
-        data[nombre] = dim.promedioGeneral;
+        // Sumar todos los valores de la dimensión
+        final puntos = _dimensionesRaw
+            .where((r) => r['dimension_id']?.toString() == dim.id)
+            .fold<double>(0.0, (p, e) => p + ((e['valor'] as num?)?.toDouble() ?? 0));
+        data[nombre] = puntos;
       }
     }
     return data;
   }
+
 List<ScatterData> _buildScatterData() {
   const double dotRadius = 8.0;
   final List<ScatterData> list = [];
@@ -292,7 +300,6 @@ List<ScatterData> _buildScatterData() {
     'Miembro': Colors.blue,
   };
 
-  // Lista fija de principios (1–10)
   final principiosOrdenados = [
     'Respetar a Cada Individuo',
     'Liderar con Humildad',
@@ -306,44 +313,40 @@ List<ScatterData> _buildScatterData() {
     'Crear Valor para el Cliente',
   ];
 
-  // Recorremos siempre los 10 principios
-  principiosOrdenados.asMap().forEach((index, principioNombre) {
-    // Buscar principio real
-    final principio = _dimensiones
-        .expand((dim) => dim.principios)
-        .firstWhere(
-          (p) => p.nombre == principioNombre,
-          orElse: () => Principio(
-            id: '',
-            dimensionId: '',
-            nombre: principioNombre,
-            promedioGeneral: 0.0,
-            comportamientos: [],
-          ),
-        );
-
-    double sumaEj = 0, sumaGe = 0, sumaMi = 0;
-    int cuentaEj = 0, cuentaGe = 0, cuentaMi = 0;
-
-    for (final comp in principio.comportamientos) {
-      if (comp.promedioEjecutivo > 0) {
-        sumaEj += comp.promedioEjecutivo;
-        cuentaEj++;
-      }
-      if (comp.promedioGerente > 0) {
-        sumaGe += comp.promedioGerente;
-        cuentaGe++;
-      }
-      if (comp.promedioMiembro > 0) {
-        sumaMi += comp.promedioMiembro;
-        cuentaMi++;
+  // Si hay promediosPrincipios, úsalos directamente
+  if (widget.promediosPrincipios != null) {
+    for (final dim in widget.promediosPrincipios!.values) {
+      for (final principioNombre in principiosOrdenados) {
+        if (!dim.containsKey(principioNombre)) continue;
+        final nivelesMap = dim[principioNombre]!;
+        for (final nivel in niveles.keys) {
+          final promedio = nivelesMap[nivel] ?? 0.0;
+          if (promedio > 0) {
+            list.add(ScatterData(
+              x: promedio,
+              y: (principiosOrdenados.indexOf(principioNombre) + 1).toDouble(),
+              color: niveles[nivel]!,
+              seriesName: nivel,
+              principleName: principioNombre,
+              radius: dotRadius,
+            ));
+          }
+        }
       }
     }
+    return list;
+  }
 
-    final double promEj = cuentaEj > 0 ? sumaEj / cuentaEj : 0.0;
-    final double promGe = cuentaGe > 0 ? sumaGe / cuentaGe : 0.0;
-    final double promMi = cuentaMi > 0 ? sumaMi / cuentaMi : 0.0;
-
+  // Para cada principio, sumar todas las calificaciones individuales de cada nivel (NO promediar promedios de comportamientos)
+  principiosOrdenados.asMap().forEach((index, principioNombre) {
+    // Ejecutivos
+    final califsEj = _dimensionesRaw.where((r) =>
+      (r['principio'] == principioNombre || r['principio_nombre'] == principioNombre) &&
+      (r['cargo_raw']?.toString().toLowerCase().contains('ejecutivo') ?? false)
+    ).map((r) => (r['valor'] as num?)?.toDouble() ?? 0.0).toList();
+    final sumaEj = califsEj.fold(0.0, (a, b) => a + b);
+    final cuentaEj = califsEj.length;
+    final promEj = cuentaEj > 0 ? sumaEj / cuentaEj : 0.0;
     if (promEj > 0) {
       list.add(ScatterData(
         x: promEj.clamp(0.0, 5.0),
@@ -354,6 +357,14 @@ List<ScatterData> _buildScatterData() {
         principleName: principioNombre,
       ));
     }
+    // Gerentes
+    final califsGe = _dimensionesRaw.where((r) =>
+      (r['principio'] == principioNombre || r['principio_nombre'] == principioNombre) &&
+      (r['cargo_raw']?.toString().toLowerCase().contains('gerente') ?? false)
+    ).map((r) => (r['valor'] as num?)?.toDouble() ?? 0.0).toList();
+    final sumaGe = califsGe.fold(0.0, (a, b) => a + b);
+    final cuentaGe = califsGe.length;
+    final promGe = cuentaGe > 0 ? sumaGe / cuentaGe : 0.0;
     if (promGe > 0) {
       list.add(ScatterData(
         x: promGe.clamp(0.0, 5.0),
@@ -364,6 +375,14 @@ List<ScatterData> _buildScatterData() {
         principleName: principioNombre,
       ));
     }
+    // Miembros
+    final califsMi = _dimensionesRaw.where((r) =>
+      (r['principio'] == principioNombre || r['principio_nombre'] == principioNombre) &&
+      (r['cargo_raw']?.toString().toLowerCase().contains('miembro') ?? false)
+    ).map((r) => (r['valor'] as num?)?.toDouble() ?? 0.0).toList();
+    final sumaMi = califsMi.fold(0.0, (a, b) => a + b);
+    final cuentaMi = califsMi.length;
+    final promMi = cuentaMi > 0 ? sumaMi / cuentaMi : 0.0;
     if (promMi > 0) {
       list.add(ScatterData(
         x: promMi.clamp(0.0, 5.0),
