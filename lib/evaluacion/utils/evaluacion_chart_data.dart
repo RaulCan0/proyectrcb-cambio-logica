@@ -64,7 +64,7 @@ class EvaluacionChartData {
         x: principio.promedioGeneral,
         y: (index + 1).toDouble(), // 1 al 10
 
-        color: const Color.fromARGB(255, 19, 32, 43), seriesName: '', principleName: '', radius: 5,
+            color: const Color.fromARGB(255, 19, 32, 43), seriesName: 'Principios', radius: principio.comportamientos.length.toDouble() + 4, principleName: '',
       );
     }).toList();
   }

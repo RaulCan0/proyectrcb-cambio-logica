@@ -2,7 +2,6 @@
 
 
 import 'package:applensys/evaluacion/screens/historial_screen.dart';
-import 'package:applensys/home_app.dart';
 import 'package:applensys/evaluacion/services/domain/empresa_service.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
@@ -119,123 +118,108 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
     final empresaCreada = empresas.isNotEmpty ? empresas.last : null;
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    // ignore: deprecated_member_use
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-          (route) => false,
-        );
-        return false;
-      },
-      child: Scaffold(
-        key: _scaffoldKey,
-        drawer: const SizedBox(width: 300, child: ChatWidgetDrawer()),
-        endDrawer: const DrawerLensys(),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF003056),
-          centerTitle: true,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
-                (route) => false,
-              );
-            },
-          ),
-          title: const Text(
-            'LensysApp',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-              color: Colors.white,
-            ),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
-            ),
-          ],
+    return Scaffold(
+      key: _scaffoldKey,
+      drawer: const SizedBox(width: 300, child: ChatWidgetDrawer()),
+      endDrawer: const DrawerLensys(),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF003056),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Bienvenido: $correoUsuario',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.black54,
-                      ),
+        title: const Text(
+          'LensysApp',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.white,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bienvenido: $correoUsuario',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : Colors.black54,
                     ),
-                    const SizedBox(height: 20),
-                    if (correoUsuario == 'sistemas@lensys.com.mx')
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.science),
-                        label: const Text('Modo pruebas: Usar/Cargar empresa'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepPurple,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: _mostrarDialogoEmpresaPruebas,
+                  ),
+                  const SizedBox(height: 20),
+                  if (correoUsuario == 'sistemas@lensys.com.mx')
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.science),
+                      label: const Text('Modo pruebas: Usar/Cargar empresa'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
                       ),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (empresaCreada != null)
-                            _buildButton(
-                              context,
-                              label: 'Evaluación de ${empresaCreada.nombre}',
-                            // al navegar a DimensionesScreen…
-                              onTap: () {
-                                final String nuevaEvaluacionId = const Uuid().v4(); // Generar ID único para nueva evaluación
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DimensionesScreen(
-                                      empresa: empresaCreada,
-                                      evaluacionId: nuevaEvaluacionId, // Usar el nuevo ID
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          const SizedBox(height: 20),
+                      onPressed: _mostrarDialogoEmpresaPruebas,
+                    ),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (empresaCreada != null)
                           _buildButton(
                             context,
-                            label: 'HISTORIAL',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => HistorialScreen(
-                                  empresas: empresas,
-                                  empresasHistorial: const [],
+                            label: 'Evaluación de ${empresaCreada.nombre}',
+                          // al navegar a DimensionesScreen…
+                            onTap: () {
+                              final String nuevaEvaluacionId = const Uuid().v4(); // Generar ID único para nueva evaluación
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => DimensionesScreen(
+                                    empresa: empresaCreada,
+                                    evaluacionId: nuevaEvaluacionId, // Usar el nuevo ID
+                                  ),
                                 ),
+                              );
+                            },
+                          ),
+                        const SizedBox(height: 20),
+                        _buildButton(
+                          context,
+                          label: 'HISTORIAL',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => HistorialScreen(
+                                empresas: empresas,
+                                empresasHistorial: const [],
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _mostrarDialogoNuevaEmpresa(context),
+                backgroundColor: const Color(0xFF003056),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(100),
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => _mostrarDialogoNuevaEmpresa(context),
-                  backgroundColor: const Color(0xFF003056),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(100),
-          ),
-          elevation: 8,
-          child: const Icon(Icons.add, size: 25, color: Colors.white),
-        ),
+        elevation: 8,
+        child: const Icon(Icons.add, size: 25, color: Colors.white),
       ),
     );
   }

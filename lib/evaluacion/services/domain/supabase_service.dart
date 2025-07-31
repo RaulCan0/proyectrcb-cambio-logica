@@ -544,17 +544,16 @@ class SupabaseService {
     )).toList();
   }
 
-  Future<double> obtenerProgresoAsociado({
-    required String evaluacionId,
+  Future<double> obtenerProgresoAsociado({ required String empresaId,
     required String asociadoId,
-    required String dimensionId,
+    required String dimensionId, required String evaluacionId,
   }) async {
     if (evaluacionId.isEmpty || asociadoId.isEmpty || dimensionId.isEmpty) return 0.0;
     final response = await _client
         .from('calificaciones')
         .select('comportamiento')
         .eq('id_asociado', asociadoId)
-        .eq('id_empresa', evaluacionId)
+        .eq('id_empresa', empresaId)
         .eq('id_dimension', int.tryParse(dimensionId) ?? -1);
 
     final total = (response as List).length;
