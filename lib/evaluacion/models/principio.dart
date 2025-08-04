@@ -6,6 +6,9 @@ class Principio {
   final String dimensionId;
   final String nombre;
   final double promedioGeneral;
+  final double promedioEjecutivo;
+  final double promedioGerente;
+  final double promedioMiembro;
   final List<Comportamiento> comportamientos;
 
   Principio({
@@ -13,6 +16,9 @@ class Principio {
     required this.dimensionId,
     required this.nombre,
     required this.promedioGeneral,
+    required this.promedioEjecutivo,
+    required this.promedioGerente,
+    required this.promedioMiembro,
     required this.comportamientos,
   });
 }

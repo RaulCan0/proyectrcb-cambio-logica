@@ -116,45 +116,58 @@ Future<Map<String, double>> obtenerProgresoDimensionPorCargo({
 }) async {
   final supabase = Supabase.instance.client;
 
-  // Obtener los comportamientos de la dimensión
-  final comportamientosRes = await supabase
-      .from('comportamientos')
-      .select('id')
-      .eq('id_dimension', dimensionId);
+  try {
+    debugPrint('=== DEBUG obtenerProgresoDimensionPorCargo ===');
+    debugPrint('empresaId: $empresaId');
+    debugPrint('dimensionId: $dimensionId');
+    debugPrint('cargo: $cargo');
 
-  if ((comportamientosRes as List).isEmpty) {
+    // Primero obtener los asociados de la empresa con el cargo específico
+    final asociadosRes = await supabase
+        .from('asociados')
+        .select('id')
+        .eq('empresa_id', empresaId)
+        .ilike('cargo', '%$cargo%'); // Usar ilike para búsqueda más flexible
+
+    debugPrint('asociadosRes: $asociadosRes');
+
+    if ((asociadosRes as List).isEmpty) {
+      debugPrint('No se encontraron asociados para el cargo: $cargo');
+      return {cargo: 0.0};
+    }
+
+    final asociadosIds = (asociadosRes).map((e) => e['id'] as String).toList();
+    debugPrint('asociadosIds encontrados: $asociadosIds');
+
+    // Obtener calificaciones de esos asociados en esa dimensión
+    final calificacionesRes = await supabase
+        .from('calificaciones')
+        .select('comportamiento, id_asociado')
+        .inFilter('id_asociado', asociadosIds)
+        .eq('id_dimension', int.tryParse(dimensionId) ?? 1)
+        .eq('id_empresa', empresaId);
+
+    debugPrint('calificacionesRes: $calificacionesRes');
+
+    final totalCalificaciones = (calificacionesRes as List).length;
+    debugPrint('totalCalificaciones: $totalCalificaciones');
+
+    // Definir el total de comportamientos por dimensión basado en tu lógica de negocio
+    const mapaTotales = {'1': 6, '2': 14, '3': 8}; // Ajusta estos valores según tu sistema
+    final totalComportamientos = mapaTotales[dimensionId] ?? 1;
+    final totalEsperado = totalComportamientos * asociadosIds.length;
+
+    debugPrint('totalComportamientos: $totalComportamientos');
+    debugPrint('totalEsperado: $totalEsperado');
+
+    final progreso = totalEsperado == 0 ? 0.0 : totalCalificaciones / totalEsperado;
+    debugPrint('progreso calculado: $progreso');
+
+    return {cargo: progreso.clamp(0.0, 1.0)};
+  } catch (e) {
+    debugPrint('Error en obtenerProgresoDimensionPorCargo: $e');
     return {cargo: 0.0};
   }
-
-  final totalComportamientos = comportamientosRes.length;
-
-  // Obtener los asociados de la empresa con el cargo
-  final asociadosRes = await supabase
-      .from('asociados')
-      .select('id')
-      .eq('id_empresa', empresaId)
-      .eq('cargo', cargo);
-
-  if ((asociadosRes as List).isEmpty) {
-    return {cargo: 0.0};
-  }
-
-  final asociadosIds = (asociadosRes).map((e) => e['id'] as String).toList();
-
-  // Obtener calificaciones de esos asociados en esa dimensión
-  final calificacionesRes = await supabase
-      .from('calificaciones')
-      .select('id, id_asociado, id_comportamiento')
-      .inFilter('id_asociado', asociadosIds)
-      .eq('id_dimension', dimensionId);
-
-  final totalCalificaciones = (calificacionesRes as List).length;
-
-  final avance = totalComportamientos == 0
-      ? 0.0
-      : totalCalificaciones / (totalComportamientos * asociadosIds.length);
-
-  return {cargo: avance.clamp(0.0, 1.0)};
 }
 
   // Progreso Global de una Dimensión

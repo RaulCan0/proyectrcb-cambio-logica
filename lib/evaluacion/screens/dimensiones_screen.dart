@@ -160,12 +160,35 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                         ),
                       ]).then((results) {
                         return {
-                          'ejecutivo': results[0]['ejecutivo'] ?? 0.0,
-                          'gerente': results[1]['gerente'] ?? 0.0,
-                          'miembro': results[2]['miembro'] ?? 0.0,
+                          'ejecutivo': results[0].values.first,
+                          'gerente': results[1].values.first,
+                          'miembro': results[2].values.first,
                         };
                       }),
                       builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          debugPrint('Error en FutureBuilder: ${snapshot.error}');
+                          return const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Text('Error'),
+                              Text('Error'),
+                              Text('Error'),
+                            ],
+                          );
+                        }
+                        
+                        if (!snapshot.hasData) {
+                          return const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              CircularProgressIndicator(),
+                              CircularProgressIndicator(),
+                              CircularProgressIndicator(),
+                            ],
+                          );
+                        }
+
                         final progresoEj = (snapshot.data?['ejecutivo'] ?? 0.0).clamp(0.0, 1.0);
                         final progresoGe = (snapshot.data?['gerente'] ?? 0.0).clamp(0.0, 1.0);
                         final progresoMi = (snapshot.data?['miembro'] ?? 0.0).clamp(0.0, 1.0);

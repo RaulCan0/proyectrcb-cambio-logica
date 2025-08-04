@@ -28,6 +28,9 @@ class EvaluacionChartData {
           dimensionId: dim['id'] ?? '',
           nombre: pri['nombre'],
           promedioGeneral: (pri['promedio'] ?? 0.0).toDouble(),
+          promedioEjecutivo: 0.0,
+          promedioGerente: 0.0,
+          promedioMiembro: 0.0,
           comportamientos: comportamientos,
         );
       }).toList();

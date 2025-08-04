@@ -382,27 +382,28 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Seleccionar empresa de pruebas'),
-          content: SingleChildScrollView(
+          title: const Text('Seleccionar empresa'),
+            content: SingleChildScrollView(
             child: Column(
-              children: [
-                // Aquí puedes listar las empresas de pruebas disponibles
-                // Por ejemplo, usando ListTile para cada empresa
-                ListTile(
-                  title: const Text('Empresa Prueba 1'),
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                ),
-                ListTile(
-                  title: const Text('BRP'),
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
+              children: empresas.isEmpty
+                ? [
+                  const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('No hay empresas registradas.'),
+                  ),
+                ]
+                : empresas
+                  .map(
+                  (empresa) => ListTile(
+                    title: Text(empresa.nombre),
+                    onTap: () {
+                    Navigator.pop(context, empresa);
+                    },
+                  ),
+                  )
+                  .toList(),
             ),
-          ),
+            ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),

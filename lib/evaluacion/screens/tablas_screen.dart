@@ -204,16 +204,18 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
                 ),
               ),
             ),
-            Expanded(
+         
+              Expanded(
               child: TabBarView(
                 children: dimensiones.map((dimension) {
-                  final keyInterna = dimensionInterna[dimension] ?? dimension;
-                  final filas = TablasDimensionScreen.tablaDatos[keyInterna]?.values.expand((l) => l).toList() ?? [];
-
+                  final keyInterna = dimensionInterna[dimension]!;
+                  final filas = TablasDimensionScreen.tablaDatos[keyInterna]
+                          ?.values
+                          .expand((l) => l)
+                          .toList() ?? [];
                   if (filas.isEmpty) {
-                    return const Center(child: Text('No hay datos para mostrar para esta evaluación'));
+                    return const Center(child: Text('No hay datos para mostrar'));
                   }
-
                   return InteractiveViewer(
                     constrained: false,
                     scaleEnabled: false,
@@ -244,7 +246,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
                             DataColumn(label: Text('Gerente observaciones', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Miembro observaciones', style: TextStyle(color: Colors.white))),
                           ],
-                          rows: _buildRows(filas),
+                          rows: _buildRowsPrincipioPromedio(filas),
                         ),
                       ),
                     ),
@@ -257,6 +259,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       ),
     );
   }
+
 
   void _irADetalles(BuildContext context) {
     final currentIndex = DefaultTabController.of(context).index;
@@ -302,13 +305,14 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
           evaluacionId: widget.evaluacionId,
           promedios: promediosPorDimension[dimensionActual],
           dimension: dimensionActual,
-          initialTabIndex: currentIndex, 
+          initialTabIndex: currentIndex,
         ),
       ),
     );
   }
 
-  List<DataRow> _buildRows(List<Map<String, dynamic>> filas) {
+  /// Fila de promedio PRINCIPIO para cada nivel, luego filas normales de comportamiento
+  List<DataRow> _buildRowsPrincipioPromedio(List<Map<String, dynamic>> filas) {
     final sumas = <String, Map<String, Map<String, int>>>{};
     final conteos = <String, Map<String, Map<String, int>>>{};
     final sistemasPorNivel = <String, Map<String, Map<String, Set<String>>>>{};
@@ -344,18 +348,54 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       for (var s in sistemas) {
         sistemasPorNivel[principio]![comportamiento]![nivel]!.add(s);
       }
-      // Solo guarda la última observación para ese nivel, principio y comportamiento
       observacionesPorNivel[principio]![comportamiento]![nivel] = observacion;
     }
 
-    return sumas.entries.expand((e) {
+    // Fila PRINCIPIO por nivel (promedio de los promedios de sus comportamientos)
+    final principioPromedioRows = sumas.entries.map((principioEntry) {
+      final principio = principioEntry.key;
+      final comportamientos = principioEntry.value.keys.toList();
+      final niveles = ['Ejecutivo', 'Gerente', 'Miembro'];
+
+      List<DataCell> promedioPrincipioCells = niveles.map((n) {
+        double sumaProms = 0;
+        int cuentaProms = 0;
+        for (var c in comportamientos) {
+          final suma = sumas[principio]![c]![n] ?? 0;
+          final count = conteos[principio]![c]![n] ?? 0;
+          if (count > 0) {
+            sumaProms += suma / count;
+            cuentaProms++;
+          }
+        }
+        return DataCell(Text(
+          cuentaProms > 0 ? (sumaProms / cuentaProms).toStringAsFixed(2) : '-',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF003056),
+          ),
+        ));
+      }).toList();
+
+      List<DataCell> vacias = List.generate(6, (_) => const DataCell(Text('-')));
+
+      return DataRow(cells: [
+        DataCell(Text(principio, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF003056)))),
+        const DataCell(Text('-', style: TextStyle(color: Color(0xFF003056)))),
+        ...promedioPrincipioCells,
+        ...vacias,
+      ]);
+    });
+
+    // Filas normales de comportamiento
+    final comportamientoRows = sumas.entries.expand((e) {
       final p = e.key;
       return e.value.entries.map((cEntry) {
         final c = cEntry.key;
         final nivelVals = cEntry.value;
         final niveles = ['Ejecutivo', 'Gerente', 'Miembro'];
         return DataRow(cells: [
-          DataCell(Text(p, style: const TextStyle(color: Color(0xFF003056)))),
+          const DataCell(Text('')),
           DataCell(Text(c, style: const TextStyle(color: Color(0xFF003056)))),
           ...niveles.map((n) {
             final suma = nivelVals[n] ?? 0;
@@ -373,7 +413,12 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
           }),
         ]);
       });
-    }).toList();
+    });
+
+    return [
+      ...principioPromedioRows,
+      ...comportamientoRows,
+    ].toList();
   }
 }
 

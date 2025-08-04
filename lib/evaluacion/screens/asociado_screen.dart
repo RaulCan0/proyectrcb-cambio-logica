@@ -165,7 +165,7 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
                 _mostrarAlerta('Error', 'Completa todos los campos correctamente.');
                 return;
               }
-              // ...lógica para crear el asociado...
+              // Guardar el asociado en Supabase
               try {
                 final nuevoId = const Uuid().v4();
                 final nuevo = Asociado(
@@ -178,6 +178,11 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
                   progresoDimensiones: <String, double>{},
                   comportamientosEvaluados: <String, dynamic>{},
                 );
+
+                // Guardar en Supabase
+                await _supabaseService.addAsociado(nuevo);
+                
+                // Actualizar la UI localmente
                 setState(() {
                   if (cargoSeleccionado.toLowerCase() == 'ejecutivo') {
                     ejecutivos.add(nuevo);
@@ -191,6 +196,7 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
                   }
                   progresoAsociado[nuevoId] = 0.0;
                 });
+                
                 if (mounted) Navigator.pop(context);
                 _mostrarAlerta('Éxito', 'Asociado agregado exitosamente.');
               } catch (e) {
@@ -235,7 +241,7 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
                           '${asociado.cargo.trim().toLowerCase() == "miembro" ? "MIEMBRO DE EQUIPO" : asociado.cargo.toUpperCase()} - ${asociado.antiguedad} años',
                           style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey),
                         ),
-                       const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -259,15 +265,12 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
                             ),
                           ],
                         ),
-                        
                         const SizedBox(height: 4),
                         LinearProgressIndicator(
                           value: progreso,
                           backgroundColor: Colors.grey[300],
                           color: Colors.green,
                         ),
-                        Text('${(progreso * 100).toStringAsFixed(1)}% completado', style: GoogleFonts.roboto()),
-                      
                       ],
                     ),
                     onTap: () {

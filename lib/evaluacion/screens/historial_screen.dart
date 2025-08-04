@@ -1,5 +1,6 @@
 import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:applensys/evaluacion/services/domain/empresa_service.dart';
+import 'package:applensys/evaluacion/screens/dimensiones_screen.dart';
 import 'package:flutter/material.dart';
 
 
@@ -34,7 +35,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
       if (mounted) {
         setState(() => isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al cargar empresas: \$e')),
+          SnackBar(content: Text('Error al cargar empresas: $e')),
         );
       }
     }
@@ -68,7 +69,16 @@ class _HistorialScreenState extends State<HistorialScreen> {
                 final empresa = empresas[index];
                 return GestureDetector(
                   onTap: () {
-                  
+                    // Navegar a las dimensiones de la empresa seleccionada
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DimensionesScreen(
+                          empresa: empresa,
+                          evaluacionId: empresa.id, // Usar ID de empresa como evaluación existente
+                        ),
+                      ),
+                    );
                   },
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 6),
@@ -96,11 +106,11 @@ class _HistorialScreenState extends State<HistorialScreen> {
                             ),
                           ),
                         ),
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('Asociados: \${empresa.empleadosAsociados.length}'),
-                            Text('Empleados: \${empresa.empleadosTotal}'),
+                            Text('Asociados: ${empresa.empleadosAsociados.length}'),
+                            Text('Empleados: ${empresa.empleadosTotal}'),
                           ],
                         ),
                       ],

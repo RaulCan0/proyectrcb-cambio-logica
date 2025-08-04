@@ -19,8 +19,8 @@ class MultiRingChart extends StatelessWidget {
 
   static const Map<String, Color> coloresPorDimension = {
     'Impulsores Culturales': Color(0xFF00BCD4),   // azul claro
-    'Mejora Continua': Color(0xFF8BC34A),         // verde lima
-    'Alineamiento Empresarial': Color(0xFF757575),// gris
+    'Mejora Continua': Color.fromARGB(255, 22, 23, 80),         // verde lima
+    'Alineamiento Empresarial': Color.fromARGB(255, 51, 28, 87),// gris
   };
 
   @override

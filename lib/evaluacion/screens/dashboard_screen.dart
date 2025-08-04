@@ -158,6 +158,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         double sumaPri = 0;
         int conteoPri = 0;
 
+        // Variables para calcular promedios por cargo a nivel de principio
+        double sumaPriEj = 0, sumaPriGe = 0, sumaPriMi = 0;
+        int countPriEj = 0, countPriGe = 0, countPriMi = 0;
+
         // Agrupar por 'comportamiento'
         final Map<String, List<Map<String, dynamic>>> porComportamiento = {};
         for (final filaP in filasPri) {
@@ -179,12 +183,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if (cargoRaw.contains('ejecutivo')) {
               sumaEj += valor;
               countEj++;
+              // También sumamos para el principio
+              sumaPriEj += valor;
+              countPriEj++;
             } else if (cargoRaw.contains('gerente')) {
               sumaGe += valor;
               countGe++;
+              // También sumamos para el principio
+              sumaPriGe += valor;
+              countPriGe++;
             } else if (cargoRaw.contains('miembro')) {
               sumaMi += valor;
               countMi++;
+              // También sumamos para el principio
+              sumaPriMi += valor;
+              countPriMi++;
             }
           }
 
@@ -225,12 +238,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final double promedioPri =
             (conteoPri > 0) ? (sumaPri / conteoPri) : 0.0;
 
+        // Calcular promedios por cargo del principio
+        final double promedioPriEj = (countPriEj > 0) ? (sumaPriEj / countPriEj) : 0.0;
+        final double promedioPriGe = (countPriGe > 0) ? (sumaPriGe / countPriGe) : 0.0;
+        final double promedioPriMi = (countPriMi > 0) ? (sumaPriMi / countPriMi) : 0.0;
+
+        debugPrint('Principio: $priNombre');
+        debugPrint('  - Ejecutivo: $promedioPriEj (datos: $countPriEj)');
+        debugPrint('  - Gerente: $promedioPriGe (datos: $countPriGe)');
+        debugPrint('  - Miembro: $promedioPriMi (datos: $countPriMi)');
+
         principiosModel.add(
           Principio(
             id: priNombre,
             dimensionId: dimNombre,
             nombre: priNombre,
             promedioGeneral: promedioPri,
+            promedioEjecutivo: promedioPriEj,
+            promedioGerente: promedioPriGe,
+            promedioMiembro: promedioPriMi,
             comportamientos: compsModel,
           ),
         );
@@ -318,31 +344,19 @@ List<ScatterData> _buildScatterData() {
             dimensionId: '',
             nombre: principioNombre,
             promedioGeneral: 0.0,
+            promedioEjecutivo: 0.0,
+            promedioGerente: 0.0,
+            promedioMiembro: 0.0,
             comportamientos: [],
           ),
         );
 
-    double sumaEj = 0, sumaGe = 0, sumaMi = 0;
-    int cuentaEj = 0, cuentaGe = 0, cuentaMi = 0;
+    // Usar directamente los promedios del principio (ya calculados correctamente)
+    final double promEj = principio.promedioEjecutivo;
+    final double promGe = principio.promedioGerente;
+    final double promMi = principio.promedioMiembro;
 
-    for (final comp in principio.comportamientos) {
-      if (comp.promedioEjecutivo > 0) {
-        sumaEj += comp.promedioEjecutivo;
-        cuentaEj++;
-      }
-      if (comp.promedioGerente > 0) {
-        sumaGe += comp.promedioGerente;
-        cuentaGe++;
-      }
-      if (comp.promedioMiembro > 0) {
-        sumaMi += comp.promedioMiembro;
-        cuentaMi++;
-      }
-    }
-
-    final double promEj = cuentaEj > 0 ? sumaEj / cuentaEj : 0.0;
-    final double promGe = cuentaGe > 0 ? sumaGe / cuentaGe : 0.0;
-    final double promMi = cuentaMi > 0 ? sumaMi / cuentaMi : 0.0;
+    debugPrint('Scatter - $principioNombre: E=$promEj, G=$promGe, M=$promMi');
 
     if (promEj > 0) {
       list.add(ScatterData(
