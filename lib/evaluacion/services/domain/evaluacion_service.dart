@@ -1,15 +1,12 @@
-import 'package:applensys/evaluacion/models/calificacion.dart';
-import 'package:applensys/evaluacion/models/evaluacion.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:applensys/evaluacion/models/evaluacion.dart';
+import 'package:applensys/evaluacion/models/calificacion.dart';
 import 'package:uuid/uuid.dart';
-import 'package:flutter/foundation.dart';
 
+/// Servicio para gestión de evaluaciones
 class EvaluacionService {
   final SupabaseClient _client = Supabase.instance.client;
 
-  static const _mapaTotales = {'1': 6, '2': 14, '3': 8};
-
-  // Evaluación CRUD
   Future<List<Evaluacion>> getEvaluaciones() async {
     final res = await _client.from('detalles_evaluacion').select();
     return (res as List).map((e) => Evaluacion.fromMap(e)).toList();
@@ -44,7 +41,8 @@ class EvaluacionService {
         .eq('empresa_id', empresaId)
         .eq('asociado_id', asociadoId)
         .maybeSingle();
-    return res != null ? Evaluacion.fromMap(res) : null;
+    if (res == null) return null;
+    return Evaluacion.fromMap(res);
   }
 
   Future<Evaluacion> crearEvaluacionSiNoExiste(String empresaId, String asociadoId) async {
@@ -68,7 +66,27 @@ class EvaluacionService {
     await _client.from('detalles_evaluacion').update({'finalizada': true}).eq('id', evaluacionId);
   }
 
-  // Calificaciones
+  /// Obtiene el progreso de la dimensión para una empresa
+  Future<double> obtenerProgresoDimension(String empresaId, String dimensionId) async {
+    try {
+      final response = await _client
+          .from('calificaciones')
+          .select('comportamiento')
+          .eq('id_empresa', empresaId)
+          .eq('id_dimension', int.tryParse(dimensionId) ?? -1);
+
+      final total = (response as List).length;
+      const mapaTotales = {'1': 6, '2': 14, '3': 8};
+      final totalDimension = mapaTotales[dimensionId] ?? 1;
+
+      return total / totalDimension;
+    } catch (e) {
+      return 0.0;
+    }
+  }
+
+  // Métodos de calificaciones fusionados desde calificacion_service.dart
+
   Future<void> addCalificacion(Calificacion calificacion) async {
     await _client.from('calificaciones').insert(calificacion.toMap());
   }
@@ -86,10 +104,8 @@ class EvaluacionService {
   }
 
   Future<List<Calificacion>> getCalificacionesPorAsociado(String idAsociado) async {
-    final res = await _client
-        .from('calificaciones')
-        .select('id, id_asociado, id_empresa, id_dimension, comportamiento, puntaje, fecha_evaluacion, observaciones, sistemas, evidencia_url')
-        .eq('id_asociado', idAsociado);
+    const String selectColumns = 'id, id_asociado, id_empresa, id_dimension, comportamiento, puntaje, fecha_evaluacion, observaciones, sistemas, evidencia_url';
+    final res = await _client.from('calificaciones').select(selectColumns).eq('id_asociado', idAsociado);
     return (res as List).map((e) => Calificacion.fromMap(e)).toList();
   }
 
@@ -106,71 +122,11 @@ class EvaluacionService {
         .eq('id_empresa', idEmpresa)
         .eq('id_dimension', idDimension)
         .eq('comportamiento', comportamiento)
-        .maybeSingle();
-    return res != null ? Calificacion.fromMap(res) : null;
-  }
-Future<Map<String, double>> obtenerProgresoDimensionPorCargo({
-  required String empresaId,
-  required String dimensionId,
-  required String cargo,
-}) async {
-  final supabase = Supabase.instance.client;
+        .maybeSingle(); // Devuelve un solo registro o null
 
-  // Obtener los comportamientos de la dimensión
-  final comportamientosRes = await supabase
-      .from('comportamientos')
-      .select('id')
-      .eq('id_dimension', dimensionId);
-
-  if ((comportamientosRes as List).isEmpty) {
-    return {cargo: 0.0};
-  }
-
-  final totalComportamientos = comportamientosRes.length;
-
-  // Obtener los asociados de la empresa con el cargo
-  final asociadosRes = await supabase
-      .from('asociados')
-      .select('id')
-      .eq('id_empresa', empresaId)
-      .eq('cargo', cargo);
-
-  if ((asociadosRes as List).isEmpty) {
-    return {cargo: 0.0};
-  }
-
-  final asociadosIds = (asociadosRes).map((e) => e['id'] as String).toList();
-
-  // Obtener calificaciones de esos asociados en esa dimensión
-  final calificacionesRes = await supabase
-      .from('calificaciones')
-      .select('id, id_asociado, id_comportamiento')
-      .inFilter('id_asociado', asociadosIds)
-      .eq('id_dimension', dimensionId);
-
-  final totalCalificaciones = (calificacionesRes as List).length;
-
-  final avance = totalComportamientos == 0
-      ? 0.0
-      : totalCalificaciones / (totalComportamientos * asociadosIds.length);
-
-  return {cargo: avance.clamp(0.0, 1.0)};
-}
-
-  // Progreso Global de una Dimensión
-  Future<double> obtenerProgresoDimension(String empresaId, String dimensionId) async {
-    try {
-      final response = await _client
-          .from('calificaciones')
-          .select('id')
-          .eq('id_empresa', empresaId)
-          .eq('id_dimension', int.tryParse(dimensionId) ?? -1);
-      final total = (response as List).length;
-      final totalDimension = _mapaTotales[dimensionId] ?? 1;
-      return (total / totalDimension).clamp(0.0, 1.0);
-    } catch (e) {
-      debugPrint('Error en obtenerProgresoDimension: $e');
-      return 0.0;
+    if (res == null) {
+      return null;
     }
+    return Calificacion.fromMap(res);
   }
 }

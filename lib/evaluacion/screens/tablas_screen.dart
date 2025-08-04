@@ -1,12 +1,9 @@
-
+import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
+import 'package:flutter/material.dart';
+import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
+import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
-import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
-import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
-import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 
 extension CapitalizeExtension on String {
   String capitalize() {
@@ -21,15 +18,6 @@ class TablasDimensionScreen extends StatefulWidget {
     'Dimensión 2': {},
     'Dimensión 3': {},
   };
-
-  /// Carga los datos persistidos desde cache al iniciar la app
-  static Future<void> cargarDatosPersistidos() async {
-    final data = await EvaluacionCacheService().cargarTablas();
-    if (data.isNotEmpty) {
-      tablaDatos = data;
-      dataChanged.value = !dataChanged.value;
-    }
-  }
 
   static final ValueNotifier<bool> dataChanged = ValueNotifier<bool>(false);
 
@@ -58,7 +46,6 @@ class TablasDimensionScreen extends StatefulWidget {
     required List<String> sistemas,
     required String dimensionId,
     required String asociadoId,
-    required String observaciones,
   }) async {
     final tablaDim = tablaDatos.putIfAbsent(dimension, () => {});
     final lista = tablaDim.putIfAbsent(evaluacionId, () => []);
@@ -73,7 +60,6 @@ class TablasDimensionScreen extends StatefulWidget {
     if (indiceExistente != -1) {
       lista[indiceExistente]['valor'] = valor;
       lista[indiceExistente]['sistemas'] = sistemas;
-      lista[indiceExistente]['observaciones'] = observaciones;
     } else {
       lista.add({
         'principio': principio,
@@ -84,7 +70,6 @@ class TablasDimensionScreen extends StatefulWidget {
         'sistemas': sistemas,
         'dimension_id': dimensionId,
         'asociado_id': asociadoId,
-        'observaciones': observaciones,
       });
     }
 
@@ -92,7 +77,10 @@ class TablasDimensionScreen extends StatefulWidget {
     dataChanged.value = !dataChanged.value;
   }
 
-  
+  static Future<void> limpiarDatos() async {
+    tablaDatos.clear();
+    dataChanged.value = false;
+  }
 
   @override
   State<TablasDimensionScreen> createState() => _TablasDimensionScreenState();
@@ -241,6 +229,9 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
                             DataColumn(label: Text('Ejecutivo Sistemas', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Gerente Sistemas', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Miembro Sistemas', style: TextStyle(color: Colors.white))),
+                           DataColumn(label: Text('Ejecutivo observaciones', style: TextStyle(color: Colors.white))),
+                            DataColumn(label: Text('Gerente observaciones', style: TextStyle(color: Colors.white))),
+                            DataColumn(label: Text('Miembro observaciones', style: TextStyle(color: Colors.white))),
                           ],
                           rows: _buildRows(filas),
                         ),
@@ -291,32 +282,6 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       promediosPorDimension[dim] = promediosNivel;
     }
 
-    // --- Calcular promedios por principio y nivel ---
-    final promediosPrincipios = <String, Map<String, Map<String, double>>>{};
-    for (final dim in dimensiones) {
-      final keyInterna = dimensionInterna[dim] ?? dim;
-      final filas = TablasDimensionScreen.tablaDatos[keyInterna]?.values.expand((l) => l).toList() ?? [];
-      final suma = <String, Map<String, double>>{};
-      final conteo = <String, Map<String, int>>{};
-      for (var f in filas) {
-        final principio = f['principio'] ?? '';
-        final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
-        final valor = (f['valor'] ?? 0).toDouble();
-        suma.putIfAbsent(principio, () => {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0});
-        conteo.putIfAbsent(principio, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
-        suma[principio]![nivel] = suma[principio]![nivel]! + valor;
-        conteo[principio]![nivel] = conteo[principio]![nivel]! + 1;
-      }
-      final promediosPorPrincipio = <String, Map<String, double>>{};
-      suma.forEach((prin, niveles) {
-        promediosPorPrincipio[prin] = {};
-        niveles.forEach((nivel, total) {
-          final cnt = conteo[prin]![nivel]!;
-          promediosPorPrincipio[prin]![nivel] = cnt > 0 ? total / cnt : 0.0;
-        });
-      });
-      promediosPrincipios[dim] = promediosPorPrincipio;
-    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -326,8 +291,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
           evaluacionId: widget.evaluacionId,
           promedios: promediosPorDimension[dimensionActual],
           dimension: dimensionActual,
-          initialTabIndex: currentIndex,
-          promediosPrincipios: promediosPrincipios,
+          initialTabIndex: currentIndex, 
         ),
       ),
     );
@@ -337,6 +301,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
     final sumas = <String, Map<String, Map<String, int>>>{};
     final conteos = <String, Map<String, Map<String, int>>>{};
     final sistemasPorNivel = <String, Map<String, Map<String, Set<String>>>>{};
+    final observacionesPorNivel = <String, Map<String, Map<String, List<String>>>>{};
 
     for (var f in filas) {
       final principio = f['principio'] ?? '';
@@ -344,6 +309,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
       final int valor = ((f['valor'] ?? 0) as num).toInt();
       final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
+      final observacion = f['observacion']?.toString() ?? '';
 
       sumas.putIfAbsent(principio, () => {});
       sumas[principio]!.putIfAbsent(comportamiento, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
@@ -355,11 +321,20 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
         'Gerente': <String>{},
         'Miembro': <String>{},
       });
+      observacionesPorNivel.putIfAbsent(principio, () => {});
+      observacionesPorNivel[principio]!.putIfAbsent(comportamiento, () => {
+        'Ejecutivo': <String>[],
+        'Gerente': <String>[],
+        'Miembro': <String>[],
+      });
 
       sumas[principio]![comportamiento]![nivel] = sumas[principio]![comportamiento]![nivel]! + valor;
       conteos[principio]![comportamiento]![nivel] = conteos[principio]![comportamiento]![nivel]! + 1;
       for (var s in sistemas) {
         sistemasPorNivel[principio]![comportamiento]![nivel]!.add(s);
+      }
+      if (observacion.isNotEmpty) {
+        observacionesPorNivel[principio]![comportamiento]![nivel]!.add(observacion);
       }
     }
 
@@ -380,6 +355,10 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
           ...niveles.map((n) {
             final sistemas = sistemasPorNivel[p]![c]![n]!;
             return DataCell(Text(sistemas.isEmpty ? '-' : sistemas.join(', '), style: const TextStyle(color: Color(0xFF003056))));
+          }),
+          ...niveles.map((n) {
+            final observaciones = observacionesPorNivel[p]![c]![n]!;
+            return DataCell(Text(observaciones.isEmpty ? '-' : observaciones.join('; '), style: const TextStyle(color: Color(0xFF003056))));
           }),
         ]);
       });
@@ -405,88 +384,6 @@ class SistemasPromedio {
     if (_sistemasPorNivel.isEmpty) return 0.0;
     final totalSistemas = _sistemasPorNivel.values.fold<int>(0, (sum, set) => sum + set.length);
     final nivelesConSistemas = _sistemasPorNivel.values.where((set) => set.isNotEmpty).length;
-    return nivelesConSistemas == 0 ? 0.0 : totalSistemas / _sistemasPorNivel.length;
-  }
-}
-
-/// Servicio para suscribirse y obtener los promedios por principio desde Supabase
-class SupabasePrincipiosService {
-  final SupabaseClient _client = Supabase.instance.client;
-
-  String _normalizeNivel(String raw) {
-    final lower = raw.toLowerCase();
-    if (lower.contains('miembro')) return 'Miembro';
-    if (lower.contains('gerente')) return 'Gerente';
-    return 'Ejecutivo';
-  }
-
-  /// Obtiene un Stream que emite un Map de promedios por principio y por cargo
-  /// en tiempo real, suscribiéndose a la tabla 'evaluaciones_principios'.
-  Stream<Map<String, Map<String, double>>> subscribePromedios(
-      String evaluacionId,
-      List<String> principios,
-  ) {
-    // Suscripción en tiempo real a inserciones, actualizaciones y borrados
-    return _client
-        .from('evaluaciones_principios')
-        .stream(primaryKey: ['id'])
-        .eq('evaluacion_id', evaluacionId)
-        .map((List<Map<String, dynamic>> rows) {
-      return _calcularPromedios(rows, principios);
-    });
-  }
-
-  /// Obtiene los promedios por principio y por cargo de forma puntual
-  Future<Map<String, Map<String, double>>> fetchPromedios(
-      String evaluacionId,
-      List<String> principios,
-  ) async {
-    final response = await _client
-        .from('evaluaciones_principios')
-        .select('principio, cargo_raw, valor')
-        .eq('evaluacion_id', evaluacionId) as PostgrestResponse;
-
-    final rows = (response.data as List).cast<Map<String, dynamic>>();
-    return _calcularPromedios(rows, principios);
-  }
-
-  /// Calcula el promedio de 'valor' por principio y nivel a partir de filas
-  Map<String, Map<String, double>> _calcularPromedios(
-      List<Map<String, dynamic>> filas,
-      List<String> principios,
-  ) {
-    // Inicializar acumuladores
-    final suma = <String, Map<String, double>>{
-      for (var p in principios)
-        p: {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0}
-    };
-    final conteo = <String, Map<String, int>>{
-      for (var p in principios)
-        p: {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0}
-    };
-
-
-    // Acumular
-    for (var f in filas) {
-      final prin = f['principio'] as String?;
-      if (prin == null || !suma.containsKey(prin)) continue;
-      final nivel = _normalizeNivel(f['cargo_raw'] as String? ?? '');
-      final valor = (f['valor'] as num?)?.toDouble() ?? 0.0;
-      suma[prin]![nivel] = suma[prin]![nivel]! + valor;
-      conteo[prin]![nivel] = conteo[prin]![nivel]! + 1;
-    }
-
-    // Calcular promedio
-    final promedios = <String, Map<String, double>>{};
-    for (var p in principios) {
-      promedios[p] = {};
-      for (var nivel in ['Ejecutivo', 'Gerente', 'Miembro']) {
-        final total = suma[p]![nivel]!;
-        final cnt = conteo[p]![nivel]!;
-        promedios[p]![nivel] = cnt > 0 ? total / cnt : 0.0;
-      }
-    }
-
-    return promedios;
+    return nivelesConSistemas == 0 ? 0.0 : totalSistemas / nivelesConSistemas;
   }
 }

@@ -1,6 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
 
-
 import 'package:applensys/evaluacion/screens/historial_screen.dart';
 import 'package:applensys/evaluacion/services/domain/empresa_service.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
@@ -115,19 +114,20 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
     final empresaCreada = empresas.isNotEmpty ? empresas.last : null;
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       key: _scaffoldKey,
-      drawer: const SizedBox(width: 300, child: ChatWidgetDrawer()),
-      endDrawer: const DrawerLensys(),
+      drawer: SizedBox(width: 300, child: const ChatWidgetDrawer()),
+      endDrawer: DrawerLensys(),
       appBar: AppBar(
         backgroundColor: const Color(0xFF003056),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.message, color: Colors.white),
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
         title: const Text(
           'LensysApp',
@@ -138,6 +138,20 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
           ),
         ),
         actions: [
+          // Botón para ir al Home
+          IconButton(
+            icon: const Icon(Icons.home, color: Colors.white),
+            onPressed: () {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/home', 
+                (route) => false,
+              );
+            },
+            tooltip: 'Ir a Inicio',
+          ),
+          // Botón para ir al Perfil
+        
           IconButton(
             icon: const Icon(Icons.menu, color: Colors.white),
             onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
@@ -201,10 +215,41 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
                             MaterialPageRoute(
                               builder: (_) => HistorialScreen(
                                 empresas: empresas,
-                                empresasHistorial: const [],
+                                empresasHistorial: [],
                               ),
                             ),
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Botones de navegación rápida
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildQuickNavButton(
+                          context: context,
+                          icon: Icons.home,
+                          label: 'Inicio',
+                          color: const Color(0xFF4CAF50),
+                          onTap: () {
+                            Navigator.pushNamedAndRemoveUntil(
+                              context,
+                              '/home',
+                              (route) => false,
+                            );
+                          },
+                        ),
+                        _buildQuickNavButton(
+                          context: context,
+                          icon: Icons.person,
+                          label: 'Perfil',
+                          color: const Color(0xFF2196F3),
+                          onTap: () {
+                            Navigator.pushNamed(context, '/perfil');
+                          },
                         ),
                       ],
                     ),
@@ -246,6 +291,40 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
               child: Icon(Icons.chevron_right, color: Color(0xFF003056)),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickNavButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        child: ElevatedButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon, size: 20),
+          label: Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            elevation: 2,
+          ),
         ),
       ),
     );
@@ -375,12 +454,14 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
                 ListTile(
                   title: const Text('Empresa Prueba 1'),
                   onTap: () {
+                    // Lógica para usar la empresa de prueba 1
                     Navigator.pop(context);
                   },
                 ),
                 ListTile(
-                  title: const Text('BRP'),
+                  title: const Text('Empresa Prueba 2'),
                   onTap: () {
+                    // Lógica para usar la empresa de prueba 2
                     Navigator.pop(context);
                   },
                 ),

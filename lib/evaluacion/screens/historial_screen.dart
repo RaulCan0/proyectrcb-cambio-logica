@@ -1,7 +1,6 @@
-import 'package:applensys/evaluacion/models/empresa.dart';
-import 'package:applensys/evaluacion/services/domain/empresa_service.dart';
 import 'package:flutter/material.dart';
-
+import 'package:applensys/evaluacion/services/domain/empresa_service.dart';
+import 'package:applensys/evaluacion/models/empresa.dart';
 
 class HistorialScreen extends StatefulWidget {
   const HistorialScreen({super.key, required List<Empresa> empresas, required List empresasHistorial});
@@ -34,7 +33,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
       if (mounted) {
         setState(() => isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al cargar empresas: \$e')),
+          SnackBar(content: Text('Error al cargar empresas: \$e')),
         );
       }
     }
@@ -76,7 +75,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      boxShadow: const [
+                      boxShadow: [
                         BoxShadow(
                           color: Colors.black12,
                           blurRadius: 4,
@@ -96,7 +95,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                             ),
                           ),
                         ),
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text('Asociados: \${empresa.empleadosAsociados.length}'),

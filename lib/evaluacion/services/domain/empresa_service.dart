@@ -1,5 +1,5 @@
-import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:applensys/evaluacion/models/empresa.dart';
 
 /// Servicio para gestión de empresas
 class EmpresaService {

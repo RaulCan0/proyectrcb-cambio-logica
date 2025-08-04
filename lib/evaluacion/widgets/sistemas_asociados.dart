@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -37,79 +36,71 @@ class _SistemasScreenState extends State<SistemasScreen> {
 
   void _filtrarBusqueda() {
     final query = busquedaController.text.trim().toLowerCase();
-    final nuevos = query.isEmpty
-        ? List<Map<String, dynamic>>.from(sistemas)
-        : sistemas.where((s) => s['nombre'].toLowerCase().contains(query)).toList();
-
-    if (!listEquals(nuevos, sistemasFiltrados)) {
-      if (mounted) setState(() => sistemasFiltrados = nuevos);
-    }
+    setState(() {
+      sistemasFiltrados = query.isEmpty
+          ? List.from(sistemas)
+          : sistemas.where((s) => s['nombre'].toLowerCase().contains(query)).toList();
+    });
   }
 
   Future<void> cargarSistemas() async {
-    if (!mounted) return;
     setState(() => isLoading = true);
     try {
       final response = await supabase.from('sistemas_asociados').select();
       final lista = List<Map<String, dynamic>>.from(response);
       lista.sort((a, b) => a['nombre'].toString().compareTo(b['nombre'].toString()));
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (mounted) {
-        setState(() {
-          sistemas = lista;
-          sistemasFiltrados = List.from(lista);
-          isLoading = false;
-        });
-      }
+
+      setState(() {
+        sistemas = lista;
+        sistemasFiltrados = List.from(lista);
+        isLoading = false;
+      });
     } catch (e) {
-      if (mounted) setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al cargar: $e');
     }
   }
 
   Future<void> agregarSistema(String nombre) async {
     if (nombre.isEmpty) return;
-    if (!mounted) return;
     setState(() => isLoading = true);
     try {
-      final nuevo = await supabase.from('sistemas_asociados').insert({'nombre': nombre}).select().single();
-      if (mounted) {
-        setState(() {
-          sistemas.add(nuevo);
-          sistemas.sort((a, b) => a['nombre'].toString().compareTo(b['nombre'].toString()));
-          _filtrarBusqueda();
-          nuevoController.clear();
-          isLoading = false;
-        });
-      }
+      final nuevo = await supabase
+          .from('sistemas_asociados')
+          .insert({'nombre': nombre})
+          .select()
+          .single();
+      setState(() {
+        sistemas.add(nuevo);
+        sistemas.sort((a, b) => a['nombre'].toString().compareTo(b['nombre'].toString()));
+        _filtrarBusqueda();
+        nuevoController.clear();
+        isLoading = false;
+      });
     } catch (e) {
-      if (mounted) setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al agregar: $e');
     }
   }
 
   Future<void> eliminarSistema(int id) async {
-    if (!mounted) return;
     setState(() => isLoading = true);
     try {
       await supabase.from('sistemas_asociados').delete().eq('id', id);
-      if (mounted) {
-        setState(() {
-          sistemas.removeWhere((s) => s['id'] == id);
-          seleccionados.remove(id);
-          _filtrarBusqueda();
-          isLoading = false;
-        });
-      }
+      setState(() {
+        sistemas.removeWhere((s) => s['id'] == id);
+        seleccionados.remove(id);
+        _filtrarBusqueda();
+        isLoading = false;
+      });
     } catch (e) {
-      if (mounted) setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al eliminar: $e');
     }
   }
 
   Future<void> editarSistema(int id, String nuevoNombre) async {
     if (nuevoNombre.isEmpty) return;
-    if (!mounted) return;
     setState(() => isLoading = true);
     try {
       final actualizado = await supabase
@@ -119,15 +110,13 @@ class _SistemasScreenState extends State<SistemasScreen> {
           .select()
           .single();
       final idx = sistemas.indexWhere((s) => s['id'] == id);
-      if (mounted) {
-        setState(() {
-          sistemas[idx] = actualizado;
-          _filtrarBusqueda();
-          isLoading = false;
-        });
-      }
+      setState(() {
+        sistemas[idx] = actualizado;
+        _filtrarBusqueda();
+        isLoading = false;
+      });
     } catch (e) {
-      if (mounted) setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al editar: $e');
     }
   }
@@ -140,7 +129,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(sistema['nombre']),
+        title: Text(sistema['nombre']), // Modificado: Se elimina "Sistema: "
         content: const Text('¿Qué deseas hacer?'),
         actions: [
           TextButton(
@@ -148,7 +137,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
               Navigator.pop(context);
               _mostrarEditarDialogo(sistema);
             },
-            child: const Text('Editar'),
+            child: const Text('Editar'), // Modificado: Se quita el estilo explícito si lo tuviera, para usar el color por defecto.
           ),
           TextButton(
             onPressed: () {
@@ -192,16 +181,6 @@ class _SistemasScreenState extends State<SistemasScreen> {
     );
   }
 
-  void _toggleSeleccionado(int id, bool? seleccionado) {
-    setState(() {
-      if (seleccionado == true) {
-        seleccionados.add(id);
-      } else {
-        seleccionados.remove(id);
-      }
-    });
-  }
-
   void _notificarSeleccion() {
     final seleccionadosMap = sistemas.where((s) => seleccionados.contains(s['id'])).toList();
     widget.onSeleccionar(seleccionadosMap);
@@ -209,8 +188,8 @@ class _SistemasScreenState extends State<SistemasScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(10.0)),
+    return ClipRRect( // Envolver con ClipRRect
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(10.0)), // Definir el radio para las esquinas superiores
       child: SizedBox(
         height: 380,
         child: Scaffold(
@@ -254,7 +233,15 @@ class _SistemasScreenState extends State<SistemasScreen> {
                                   child: ListTile(
                                     leading: Checkbox(
                                       value: seleccionados.contains(sistema['id']),
-                                      onChanged: (sel) => _toggleSeleccionado(sistema['id'], sel),
+                                      onChanged: (sel) {
+                                        setState(() {
+                                          if (sel == true) {
+                                            seleccionados.add(sistema['id']);
+                                          } else {
+                                            seleccionados.remove(sistema['id']);
+                                          }
+                                        });
+                                      },
                                     ),
                                     title: Text(
                                       sistema['nombre'],
@@ -292,10 +279,10 @@ class _SistemasScreenState extends State<SistemasScreen> {
                   ],
                 ),
               ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: isLoading ? const Center(child: CircularProgressIndicator()) : const SizedBox.shrink(),
-              ),
+              if (isLoading)
+                const Center(
+                  child: CircularProgressIndicator(),
+                )
             ],
           ),
         ),

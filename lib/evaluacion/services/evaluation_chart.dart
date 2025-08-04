@@ -2,9 +2,6 @@
 // Servicio para alimentar EvaluationCarousel con datos estructurados desde caché o Supabase
 import 'package:applensys/evaluacion/models/level_averages.dart';
 import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
-// ignore: unused_import
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 
 const List<String> dimensionesFijas = [
   'Impulsores culturales',
@@ -41,6 +38,19 @@ const List<String> comportamientosFijos = [
   'Relación',
   'Valor',
   'Medida',
+];
+
+const List<String> principleNames = [
+  'Respetar a Cada Individuo',
+  'Liderar con Humildad',
+  'Buscar la Perfección',
+  'Abrazar el Pensamiento Científico',
+  'Enfocarse en el Proceso',
+  'Asegurar la Calidad en la Fuente',
+  'Mejorar el Flujo y Jalón de Valor',
+  'Pensar Sistémicamente',
+  'Crear Constancia de Propósito',
+  'Crear Valor para el Cliente',
 ];
 
 class EvaluationChartDataService {
@@ -161,13 +171,24 @@ class EvaluationChartDataService {
       'Miembro': List.filled(28, 0),
     };
 
-// Removed unused principleNames variable
+    final List<String> principleNames = [
+      'Respetar a Cada Individuo',
+      'Liderar con Humildad',
+      'Buscar la Perfección',
+      'Abrazar el Pensamiento Científico',
+      'Enfocarse en el Proceso',
+      'Asegurar la Calidad en la Fuente',
+      'Mejorar el Flujo y Jalón de Valor',
+      'Pensar Sistémicamente',
+      'Crear Constancia de Propósito',
+      'Crear Valor para el Cliente',
+    ];
 
     // Cargar promedios por dimensión
     for (var dimension in tablaDatos.keys) {
       double suma = 0;
       int conteo = 0;
-      tablaDatos[dimension]?.forEach((_, lista) {
+      tablaDatos[dimension]?.forEach((principio, lista) {
         for (var item in lista) {
           final valor = (item['valor'] as num?)?.toDouble() ?? 0;
           suma += valor;
@@ -177,32 +198,34 @@ class EvaluationChartDataService {
       dimensionPromedios[dimension] = conteo > 0 ? suma / conteo : 0;
     }
 
-    // Preparar datos adicionales (este bloque se ampliará en los siguientes pasos)
-    // Normalizar los niveles: 'Miembro de equipo' -> 'Miembro'
+    // Usar principleNames para generar scatterData
     for (var dimension in tablaDatos.keys) {
-      tablaDatos[dimension]?.forEach((_, lista) {
-        for (var item in lista) {
-          final rawNivel = (item['cargo'] as String?)?.toLowerCase().trim() ?? '';
-          final nivel = rawNivel.contains('miembro') ? 'Miembro'
-                      : rawNivel.contains('gerente') ? 'Gerente'
-                      : rawNivel.contains('ejecutivo') ? 'Ejecutivo'
-                      : null;
-          if (nivel == null) continue;
+      tablaDatos[dimension]?.forEach((principio, lista) {
+        // Verificar si el principio está en nuestra lista
+        if (principleNames.contains(principio)) {
+          for (var item in lista) {
+            final rawNivel = (item['cargo'] as String?)?.toLowerCase().trim() ?? '';
+            final nivel = rawNivel.contains('miembro') ? 'Miembro'
+                        : rawNivel.contains('gerente') ? 'Gerente'
+                        : rawNivel.contains('ejecutivo') ? 'Ejecutivo'
+                        : null;
+            if (nivel == null) continue;
 
-          // Aquí se pueden construir: lineChartData, scatterData, sistemasPorNivel, etc.
-          // Ejemplo para sistemas:
-          final sistemas = (item['sistemas'] as List?)?.cast<String>() ?? [];
-          for (final sistema in sistemas) {
-            sistemasPorNivel.putIfAbsent(sistema, () => {
-              'Ejecutivo': 0,
-              'Gerente': 0,
-              'Miembro': 0,
-            });
-            sistemasPorNivel[sistema]![nivel] =
-              (sistemasPorNivel[sistema]![nivel] ?? 0) + 1;
+            final valor = (item['valor'] as num?)?.toDouble() ?? 0;
+            scatterData.add(ScatterData(principio, valor, nivel));
+
+            // Sistemas por nivel
+            final sistemas = (item['sistemas'] as List?)?.cast<String>() ?? [];
+            for (final sistema in sistemas) {
+              sistemasPorNivel.putIfAbsent(sistema, () => {
+                'Ejecutivo': 0,
+                'Gerente': 0,
+                'Miembro': 0,
+              });
+              sistemasPorNivel[sistema]![nivel] =
+                (sistemasPorNivel[sistema]![nivel] ?? 0) + 1;
+            }
           }
-
-          // Otros cálculos... (comportamientos, promedios, etc.)
         }
       });
     }

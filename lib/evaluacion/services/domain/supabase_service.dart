@@ -544,16 +544,17 @@ class SupabaseService {
     )).toList();
   }
 
-  Future<double> obtenerProgresoAsociado({ required String empresaId,
+  Future<double> obtenerProgresoAsociado({
+    required String evaluacionId,
     required String asociadoId,
-    required String dimensionId, required String evaluacionId,
+    required String dimensionId,
   }) async {
     if (evaluacionId.isEmpty || asociadoId.isEmpty || dimensionId.isEmpty) return 0.0;
     final response = await _client
         .from('calificaciones')
         .select('comportamiento')
         .eq('id_asociado', asociadoId)
-        .eq('id_empresa', empresaId)
+        .eq('id_empresa', evaluacionId)
         .eq('id_dimension', int.tryParse(dimensionId) ?? -1);
 
     final total = (response as List).length;
@@ -622,7 +623,7 @@ class SupabaseService {
     required String dimension,
     required Map<String, double> promedios,
   }) async {
-    const uuid = Uuid();
+    final uuid = const Uuid();
     final now = DateTime.now().toIso8601String();
 
     final data = promedios.entries.map((entry) => {
@@ -643,7 +644,7 @@ class SupabaseService {
     required String dimension,
     required Map<String, int> conteos,
   }) async {
-    const uuid = Uuid();
+    final uuid = const Uuid();
     final now = DateTime.now().toIso8601String();
 
     final data = conteos.entries.map((entry) => {
@@ -663,7 +664,7 @@ class SupabaseService {
     required Uint8List bytes,
     String contentType = 'application/octet-stream',
   }) async {
-    await _client.storage.from(bucket).uploadBinary(
+    final response = await _client.storage.from(bucket).uploadBinary(
       path,
       bytes,
       fileOptions: FileOptions(contentType: contentType),
@@ -681,30 +682,6 @@ class SupabaseService {
     }
     return res;
   }
-Future<Map<String, double>> getSumaPorDimension(String empresaId) async {
-  final response = await Supabase.instance.client
-      .from('calificaciones')
-      .select('id_dimension, calificacion')
-      .eq('id_empresa', empresaId);
-
-  if (response.isEmpty) {
-    return {};
-  }
-
-  final Map<String, double> sumaPorDimension = {};
-
-  for (final item in response) {
-    final dimensionId = item['id_dimension'] as String?;
-    final calificacion = (item['calificacion'] as num?)?.toDouble() ?? 0.0;
-
-    if (dimensionId != null) {
-      sumaPorDimension.update(dimensionId, (value) => value + calificacion,
-          ifAbsent: () => calificacion);
-    }
-  }
-
-  return sumaPorDimension;
-}
 
   Future<void> limpiarDatosEvaluacion() async {
     // Implementar lógica para limpiar datos de evaluaciones en Supabase

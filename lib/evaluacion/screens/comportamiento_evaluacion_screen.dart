@@ -1,17 +1,17 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:typed_data';
-import 'package:applensys/evaluacion/models/calificacion.dart';
 import 'package:applensys/evaluacion/services/domain/calificacion_service.dart';
 import 'package:applensys/evaluacion/services/remote/storage_service.dart';
-import 'package:applensys/evaluacion/widgets/sistemas_asociados.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+import 'package:applensys/evaluacion/models/calificacion.dart';
 import '../models/principio_json.dart';
 import '../screens/tablas_screen.dart';
+import '../widgets/sistemas_asociados.dart';
 import '../widgets/drawer_lensys.dart';
 import '../providers/text_size_provider.dart';
 
@@ -133,7 +133,7 @@ class _ComportamientoEvaluacionScreenState
   }
 
   Future<void> _takePhoto() async {
-    const source = ImageSource.gallery;
+    final source = ImageSource.gallery;
     try {
       final XFile? photo = await _picker.pickImage(source: source);
       if (photo == null) return;
@@ -227,7 +227,6 @@ class _ComportamientoEvaluacionScreenState
             sistemas: sistemasSeleccionados,
             dimensionId: widget.dimensionId,
             asociadoId: widget.asociadoId,
-            observaciones: obs,
           );
           if (mounted) Navigator.pop(context, nombreComp); // Devolver el nombre del comportamiento para actualizar la pantalla anterior
         } else {
@@ -261,7 +260,6 @@ class _ComportamientoEvaluacionScreenState
         sistemas: sistemasSeleccionados,
         dimensionId: widget.dimensionId, // Se mantiene por si es útil en otro lado, pero la clave principal es 'dimension'
         asociadoId: widget.asociadoId,
-        observaciones: obs,
       );
       if (mounted) Navigator.pop(context, nombreComp);
     } catch (e) {
@@ -304,7 +302,7 @@ class _ComportamientoEvaluacionScreenState
             headingTextStyle: TextStyle(
               fontSize: 12 * scaleFactor, // ligeramente mayor para encabezados
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF003056),
+                color: Color(0xFF003056),
 
             ),
             dataTextStyle: TextStyle(
@@ -397,7 +395,7 @@ class _ComportamientoEvaluacionScreenState
             maxHeight: MediaQuery.of(context).size.height * 0.85,
           ),
           child: ScrollConfiguration(
-            behavior: const MaterialScrollBehavior().copyWith(
+            behavior: MaterialScrollBehavior().copyWith(
               dragDevices: {
                 PointerDeviceKind.touch,
                 PointerDeviceKind.mouse,
@@ -535,8 +533,9 @@ class _ComportamientoEvaluacionScreenState
             Text(
               sistemasRecomendadosPorComportamiento[widget.principio.benchmarkComportamiento.split(':').first.trim()]!.replaceAll('\\n', ', '),
               style: TextStyle(
-                color: const Color.fromARGB(255, 69, 70, 71),
+                color: const Color(0xFF003056),
                 fontSize: 13 * scaleFactor,
+                fontStyle: FontStyle.italic,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -546,7 +545,7 @@ class _ComportamientoEvaluacionScreenState
           const SizedBox(height: 16),
           if (sistemasSeleccionados.isNotEmpty) ...[
   const SizedBox(height: 16),
-  const Row(
+  Row(
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
      

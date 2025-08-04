@@ -1,5 +1,4 @@
-import 'package:applensys/evaluacion/screens/shingo_result.dart';
-
+import '../../evaluacion/screens/shingo_result.dart';
 
 class ShingoResultService {
 

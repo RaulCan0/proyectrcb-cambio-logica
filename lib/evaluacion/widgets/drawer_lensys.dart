@@ -1,19 +1,19 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:applensys/auth/loader.dart';
-
-import '../models/empresa.dart';
-import '../screens/dashboard_screen.dart';
-import '../screens/detalles_evaluacion.dart';
-import '../screens/empresas_screen.dart';
-import '../screens/historial_screen.dart';
-import '../screens/perfil_screen.dart';
-import '../screens/tablas_screen.dart';
+import 'package:applensys/evaluacion/models/empresa.dart';
+import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
+import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
+import 'package:applensys/evaluacion/screens/empresas_screen.dart';
+import 'package:applensys/evaluacion/screens/historial_screen.dart';
+import 'package:applensys/evaluacion/screens/perfil_screen.dart';
+import 'package:applensys/evaluacion/screens/tablas_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/text_size_provider.dart';
+import '../screens/anotaciones_screen.dart';
+import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 
 class DrawerLensys extends ConsumerWidget {
   const DrawerLensys({super.key});
@@ -129,7 +129,6 @@ class DrawerLensys extends ConsumerWidget {
                   MaterialPageRoute(
                     builder: (_) => DetallesEvaluacionScreen(
                       dimensionesPromedios: const {},
-                      promedios: const {},
                       empresa: Empresa(
                         id: '',
                         nombre: '',
@@ -154,7 +153,7 @@ class DrawerLensys extends ConsumerWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const HistorialScreen(
+                    builder: (_) => HistorialScreen(
                       empresas: [], // Proporcionar una lista vacía o los datos reales
                       empresasHistorial: [], // Proporcionar una lista vacía o los datos reales
                     ),
@@ -207,6 +206,19 @@ class DrawerLensys extends ConsumerWidget {
                 Scaffold.of(context).openDrawer();
               },
             ),
+            const Divider(),
+            ListTile(
+              leading: Icon(Icons.note_add, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
+              title: Text('Mis Anotaciones', style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => AnotacionesScreen(userId: Supabase.instance.client.auth.currentUser!.id),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
             // Selector de tamaño de letra
             ListTile(
               leading: Icon(Icons.text_fields, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),

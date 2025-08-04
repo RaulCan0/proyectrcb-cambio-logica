@@ -1,18 +1,18 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'package:applensys/evaluacion/models/empresa.dart';
-import 'package:applensys/evaluacion/screens/asociado_screen.dart';
-import 'package:applensys/evaluacion/screens/empresas_screen.dart';
+
 import 'package:applensys/evaluacion/screens/shingo_result.dart';
 import 'package:applensys/evaluacion/screens/tabla_resumen_global.dart';
-import 'package:applensys/evaluacion/screens/tablas_screen.dart';
-import 'package:applensys/evaluacion/services/domain/evaluacion_service.dart';
-import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
-import 'package:applensys/evaluacion/widgets/chat_screen.dart';
-import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:applensys/evaluacion/screens/asociado_screen.dart';
+import 'package:applensys/evaluacion/screens/empresas_screen.dart';
+import 'package:applensys/evaluacion/screens/tablas_screen.dart';
+import 'package:applensys/evaluacion/widgets/chat_screen.dart';
+import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
+import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
+import 'package:applensys/evaluacion/services/domain/evaluacion_service.dart';
+import '../models/empresa.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
@@ -37,17 +37,20 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
     {
       'id': '1',
       'nombre': 'IMPULSORES CULTURALES',
-      'color': Colors.indigo,
+      'icono': Icons.group,
+      'color': Color.fromARGB(255, 122, 141, 245),
     },
     {
       'id': '2',
       'nombre': 'MEJORA CONTINUA',
-      'color': Color.fromARGB(255, 71, 87, 160),
+      'icono': Icons.update,
+      'color': Colors.indigo,
     },
     {
       'id': '3',
       'nombre': 'ALINEAMIENTO EMPRESARIAL',
-      'color': Color.fromARGB(255, 39, 33, 99),
+      'icono': Icons.business,
+      'color': Color.fromARGB(255, 14, 24, 78),
     },
   ];
 
@@ -68,41 +71,17 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
     setState(() {});
   }
 
-  Widget _buildProgressCircle(double value, Color color, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 56,
-          height: 56,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CircularProgressIndicator(
-                value: value,
-                strokeWidth: 7,
-                backgroundColor: Colors.grey[300],
-                color: color,
-              ),
-              Text('${(value * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
     final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
-    const double cardHeight = 200;
+
+    // Define una altura constante para todas las cards
+    const double cardHeight = 150; // Puedes ajustar este valor
 
     return Scaffold(
       key: scaffoldKey,
-      drawer: const SizedBox(width: 300, child: ChatWidgetDrawer()),
+      drawer: SizedBox(width: 300, child: const ChatWidgetDrawer()),
       appBar: AppBar(
         backgroundColor: const Color(0xFF003056),
         centerTitle: true,
@@ -118,7 +97,10 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
         title: Text(
           'Dimensiones - ${widget.empresa.nombre}',
           style: const TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.white,
+          ),
         ),
         actions: [
           IconButton(
@@ -130,51 +112,39 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
       endDrawer: const DrawerLensys(),
       body: Column(
         children: [
-          const SizedBox(height: 24),
           Expanded(
             child: ListView.builder(
-              itemCount: dimensiones.length + 2,
+              itemCount: 5,
               itemBuilder: (context, index) {
                 Widget cardItem;
                 if (index < dimensiones.length) {
                   final dimension = dimensiones[index];
                   cardItem = _buildCard(
+                    icon: dimension['icono'],
                     color: dimension['color'],
                     title: dimension['nombre'],
-                    child: FutureBuilder<Map<String, double>>(
-                      future: Future.wait([
-                        evaluacionService.obtenerProgresoDimensionPorCargo(
-                          empresaId: widget.empresa.id,
-                          dimensionId: dimension['id'],
-                          cargo: 'ejecutivo',
-                        ),
-                        evaluacionService.obtenerProgresoDimensionPorCargo(
-                          empresaId: widget.empresa.id,
-                          dimensionId: dimension['id'],
-                          cargo: 'gerente',
-                        ),
-                        evaluacionService.obtenerProgresoDimensionPorCargo(
-                          empresaId: widget.empresa.id,
-                          dimensionId: dimension['id'],
-                          cargo: 'miembro',
-                        ),
-                      ]).then((results) {
-                        return {
-                          'ejecutivo': results[0]['ejecutivo'] ?? 0.0,
-                          'gerente': results[1]['gerente'] ?? 0.0,
-                          'miembro': results[2]['miembro'] ?? 0.0,
-                        };
-                      }),
+                    child: FutureBuilder<double>(
+                      future: evaluacionService.obtenerProgresoDimension(
+                        widget.empresa.id, // Asumiendo que widget.empresa.id es String
+                        dimension['id'],   // Asumiendo que dimension['id'] es String
+                      ),
                       builder: (context, snapshot) {
-                        final progresoEj = (snapshot.data?['ejecutivo'] ?? 0.0).clamp(0.0, 1.0);
-                        final progresoGe = (snapshot.data?['gerente'] ?? 0.0).clamp(0.0, 1.0);
-                        final progresoMi = (snapshot.data?['miembro'] ?? 0.0).clamp(0.0, 1.0);
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        final progreso = (snapshot.data ?? 0.0).clamp(0.0, 1.0);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min, // Para que la columna no intente expandirse innecesariamente
                           children: [
-                            _buildProgressCircle(progresoEj, Colors.orange, 'Ejecutivo'),
-                            _buildProgressCircle(progresoGe, Colors.green, 'Gerente'),
-                            _buildProgressCircle(progresoMi, Colors.blue, 'Miembro'),
+                            LinearProgressIndicator(
+                              value: progreso,
+                              minHeight: 8,
+                              backgroundColor: const Color.fromARGB(255, 156, 156, 156),
+                              color: dimension['color'],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${(progreso * 100).toStringAsFixed(1)}% completado',
+                              style: const TextStyle(fontSize: 12),
+                            ),
                           ],
                         );
                       },
@@ -190,44 +160,50 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                           ),
                         ),
                       );
-                      if (mounted) setState(() {});
+                      if (mounted) { // Buena práctica verificar 'mounted' después de un await
+                        setState(() {});
+                      }
                     },
                   );
-                } else if (index == dimensiones.length) {
+                } else if (index == 3) {
                   cardItem = _buildCard(
-                    color: Colors.orange,
+                    icon: Icons.insert_chart,
+                    color: const Color.fromARGB(255, 27, 31, 66),
                     title: 'Resultados',
                     onTap: () {
                       Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ShingoResultSheet(
-                            title: 'Resultados',
-                            initialData: ShingoResultData(),
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ShingoResultSheet(
+                              title: 'Resultados',
+                              initialData: ShingoResultData(), // Replace with appropriate default or required data
+                            ),
                           ),
-                        ),
-                      );
+                        );
                     },
                   );
-                } else {
-                  cardItem = _buildCard(
-                    color: Colors.blue,
-                    title: 'Evaluación Final',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => TablaScoreGlobal(
-                            empresa: widget.empresa,
-                            detalles: const [],
-                            evaluaciones: const [],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                }
-                return SizedBox(height: cardHeight, child: cardItem);
+                } // index == 4
+                 else { // index == 4
+  cardItem = _buildCard(
+    icon: Icons.assignment_turned_in,
+    color: const Color.fromARGB(255, 2, 33, 58),
+    title: 'Evaluación Final',
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TablaScoreGlobal(empresa: widget.empresa, detalles: [], evaluaciones: [],),
+        ),
+      );
+    },
+  );
+} 
+                
+                // Envolver la cardItem con SizedBox para darle una altura fija
+                return SizedBox(
+                  height: cardHeight,
+                  child: cardItem,
+                );
               },
             ),
           ),
@@ -254,9 +230,8 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                 ),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.check_circle, color: Colors.white),
-                  label: const Text('Finalizar evaluación', style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 94, 156, 96)),
+                    label: const Text('Finalizar evaluación', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 94, 156, 96)),
                   onPressed: () async {
                     try {
                       final cache = EvaluacionCacheService();
@@ -297,13 +272,15 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
   }
 
   Widget _buildCard({
+    required IconData icon,
     required Color color,
     required String title,
     Widget? child,
     required VoidCallback onTap,
   }) {
+    // final screenSize = MediaQuery.of(context).size; // No se usa aquí
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Reducido el padding vertical para mejor ajuste con altura fija
       child: Card(
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -314,20 +291,27 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              // Asegurar que la columna se centre o se expanda si es necesario dentro de la Card
+              // dependiendo del diseño deseado. Por ahora, se deja como está.
+              // mainAxisAlignment: MainAxisAlignment.center, // Podrías usar esto para centrar verticalmente el contenido
               children: [
                 Row(
                   children: [
+                    Icon(icon, color: color, size: 36),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
                 if (child != null) ...[
                   const SizedBox(height: 10),
+                  // Si el child puede crecer, y quieres que la card se expanda,
+                  // considera envolver el child con Expanded si la Column está dentro de otra Column/Row flexible.
+                  // Aquí, como la Card tiene altura fija por el SizedBox externo, el child se adaptará o cortará.
                   child,
                 ],
               ],
@@ -338,3 +322,4 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
     );
   }
 }
+

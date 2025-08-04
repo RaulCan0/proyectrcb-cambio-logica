@@ -171,7 +171,7 @@ class ReporteUtils {
 
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/reporte_unificado.doc');
-    await file.writeAsString(buffer.toString(), encoding: const Utf8Codec());
+    await file.writeAsString(buffer.toString(), encoding: Utf8Codec());
     return file.path;
   }
 }

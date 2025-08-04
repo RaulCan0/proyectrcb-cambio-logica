@@ -1,5 +1,4 @@
-
-import 'comportamiento.dart';
+import 'package:applensys/evaluacion/models/comportamiento.dart';
 
 class Principio {
   final String id;

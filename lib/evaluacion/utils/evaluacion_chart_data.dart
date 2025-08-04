@@ -1,9 +1,10 @@
 import 'dart:ui';
-import '../widgets/scatter_bubble_chart.dart';
-import '../models/comportamiento.dart';
-import '../models/principio.dart';
-import '../models/dimension.dart';
-import '../services/local/evaluacion_cache_service.dart';
+
+import 'package:applensys/evaluacion/charts/scatter_bubble_chart.dart';
+import 'package:applensys/evaluacion/models/comportamiento.dart';
+import 'package:applensys/evaluacion/models/principio.dart';
+import 'package:applensys/evaluacion/models/dimension.dart';
+import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
 
 class EvaluacionChartData {
   static List<Dimension> buildDimensionesChartData(List<Map<String, dynamic>> dimensionesRaw) {
@@ -64,7 +65,7 @@ class EvaluacionChartData {
         x: principio.promedioGeneral,
         y: (index + 1).toDouble(), // 1 al 10
 
-            color: const Color.fromARGB(255, 19, 32, 43), seriesName: 'Principios', radius: principio.comportamientos.length.toDouble() + 4, principleName: '',
+        color: const Color.fromARGB(255, 19, 32, 43), seriesName: '', radius: 5, principleNames: '',
       );
     }).toList();
   }

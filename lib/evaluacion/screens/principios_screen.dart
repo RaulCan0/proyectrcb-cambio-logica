@@ -1,15 +1,10 @@
-// ignore_for_file: unused_import
-
 import 'package:applensys/evaluacion/models/asociado.dart';
 import 'package:applensys/evaluacion/models/calificacion.dart';
 import 'package:applensys/evaluacion/models/principio_json.dart';
 import 'package:applensys/evaluacion/screens/tablas_screen.dart' as tablas_screen;
 import 'package:applensys/evaluacion/services/domain/json_service.dart';
 import 'package:applensys/evaluacion/services/domain/supabase_service.dart';
-
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
 import '../models/empresa.dart';
 
 import 'comportamiento_evaluacion_screen.dart';
@@ -197,7 +192,7 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                                   margin: const EdgeInsets.symmetric(vertical: 8.0),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    color: Color.lerp(const Color.fromARGB(255, 228, 225, 225), const Color.fromARGB(255, 184, 238, 185), progreso),
+                                    color: Color.lerp(const Color.fromARGB(255, 184, 179, 179), const Color.fromARGB(255, 154, 218, 156), progreso),
                                      border: Border.all(
                                       color: const Color.fromARGB(255, 0, 0, 0), // color del contorno
                                        width: 2,),

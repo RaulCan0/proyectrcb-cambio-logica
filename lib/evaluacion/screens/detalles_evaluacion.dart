@@ -1,18 +1,18 @@
 // lib/screens/detalles_evaluacion.dart
 
 import 'package:applensys/evaluacion/models/empresa.dart';
-import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
 import '../widgets/drawer_lensys.dart';
+// Nueva importación
 
 class DetallesEvaluacionScreen extends StatefulWidget {
   final Map<String, Map<String, double>> dimensionesPromedios;
   final Empresa empresa;
   final String evaluacionId;
-  final String? dimension;
+  final String? dimension; // Hacerlo un campo de clase y opcional
   final int? initialTabIndex;
-  final Map<String, Map<String, Map<String, double>>>? promediosPrincipios;
 
   const DetallesEvaluacionScreen({
     super.key,
@@ -20,9 +20,7 @@ class DetallesEvaluacionScreen extends StatefulWidget {
     required this.empresa,
     required this.evaluacionId,
     this.dimension,
-    this.initialTabIndex,
-    this.promediosPrincipios,
-    Map<String, double>? promedios,
+    this.initialTabIndex, Map<String, double>? promedios,
   });
 
   @override
@@ -52,7 +50,7 @@ class _DetallesEvaluacionScreenState extends State<DetallesEvaluacionScreen>
     return Scaffold(
       key: _scaffoldKey,
       // Left drawer con ancho fijo de 300
-      drawer: const SizedBox(width: 300, child: DrawerLensys()),
+      drawer: SizedBox(width: 300, child: const DrawerLensys()),
       // Right drawer (endDrawer) con ancho por defecto
       endDrawer: const DrawerLensys(),
       appBar: AppBar(
@@ -214,7 +212,7 @@ class _DetallesEvaluacionScreenState extends State<DetallesEvaluacionScreen>
                       rightTitles:
                           const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     ),
-                    gridData: const FlGridData(show: true, horizontalInterval: 1),
+                    gridData: FlGridData(show: true, horizontalInterval: 1),
                     borderData: FlBorderData(show: false),
                   ),
                 ),
@@ -255,8 +253,7 @@ class _DetallesEvaluacionScreenState extends State<DetallesEvaluacionScreen>
             height: 16,
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey.shade300),
-              // Quitar el borderRadius
-              // borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(6),
             ),
           ),
           Container(
@@ -264,8 +261,7 @@ class _DetallesEvaluacionScreenState extends State<DetallesEvaluacionScreen>
             height: 16,
             decoration: BoxDecoration(
               color: color,
-              // Quitar el borderRadius
-              // borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(6),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -286,7 +282,6 @@ class _DetallesEvaluacionScreenState extends State<DetallesEvaluacionScreen>
           toY: y,
           width: 40,
           color: color,
-          borderRadius: const BorderRadius.all(Radius.circular(2)), // <-- Sin radio en las barras del gráfico
         ),
       ],
     );
