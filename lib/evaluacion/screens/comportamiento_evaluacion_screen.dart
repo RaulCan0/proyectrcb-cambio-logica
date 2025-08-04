@@ -535,9 +535,8 @@ class _ComportamientoEvaluacionScreenState
             Text(
               sistemasRecomendadosPorComportamiento[widget.principio.benchmarkComportamiento.split(':').first.trim()]!.replaceAll('\\n', ', '),
               style: TextStyle(
-                color: const Color.fromARGB(255, 202, 206, 209),
+                color: const Color.fromARGB(255, 0, 0, 0),
                 fontSize: 13 * scaleFactor,
-                fontStyle: FontStyle.italic,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
