@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'principio_calificacion_service.dart';
 
 /// Modelo de métricas del dashboard
 class DashboardMetrics {
@@ -146,12 +147,29 @@ class DashboardService {
       };
     });
 
-    // Notifica usando el mapa de promedios, no de conteos
+    // Procesa calificaciones agrupadas por principio para calcular promedios por cargo
+    final detalles = await _client
+        .from('detalles_evaluacion')
+        .select('principio, cargo_raw, valor')
+        .eq('id_empresa', empresaId);
+    final principioService = PrincipioCalificacionService();
+    for (final row in detalles as List) {
+      final principio = row['principio'] as String?;
+      final cargo = row['cargo_raw'] as String?;
+      final valor = (row['valor'] as num?)?.toDouble() ?? 0.0;
+      if (principio != null && cargo != null) {
+        principioService.registrar(
+            principio: principio, cargo: cargo, valor: valor);
+      }
+    }
+    final principiosPromedio = principioService.obtenerPromedios();
+
+    // Notifica usando el mapa de promedios
     onUpdate(DashboardMetrics(
       promedioPorDimension: {},
       conteoPorDimension: {},
       sistemasPorNivel: sistemasPromedio,
-      principiosPorNivel: {}, 
+      principiosPorNivel: principiosPromedio,
       comportamientosPorNivel: {},
     ));
 
