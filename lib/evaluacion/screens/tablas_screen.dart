@@ -233,6 +233,210 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
                             DataColumn(label: Text('Gerente observaciones', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Miembro observaciones', style: TextStyle(color: Colors.white))),
                           ],
+                    rows: _buildRowsPrincipioPromedio(filas),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _irADetalles(BuildContext context) {
+    final currentIndex = DefaultTabController.of(context).index;
+    final dimensionActual = dimensiones[currentIndex];
+
+    final promediosPorDimension = <String, Map<String, double>>{};
+    for (final dim in dimensiones) {
+      final keyInterna = dimensionInterna[dim] ?? dim;
+      final filas = TablasDimensionScreen.tablaDatos[keyInterna]?.values.expand((l) => l).toList() ?? [];
+
+      final sumasNivel = {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0};
+      final conteosNivel = {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0};
+      final sistemasPromedio = SistemasPromedio();
+
+      for (var f in filas) {
+        final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
+        final valor = (f['valor'] ?? 0).toDouble();
+        final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
+        sumasNivel[nivel] = sumasNivel[nivel]! + valor;
+        conteosNivel[nivel] = conteosNivel[nivel]! + 1;
+        sistemasPromedio.agregar(nivel, sistemas);
+      }
+
+      final promediosNivel = <String, double>{};
+      double totalProm = 0;
+      sumasNivel.forEach((nivel, suma) {
+        final cnt = conteosNivel[nivel]!;
+        final prom = cnt > 0 ? suma / cnt : 0;
+        promediosNivel[nivel] = double.parse(prom.toStringAsFixed(2));
+        totalProm += prom;
+      });
+      promediosNivel['General'] = double.parse((totalProm / sumasNivel.length).toStringAsFixed(2));
+      promediosNivel['Sistemas'] = double.parse(sistemasPromedio.promedio().toStringAsFixed(2));
+      promediosPorDimension[dim] = promediosNivel;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetallesEvaluacionScreen(
+          dimensionesPromedios: promediosPorDimension,
+          empresa: widget.empresa,
+          evaluacionId: widget.evaluacionId,
+          promedios: promediosPorDimension[dimensionActual],
+          dimension: dimensionActual,
+          initialTabIndex: currentIndex, 
+        ),
+      ),
+    );
+  }
+
+ 
+  /// Fila de promedio PRINCIPIO para cada nivel, luego filas normales de comportamiento
+  List<DataRow> _buildRowsPrincipioPromedio(List<Map<String, dynamic>> filas) {
+    final sumas = <String, Map<String, Map<String, int>>>{};
+    final conteos = <String, Map<String, Map<String, int>>>{};
+    final sistemasPorNivel = <String, Map<String, Map<String, Set<String>>>>{};
+    final observacionesPorNivel = <String, Map<String, Map<String, String>>>{};
+
+    for (var f in filas) {
+      final principio = f['principio'] ?? '';
+      final comportamiento = f['comportamiento'] ?? '';
+      final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
+      final int valor = ((f['valor'] ?? 0) as num).toInt();
+      final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
+      final observacion = f['observaciones'] ?? '';
+
+      sumas.putIfAbsent(principio, () => {});
+      sumas[principio]!.putIfAbsent(comportamiento, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
+      conteos.putIfAbsent(principio, () => {});
+      conteos[principio]!.putIfAbsent(comportamiento, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
+      sistemasPorNivel.putIfAbsent(principio, () => {});
+      sistemasPorNivel[principio]!.putIfAbsent(comportamiento, () => {
+        'Ejecutivo': <String>{},
+        'Gerente': <String>{},
+        'Miembro': <String>{},
+      });
+      observacionesPorNivel.putIfAbsent(principio, () => {});
+      observacionesPorNivel[principio]!.putIfAbsent(comportamiento, () => {
+        'Ejecutivo': '',
+        'Gerente': '',
+        'Miembro': '',
+      });
+
+      sumas[principio]![comportamiento]![nivel] = sumas[principio]![comportamiento]![nivel]! + valor;
+      conteos[principio]![comportamiento]![nivel] = conteos[principio]![comportamiento]![nivel]! + 1;
+      for (var s in sistemas) {
+        sistemasPorNivel[principio]![comportamiento]![nivel]!.add(s);
+      }
+      observacionesPorNivel[principio]![comportamiento]![nivel] = observacion;
+    }
+
+    // Fila PRINCIPIO por nivel (promedio DIRECTO de todas las calificaciones del principio)
+    final principioPromedioRows = sumas.entries.map((principioEntry) {
+      final principio = principioEntry.key;
+      final comportamientos = principioEntry.value.keys.toList();
+      final niveles = ['Ejecutivo', 'Gerente', 'Miembro'];
+
+      List<DataCell> promedioPrincipioCells = niveles.map((n) {
+        // CORREGIDO: Calcular promedio directo del principio por nivel
+        double sumaTotalPrincipio = 0;
+        int conteoTotalPrincipio = 0;
+        
+        // Sumar TODAS las calificaciones del principio para este nivel
+        for (var c in comportamientos) {
+          final suma = sumas[principio]![c]![n] ?? 0;
+          final count = conteos[principio]![c]![n] ?? 0;
+          if (count > 0) {
+            sumaTotalPrincipio += suma;     // Suma de todas las calificaciones
+            conteoTotalPrincipio += count;  // Conteo de todas las calificaciones
+          }
+        }
+        
+        return DataCell(Text(
+          conteoTotalPrincipio > 0 ? (sumaTotalPrincipio / conteoTotalPrincipio).toStringAsFixed(2) : '-',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF003056),
+          ),
+        ));
+      }).toList();
+
+      List<DataCell> vacias = List.generate(6, (_) => const DataCell(Text('-')));
+
+      return DataRow(cells: [
+        DataCell(Text(principio, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF003056)))),
+        const DataCell(Text('-', style: TextStyle(color: Color(0xFF003056)))),
+        ...promedioPrincipioCells,
+        ...vacias,
+      ]);
+    });
+
+    // Filas normales de comportamiento
+    final comportamientoRows = sumas.entries.expand((e) {
+      final p = e.key;
+      return e.value.entries.map((cEntry) {
+        final c = cEntry.key;
+        final nivelVals = cEntry.value;
+        final niveles = ['Ejecutivo', 'Gerente', 'Miembro'];
+        return DataRow(cells: [
+          const DataCell(Text('')),
+          DataCell(Text(c, style: const TextStyle(color: Color(0xFF003056)))),
+          ...niveles.map((n) {
+            final suma = nivelVals[n] ?? 0;
+            final count = conteos[p]![c]![n]!;
+            return DataCell(Text(count > 0 ? (suma / count).toStringAsFixed(2) : '-', style: const TextStyle(color: Color(0xFF003056))));
+          }),
+          ...niveles.map((n) {
+            final sistemas = sistemasPorNivel[p]![c]![n]!;
+            return DataCell(Text(sistemas.isEmpty ? '-' : sistemas.join(', '), style: const TextStyle(color: Color(0xFF003056))));
+          }),
+          ...niveles.map((n) {
+            final obs = observacionesPorNivel[p]![c]![n];
+            final obsText = (obs != null && obs.isNotEmpty) ? obs : '-';
+            return DataCell(Text(obsText, style: const TextStyle(color: Color(0xFF003056))));
+          }),
+        ]);
+      });
+    });
+
+    return [
+      ...principioPromedioRows,
+      ...comportamientoRows,
+    ].toList();
+  }
+}
+
+
+class SistemasPromedio {
+  final Map<String, Set<String>> _sistemasPorNivel = {
+    'Ejecutivo': <String>{},
+    'Gerente': <String>{},
+    'Miembro': <String>{},
+  };
+
+  void agregar(String nivel, List<String> sistemas) {
+    final key = nivel.capitalize();
+    if (_sistemasPorNivel.containsKey(key)) {
+      _sistemasPorNivel[key]!.addAll(sistemas);
+    }
+  }
+
+  double promedio() {
+    if (_sistemasPorNivel.isEmpty) return 0.0;
+    final totalSistemas = _sistemasPorNivel.values.fold<int>(0, (sum, set) => sum + set.length);
+    final nivelesConSistemas = _sistemasPorNivel.values.where((set) => set.isNotEmpty).length;
+    return nivelesConSistemas == 0 ? 0.0 : totalSistemas / nivelesConSistemas;
+  }
+}
+/*                  DataColumn(label: Text('Miembro Sistemas', style: TextStyle(color: Colors.white))),
+                          ],
                           rows: _buildRows(filas),
                         ),
                       ),
@@ -301,7 +505,6 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
     final sumas = <String, Map<String, Map<String, int>>>{};
     final conteos = <String, Map<String, Map<String, int>>>{};
     final sistemasPorNivel = <String, Map<String, Map<String, Set<String>>>>{};
-    final observacionesPorNivel = <String, Map<String, Map<String, List<String>>>>{};
 
     for (var f in filas) {
       final principio = f['principio'] ?? '';
@@ -309,7 +512,6 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
       final int valor = ((f['valor'] ?? 0) as num).toInt();
       final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
-      final observacion = f['observacion']?.toString() ?? '';
 
       sumas.putIfAbsent(principio, () => {});
       sumas[principio]!.putIfAbsent(comportamiento, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
@@ -321,20 +523,11 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
         'Gerente': <String>{},
         'Miembro': <String>{},
       });
-      observacionesPorNivel.putIfAbsent(principio, () => {});
-      observacionesPorNivel[principio]!.putIfAbsent(comportamiento, () => {
-        'Ejecutivo': <String>[],
-        'Gerente': <String>[],
-        'Miembro': <String>[],
-      });
 
       sumas[principio]![comportamiento]![nivel] = sumas[principio]![comportamiento]![nivel]! + valor;
       conteos[principio]![comportamiento]![nivel] = conteos[principio]![comportamiento]![nivel]! + 1;
       for (var s in sistemas) {
         sistemasPorNivel[principio]![comportamiento]![nivel]!.add(s);
-      }
-      if (observacion.isNotEmpty) {
-        observacionesPorNivel[principio]![comportamiento]![nivel]!.add(observacion);
       }
     }
 
@@ -355,10 +548,6 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
           ...niveles.map((n) {
             final sistemas = sistemasPorNivel[p]![c]![n]!;
             return DataCell(Text(sistemas.isEmpty ? '-' : sistemas.join(', '), style: const TextStyle(color: Color(0xFF003056))));
-          }),
-          ...niveles.map((n) {
-            final observaciones = observacionesPorNivel[p]![c]![n]!;
-            return DataCell(Text(observaciones.isEmpty ? '-' : observaciones.join('; '), style: const TextStyle(color: Color(0xFF003056))));
           }),
         ]);
       });
@@ -386,4 +575,4 @@ class SistemasPromedio {
     final nivelesConSistemas = _sistemasPorNivel.values.where((set) => set.isNotEmpty).length;
     return nivelesConSistemas == 0 ? 0.0 : totalSistemas / nivelesConSistemas;
   }
-}
+}*/
