@@ -192,7 +192,10 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => TablaScoreGlobal(empresa: widget.empresa, detalles: [], evaluaciones: [],),
+          builder: (_) => TablaScoreGlobal(
+            empresa: widget.empresa, 
+            evaluacionId: widget.evaluacionId,
+          ),
         ),
       );
     },
