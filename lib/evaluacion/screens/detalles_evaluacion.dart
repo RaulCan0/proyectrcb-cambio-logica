@@ -282,6 +282,7 @@ class _DetallesEvaluacionScreenState extends State<DetallesEvaluacionScreen>
           toY: y,
           width: 40,
           color: color,
+        borderRadius: const BorderRadius.all(Radius.circular(2)), // <-- Sin radio en las barras del gráfico
         ),
       ],
     );

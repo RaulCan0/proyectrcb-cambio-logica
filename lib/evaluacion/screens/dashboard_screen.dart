@@ -214,14 +214,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               nombre: compNombre,
               promedioEjecutivo: promEj,
               promedioGerente: promGe,
-              promedioMiembro: promMi, sistemas: [], nivel: null, principioId: '', id: '', cargo: null,
+              promedioMiembro: promMi,
+              sistemas: [],
+              nivel: null,
+              principioId: '',
+              id: '',
+              cargo: null,
             ),
           );
         });
 
-        // Calcular el promedio del principio basado en TODOS los valores de calificación
-        final double promedioPri =
-            (conteoTotalPrincipio > 0) ? (sumaTotalPrincipio / conteoTotalPrincipio) : 0.0;
+        // Promedio general del principio (todas las calificaciones)
+        final double promedioPri = (conteoTotalPrincipio > 0) ? (sumaTotalPrincipio / conteoTotalPrincipio) : 0.0;
 
         // Debug: Imprimir información del cálculo del principio
         debugPrint('Principio: $priNombre');
@@ -260,9 +264,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _dimensiones = dimsModel;
     debugPrint('Dimensiones procesadas: ${_dimensiones.length}');
     if (_dimensiones.isNotEmpty) {
-      debugPrint(
-          'Primera dimensión: ${_dimensiones.first.nombre}, promedio: ${_dimensiones.first.promedioGeneral}');
+      debugPrint('Primera dimensión: ${_dimensiones.first.nombre}, promedio: ${_dimensiones.first.promedioGeneral}');
     }
+  }
+
+  /// Calcula promedios por cargo para cada principio
+  Map<String, Map<String, double>> _calcularPromediosPorCargoPrincipio() {
+    final Map<String, Map<String, double>> promediosPorPrincipio = {};
+    
+    // Inicializar estructura para cada principio
+    for (final dim in _dimensiones) {
+      for (final pri in dim.principios) {
+        promediosPorPrincipio[pri.nombre] = {
+          'ejecutivo': 0.0,
+          'gerente': 0.0,
+          'miembro': 0.0,
+        };
+      }
+    }
+    
+    // Calcular sumas y conteos por principio y cargo
+    final Map<String, Map<String, double>> sumas = {};
+    final Map<String, Map<String, int>> conteos = {};
+    
+    for (final principio in promediosPorPrincipio.keys) {
+      sumas[principio] = {'ejecutivo': 0.0, 'gerente': 0.0, 'miembro': 0.0};
+      conteos[principio] = {'ejecutivo': 0, 'gerente': 0, 'miembro': 0};
+    }
+    
+    // Procesar datos raw
+    for (final row in _dimensionesRaw) {
+      final principio = row['principio'] as String?;
+      if (principio == null || !sumas.containsKey(principio)) continue;
+      
+      final valor = (row['valor'] as num?)?.toDouble() ?? 0.0;
+      final cargoRaw = (row['cargo_raw'] as String?)?.toLowerCase().trim() ?? '';
+      
+      if (valor > 0) {
+        if (cargoRaw.contains('ejecutivo')) {
+          sumas[principio]!['ejecutivo'] = sumas[principio]!['ejecutivo']! + valor;
+          conteos[principio]!['ejecutivo'] = conteos[principio]!['ejecutivo']! + 1;
+        } else if (cargoRaw.contains('gerente')) {
+          sumas[principio]!['gerente'] = sumas[principio]!['gerente']! + valor;
+          conteos[principio]!['gerente'] = conteos[principio]!['gerente']! + 1;
+        } else if (cargoRaw.contains('miembro')) {
+          sumas[principio]!['miembro'] = sumas[principio]!['miembro']! + valor;
+          conteos[principio]!['miembro'] = conteos[principio]!['miembro']! + 1;
+        }
+      }
+    }
+    
+    // Calcular promedios finales
+    for (final principio in promediosPorPrincipio.keys) {
+      for (final cargo in ['ejecutivo', 'gerente', 'miembro']) {
+        final suma = sumas[principio]![cargo]!;
+        final conteo = conteos[principio]![cargo]!;
+        promediosPorPrincipio[principio]![cargo] = (conteo > 0) ? (suma / conteo) : 0.0;
+      }
+      
+      // Solo debug para "Respetar a Cada Individuo" para verificar
+      if (principio == 'Respetar a Cada Individuo') {
+        debugPrint('🔍 VERIFICACIÓN - Principio: $principio');
+        debugPrint('  Ejecutivo: ${promediosPorPrincipio[principio]!['ejecutivo']!.toStringAsFixed(2)} (suma: ${sumas[principio]!['ejecutivo']}, count: ${conteos[principio]!['ejecutivo']})');
+        debugPrint('  Gerente: ${promediosPorPrincipio[principio]!['gerente']!.toStringAsFixed(2)} (suma: ${sumas[principio]!['gerente']}, count: ${conteos[principio]!['gerente']})');
+        debugPrint('  Miembro: ${promediosPorPrincipio[principio]!['miembro']!.toStringAsFixed(2)} (suma: ${sumas[principio]!['miembro']}, count: ${conteos[principio]!['miembro']})');
+      }
+    }
+    
+    return promediosPorPrincipio;
   }
 
   /// Datos para el gráfico MultiRing (promedio general por dimensión).
@@ -272,118 +341,96 @@ class _DashboardScreenState extends State<DashboardScreen> {
       '2': 'MEJORA CONTINUA',
       '3': 'ALINEAMIENTO EMPRESARIAL',
     };
-    
     final Map<String, double> data = {};
-    
     for (final dim in _dimensiones) {
       final nombre = nombresDimensiones[dim.id] ?? dim.nombre;
+      // El promedio de la dimensión debe ser el promedio de TODOS los valores de todos los principios de esa dimensión
+      // Ya está calculado correctamente en promedioGeneral de Dimension
       data[nombre] = dim.promedioGeneral;
     }
-    
     return data;
   }
-
   
-  /// Construye ScatterData solo con promedios > 0 y usando orElse que
-  /// devuelve un Principio vacío en lugar de null.
+  /// Construye ScatterData usando promedios calculados POR CARGO para cada principio
 List<ScatterData> _buildScatterData() {
   // Radio fijo para cada punto
   const double dotRadius = 8.0;
 
-  // Extraemos la lista de Principio en orden natural
-  final principios =
-      EvaluacionChartData.extractPrincipios(_dimensiones).cast<Principio>();
+  // Obtener promedios por cargo para todos los principios
+  final promediosPorCargo = _calcularPromediosPorCargoPrincipio();
 
   final List<ScatterData> list = [];
 
-  for (var pri in principios) { // Cambiado el bucle para no depender de 'i' directamente para yIndex
-    // Encontrar el índice del principio actual en la lista de nombres del gráfico
-    int yRawIndex = ScatterBubbleChart.principleNames.indexOf(pri.nombre);
-
-    // Si el principio no está en la lista de nombres del gráfico, lo omitimos.
-    // Podrías manejar esto de otra manera si es necesario (ej. log, error, valor por defecto).
+  // Procesar cada principio
+  for (final principio in promediosPorCargo.keys) {
+    int yRawIndex = ScatterBubbleChart.principleNames.indexOf(principio);
     if (yRawIndex == -1) {
-      debugPrint('Principio "${pri.nombre}" no encontrado en ScatterBubbleChart.principleName. Omitiendo del gráfico.');
+      debugPrint('⚠️ Principio "$principio" NO ENCONTRADO en ScatterBubbleChart.principleNames.');
       continue;
     }
-    
-    final double yIndex = (yRawIndex + 1).toDouble(); // El índice base 0 se convierte a base 1 para el gráfico
+    final double yIndex = (yRawIndex + 1).toDouble();
 
-    // CORREGIDO: Calcular promedios por nivel usando los datos crudos directamente
-    double sumaEj = 0, sumaGe = 0, sumaMi = 0;
-    int cuentaEj = 0, cuentaGe = 0, cuentaMi = 0;
+    final promEj = promediosPorCargo[principio]!['ejecutivo']!;
+    final promGe = promediosPorCargo[principio]!['gerente']!;
+    final promMi = promediosPorCargo[principio]!['miembro']!;
 
-    // Buscar en los datos crudos todas las calificaciones de este principio
-    for (final row in _dimensionesRaw) {
-      final principioNombre = (row['principio'] as String?) ?? '';
-      if (principioNombre == pri.nombre) {
-        final valor = (row['valor'] as num?)?.toDouble() ?? 0.0;
-        final cargoRaw = (row['cargo_raw'] as String?)?.toLowerCase().trim() ?? '';
-        
-        if (valor > 0) {
-          if (cargoRaw.contains('ejecutivo')) {
-            sumaEj += valor;
-            cuentaEj++;
-          } else if (cargoRaw.contains('gerente')) {
-            sumaGe += valor;
-            cuentaGe++;
-          } else if (cargoRaw.contains('miembro')) {
-            sumaMi += valor;
-            cuentaMi++;
-          }
-        }
+    // Solo debug para "Respetar a Cada Individuo" para verificar
+    if (principio == 'Respetar a Cada Individuo') {
+      debugPrint('🎯 DATOS PARA GRÁFICO - Principio: "$principio"');
+      debugPrint('   Ejecutivo: $promEj, Gerente: $promGe, Miembro: $promMi');
+      debugPrint('   yIndex: $yIndex');
+    }
+
+    // Crear puntos para cada cargo con SUS PROPIOS promedios
+    if (promEj > 0) {
+      final scatterPoint = ScatterData(
+        x: promEj.clamp(0.0, 5.0),
+        y: yIndex,
+        color: Colors.orange,
+        radius: dotRadius,
+        seriesName: 'Ejecutivo',
+        principleNames: principio,
+      );
+      list.add(scatterPoint);
+      
+      // Debug solo para "Respetar a Cada Individuo"
+      if (principio == 'Respetar a Cada Individuo') {
+        debugPrint('   → EJECUTIVO: ScatterData(x=${scatterPoint.x}, y=${scatterPoint.y}, color=orange)');
       }
     }
-
-    final double promEj = (cuentaEj > 0) ? (sumaEj / cuentaEj) : 0.0;
-    final double promGe = (cuentaGe > 0) ? (sumaGe / cuentaGe) : 0.0;
-    final double promMi = (cuentaMi > 0) ? (sumaMi / cuentaMi) : 0.0;
-
-    // Debug: Imprimir información del cálculo por cargo
-    debugPrint('ScatterChart - Principio: ${pri.nombre}');
-    debugPrint('  Ejecutivo: $cuentaEj calificaciones, suma: $sumaEj, promedio: $promEj');
-    debugPrint('  Gerente: $cuentaGe calificaciones, suma: $sumaGe, promedio: $promGe');
-    debugPrint('  Miembro: $cuentaMi calificaciones, suma: $sumaMi, promedio: $promMi');
-
-    // Añadimos un ScatterData por cada serie, si tiene valor > 0
-    if (promEj > 0) {
-      list.add(
-        ScatterData(
-          x: promEj.clamp(0.0, 5.0),
-          y: yIndex, // Usar el yIndex calculado
-          color: Colors.orange,
-          radius: dotRadius,
-          seriesName: 'Ejecutivo',
-          principleNames: pri.nombre,
-        ),
-      );
-    }
     if (promGe > 0) {
-      list.add(
-        ScatterData(
-          x: promGe.clamp(0.0, 5.0),
-          y: yIndex, // Usar el yIndex calculado
-          color: Colors.green,
-          radius: dotRadius,
-          seriesName: 'Gerente',
-          principleNames: pri.nombre, 
-      ),
+      final scatterPoint = ScatterData(
+        x: promGe.clamp(0.0, 5.0),
+        y: yIndex,
+        color: Colors.green,
+        radius: dotRadius,
+        seriesName: 'Gerente',
+        principleNames: principio,
       );
+      list.add(scatterPoint);
+      
+      if (principio == 'Respetar a Cada Individuo') {
+        debugPrint('   → GERENTE: ScatterData(x=${scatterPoint.x}, y=${scatterPoint.y}, color=green)');
+      }
     }
     if (promMi > 0) {
-      list.add(
-        ScatterData(
-          x: promMi.clamp(0.0, 5.0),
-          y: yIndex, // Usar el yIndex calculado
-          color: Colors.blue,
-          radius: dotRadius,
-          seriesName: 'Miembro',
-          principleNames: pri.nombre,
-        ),
+      final scatterPoint = ScatterData(
+        x: promMi.clamp(0.0, 5.0),
+        y: yIndex,
+        color: Colors.blue,
+        radius: dotRadius,
+        seriesName: 'Miembro',
+        principleNames: principio,
       );
+      list.add(scatterPoint);
+      
+      if (principio == 'Respetar a Cada Individuo') {
+        debugPrint('   → MIEMBRO: ScatterData(x=${scatterPoint.x}, y=${scatterPoint.y}, color=blue)');
+      }
     }
   }
-
+  
+  debugPrint('🎯 ScatterChart: Total ${list.length} puntos generados');
   return list;
 }
 
@@ -589,6 +636,7 @@ List<ScatterData> _buildScatterData() {
                   _buildChartContainer(
                     color: const Color.fromARGB(255, 160, 163, 163),
                     child: ScatterBubbleChart(
+                      key: ValueKey('scatter_${DateTime.now().millisecondsSinceEpoch}'),
                       data: _buildScatterData(),
                       isDetail: false, 
                     ),
@@ -694,20 +742,29 @@ List<ScatterData> _buildScatterData() {
                       final t1 = await _loadJsonAsset('assets/t1.json');
                       final t2 = await _loadJsonAsset('assets/t2.json');
                       final t3 = await _loadJsonAsset('assets/t3.json');
-                      final String wordPath =
-                          await ReporteUtils.exportReporteWordUnificado(
+                      final wordResult =
+                          await ReporteUtils.generarReporte(
                         _dimensionesRaw,
                         t1,
                         t2,
                         t3,
                       );
-                      if (wordPath.isEmpty) {
+                      // Si esperas un String (ruta de archivo), asegúrate de que generarReporte devuelva un String.
+                      // Si realmente devuelve una lista, ajusta el uso aquí según lo que necesites hacer con esa lista.
+                      if (wordResult is String && wordResult.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('No se pudo generar Word.')),
                         );
                         return;
                       }
-                      await OpenFile.open(wordPath);
+                      if (wordResult is String) {
+                        await OpenFile.open(wordResult as String?);
+                      } else {
+                        // Manejo alternativo si no es un String
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('El reporte generado no es un archivo Word válido.')),
+                        );
+                      }
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Error al abrir Word: ${e.toString()}')),
@@ -730,8 +787,6 @@ List<ScatterData> _buildScatterData() {
     required String title,
     required Widget child,
   }) {
-   
-
     return Container(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
         decoration: BoxDecoration(
@@ -748,10 +803,18 @@ List<ScatterData> _buildScatterData() {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               padding: const EdgeInsets.symmetric(vertical: 12),
-              
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF003056),
+                ),
+              ),
             ),
 
-            // Espacio para el gráfico (alto fijo de 240px)
+            // Espacio para el gráfico (alto fijo de 420px)
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: SizedBox(

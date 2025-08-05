@@ -11,17 +11,17 @@ class MultiRingChart extends StatelessWidget {
     this.isDetail = false,
   });
 
-  // Para promedios, el máximo es 5.0
+  // Máximos corregidos según los valores requeridos
   static const Map<String, double> puntosTotales = {
-    'Impulsores Culturales': 5.0,
-    'Mejora Continua': 5.0,
-    'Alineamiento Empresarial': 5.0,
+    'IMPULSORES CULTURALES': 250.0,
+    'MEJORA CONTINUA': 350.0,
+    'ALINEAMIENTO EMPRESARIAL': 200.0,
   };
 
   static const Map<String, Color> coloresPorDimension = {
-    'Impulsores Culturales': Color(0xFF00BCD4),   // azul claro
-    'Mejora Continua': Color(0xFF8BC34A),         // verde lima
-    'Alineamiento Empresarial': Color(0xFF757575),// gris
+    'IMPULSORES CULTURALES': Color(0xFF00BCD4),   // azul claro
+    'MEJORA CONTINUA': Color(0xFF8BC34A),         // verde lima
+    'ALINEAMIENTO EMPRESARIAL': Color(0xFF757575),// gris
   };
 
   @override

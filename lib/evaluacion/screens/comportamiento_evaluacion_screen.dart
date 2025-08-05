@@ -227,6 +227,7 @@ class _ComportamientoEvaluacionScreenState
             sistemas: sistemasSeleccionados,
             dimensionId: widget.dimensionId,
             asociadoId: widget.asociadoId,
+              observaciones: obs,
           );
           if (mounted) Navigator.pop(context, nombreComp); // Devolver el nombre del comportamiento para actualizar la pantalla anterior
         } else {
@@ -260,6 +261,7 @@ class _ComportamientoEvaluacionScreenState
         sistemas: sistemasSeleccionados,
         dimensionId: widget.dimensionId, // Se mantiene por si es útil en otro lado, pero la clave principal es 'dimension'
         asociadoId: widget.asociadoId,
+          observaciones: obs,
       );
       if (mounted) Navigator.pop(context, nombreComp);
     } catch (e) {

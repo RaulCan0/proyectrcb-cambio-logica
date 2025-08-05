@@ -19,6 +19,15 @@ class TablasDimensionScreen extends StatefulWidget {
     'Dimensión 3': {},
   };
 
+  /// Carga los datos persistidos desde cache al iniciar la app
+  static Future<void> cargarDatosPersistidos() async {
+    final data = await EvaluacionCacheService().cargarTablas();
+    if (data.isNotEmpty) {
+      tablaDatos = data;
+      dataChanged.value = !dataChanged.value;
+    }
+  }
+
   static final ValueNotifier<bool> dataChanged = ValueNotifier<bool>(false);
 
   final Empresa empresa;
@@ -46,6 +55,7 @@ class TablasDimensionScreen extends StatefulWidget {
     required List<String> sistemas,
     required String dimensionId,
     required String asociadoId,
+    String? observaciones,
   }) async {
     final tablaDim = tablaDatos.putIfAbsent(dimension, () => {});
     final lista = tablaDim.putIfAbsent(evaluacionId, () => []);
@@ -60,6 +70,7 @@ class TablasDimensionScreen extends StatefulWidget {
     if (indiceExistente != -1) {
       lista[indiceExistente]['valor'] = valor;
       lista[indiceExistente]['sistemas'] = sistemas;
+      lista[indiceExistente]['observaciones'] = observaciones ?? '';
     } else {
       lista.add({
         'principio': principio,
@@ -70,6 +81,7 @@ class TablasDimensionScreen extends StatefulWidget {
         'sistemas': sistemas,
         'dimension_id': dimensionId,
         'asociado_id': asociadoId,
+        'observaciones': observaciones ?? '',
       });
     }
 
@@ -77,10 +89,7 @@ class TablasDimensionScreen extends StatefulWidget {
     dataChanged.value = !dataChanged.value;
   }
 
-  static Future<void> limpiarDatos() async {
-    tablaDatos.clear();
-    dataChanged.value = false;
-  }
+  
 
   @override
   State<TablasDimensionScreen> createState() => _TablasDimensionScreenState();
@@ -196,11 +205,13 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
             Expanded(
               child: TabBarView(
                 children: dimensiones.map((dimension) {
-                  final keyInterna = dimensionInterna[dimension] ?? dimension;
-                  final filas = TablasDimensionScreen.tablaDatos[keyInterna]?.values.expand((l) => l).toList() ?? [];
-
+                  final keyInterna = dimensionInterna[dimension]!;
+                  final filas = TablasDimensionScreen.tablaDatos[keyInterna]
+                          ?.values
+                          .expand((l) => l)
+                          .toList() ?? [];
                   if (filas.isEmpty) {
-                    return const Center(child: Text('No hay datos para mostrar para esta evaluación'));
+                    return const Center(child: Text('No hay datos para mostrar'));
                   }
 
                   return InteractiveViewer(
@@ -229,11 +240,11 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
                             DataColumn(label: Text('Ejecutivo Sistemas', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Gerente Sistemas', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Miembro Sistemas', style: TextStyle(color: Colors.white))),
-                           DataColumn(label: Text('Ejecutivo observaciones', style: TextStyle(color: Colors.white))),
+                            DataColumn(label: Text('Ejecutivo observaciones', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Gerente observaciones', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Miembro observaciones', style: TextStyle(color: Colors.white))),
                           ],
-                    rows: _buildRowsPrincipioPromedio(filas),
+                          rows: _buildRowsPrincipioPromedio(filas),
                         ),
                       ),
                     ),
@@ -246,6 +257,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       ),
     );
   }
+
 
   void _irADetalles(BuildContext context) {
     final currentIndex = DefaultTabController.of(context).index;
@@ -291,19 +303,18 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
           evaluacionId: widget.evaluacionId,
           promedios: promediosPorDimension[dimensionActual],
           dimension: dimensionActual,
-          initialTabIndex: currentIndex, 
+          initialTabIndex: currentIndex,
         ),
       ),
     );
   }
 
- 
   /// Fila de promedio PRINCIPIO para cada nivel, luego filas normales de comportamiento
   List<DataRow> _buildRowsPrincipioPromedio(List<Map<String, dynamic>> filas) {
     final sumas = <String, Map<String, Map<String, int>>>{};
     final conteos = <String, Map<String, Map<String, int>>>{};
     final sistemasPorNivel = <String, Map<String, Map<String, Set<String>>>>{};
-    final observacionesPorNivel = <String, Map<String, Map<String, String>>>{};
+    final observacionesPorNivel = <String, Map<String, Map<String, List<String>>>>{};
 
     for (var f in filas) {
       final principio = f['principio'] ?? '';
@@ -325,9 +336,9 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       });
       observacionesPorNivel.putIfAbsent(principio, () => {});
       observacionesPorNivel[principio]!.putIfAbsent(comportamiento, () => {
-        'Ejecutivo': '',
-        'Gerente': '',
-        'Miembro': '',
+        'Ejecutivo': <String>[],
+        'Gerente': <String>[],
+        'Miembro': <String>[],
       });
 
       sumas[principio]![comportamiento]![nivel] = sumas[principio]![comportamiento]![nivel]! + valor;
@@ -335,50 +346,38 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       for (var s in sistemas) {
         sistemasPorNivel[principio]![comportamiento]![nivel]!.add(s);
       }
-      observacionesPorNivel[principio]![comportamiento]![nivel] = observacion;
+      // Acumular observaciones en lugar de sobrescribir
+      if (observacion.isNotEmpty) {
+        observacionesPorNivel[principio]![comportamiento]![nivel]!.add(observacion);
+      }
     }
 
-    // Fila PRINCIPIO por nivel (promedio DIRECTO de todas las calificaciones del principio)
-    final principioPromedioRows = sumas.entries.map((principioEntry) {
+    // Calcular promedios de principios para uso interno (sin mostrar en UI)
+    // Los cálculos se mantienen para posible uso futuro pero no se muestran
+    final principioPromedios = <String, Map<String, double>>{};
+    for (var principioEntry in sumas.entries) {
       final principio = principioEntry.key;
       final comportamientos = principioEntry.value.keys.toList();
       final niveles = ['Ejecutivo', 'Gerente', 'Miembro'];
-
-      List<DataCell> promedioPrincipioCells = niveles.map((n) {
-        // CORREGIDO: Calcular promedio directo del principio por nivel
-        double sumaTotalPrincipio = 0;
-        int conteoTotalPrincipio = 0;
-        
-        // Sumar TODAS las calificaciones del principio para este nivel
+      
+      final promediosPorNivel = <String, double>{};
+      for (var nivel in niveles) {
+        double sumaProms = 0;
+        int cuentaProms = 0;
         for (var c in comportamientos) {
-          final suma = sumas[principio]![c]![n] ?? 0;
-          final count = conteos[principio]![c]![n] ?? 0;
+          final suma = sumas[principio]![c]![nivel] ?? 0;
+          final count = conteos[principio]![c]![nivel] ?? 0;
           if (count > 0) {
-            sumaTotalPrincipio += suma;     // Suma de todas las calificaciones
-            conteoTotalPrincipio += count;  // Conteo de todas las calificaciones
+            sumaProms += suma / count;
+            cuentaProms++;
           }
         }
-        
-        return DataCell(Text(
-          conteoTotalPrincipio > 0 ? (sumaTotalPrincipio / conteoTotalPrincipio).toStringAsFixed(2) : '-',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF003056),
-          ),
-        ));
-      }).toList();
+        promediosPorNivel[nivel] = cuentaProms > 0 ? (sumaProms / cuentaProms) : 0.0;
+      }
+      principioPromedios[principio] = promediosPorNivel;
+    }
 
-      List<DataCell> vacias = List.generate(6, (_) => const DataCell(Text('-')));
-
-      return DataRow(cells: [
-        DataCell(Text(principio, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF003056)))),
-        const DataCell(Text('-', style: TextStyle(color: Color(0xFF003056)))),
-        ...promedioPrincipioCells,
-        ...vacias,
-      ]);
-    });
-
-    // Filas normales de comportamiento
+    // Solo filas de comportamiento (sin filas separadas de principios)
     final comportamientoRows = sumas.entries.expand((e) {
       final p = e.key;
       return e.value.entries.map((cEntry) {
@@ -386,7 +385,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
         final nivelVals = cEntry.value;
         final niveles = ['Ejecutivo', 'Gerente', 'Miembro'];
         return DataRow(cells: [
-          const DataCell(Text('')),
+          DataCell(Text(p, style: const TextStyle(color: Color(0xFF003056)))), // Mostrar principio en la primera columna
           DataCell(Text(c, style: const TextStyle(color: Color(0xFF003056)))),
           ...niveles.map((n) {
             final suma = nivelVals[n] ?? 0;
@@ -398,21 +397,17 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
             return DataCell(Text(sistemas.isEmpty ? '-' : sistemas.join(', '), style: const TextStyle(color: Color(0xFF003056))));
           }),
           ...niveles.map((n) {
-            final obs = observacionesPorNivel[p]![c]![n];
-            final obsText = (obs != null && obs.isNotEmpty) ? obs : '-';
+            final obs = observacionesPorNivel[p]![c]![n]!;
+            final obsText = obs.isNotEmpty ? obs.join(' | ') : '-';
             return DataCell(Text(obsText, style: const TextStyle(color: Color(0xFF003056))));
           }),
         ]);
       });
     });
 
-    return [
-      ...principioPromedioRows,
-      ...comportamientoRows,
-    ].toList();
+    return comportamientoRows.toList();
   }
 }
-
 
 class SistemasPromedio {
   final Map<String, Set<String>> _sistemasPorNivel = {
@@ -432,7 +427,7 @@ class SistemasPromedio {
     if (_sistemasPorNivel.isEmpty) return 0.0;
     final totalSistemas = _sistemasPorNivel.values.fold<int>(0, (sum, set) => sum + set.length);
     final nivelesConSistemas = _sistemasPorNivel.values.where((set) => set.isNotEmpty).length;
-    return nivelesConSistemas == 0 ? 0.0 : totalSistemas / nivelesConSistemas;
+    return nivelesConSistemas == 0 ? 0.0 : totalSistemas / _sistemasPorNivel.length;
   }
 }
 /*                  DataColumn(label: Text('Miembro Sistemas', style: TextStyle(color: Colors.white))),

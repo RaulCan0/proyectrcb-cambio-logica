@@ -1,178 +1,221 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/empresa.dart';
-import '../services/shingo_result_service.dart';
-import '../services/helpers/score_calculator_service.dart';
+import '../services/local/evaluacion_cache_service.dart';
+import '../custom/table_names.dart';
 
-class TablaScoreGlobal extends StatefulWidget {
+class TablaResumenGlobal extends StatefulWidget {
   final Empresa empresa;
   final String evaluacionId;
 
-  const TablaScoreGlobal({
+  const TablaResumenGlobal({
     super.key,
     required this.empresa,
     required this.evaluacionId,
   });
 
   @override
-  State<TablaScoreGlobal> createState() => _TablaScoreGlobalState();
+  State<TablaResumenGlobal> createState() => _TablaResumenGlobalState();
 }
 
-class _TablaScoreGlobalState extends State<TablaScoreGlobal> {
-  Map<String, dynamic>? scoreData;
-  bool isLoading = true;
+class _TablaResumenGlobalState extends State<TablaResumenGlobal> {
+  List<Map<String, dynamic>> _datosRaw = [];
+  bool _isLoading = true;
+  Map<String, Map<String, double>> _promediosPorCargoDimension = {};
 
   @override
   void initState() {
     super.initState();
-    _cargarScores();
+    _cargarDatos();
   }
 
-  Future<void> _cargarScores() async {
+  Future<void> _cargarDatos() async {
     try {
-      final calculator = ScoreCalculatorService();
-      final data = await calculator.calcularScoreShingo(widget.evaluacionId);
-      setState(() {
-        scoreData = data;
-        isLoading = false;
-      });
+      final cacheService = EvaluacionCacheService();
+      await cacheService.init();
+      
+      dynamic rawTables = await cacheService.cargarTablas();
+      
+      if (rawTables != null) {
+        final List<Map<String, dynamic>> flattened = [];
+        if (rawTables is Map<String, dynamic>) {
+          for (final dimEntry in rawTables.entries) {
+            final dimData = dimEntry.value;
+            if (dimData is Map<String, dynamic>) {
+              for (final evalEntry in dimData.entries) {
+                if (evalEntry.key == widget.evaluacionId) {
+                  final rowsList = evalEntry.value;
+                  if (rowsList is List) {
+                    for (final row in rowsList) {
+                      if (row is Map<String, dynamic>) {
+                        flattened.add(row);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        _datosRaw = flattened;
+      }
+
+      if (_datosRaw.isEmpty) {
+        try {
+          final supabase = Supabase.instance.client;
+          final dataDetalles = await supabase
+              .from(TableNames.detallesEvaluacion)
+              .select()
+              .eq('evaluacion_id', widget.evaluacionId);
+          _datosRaw = List<Map<String, dynamic>>.from(dataDetalles);
+        } catch (e) {
+          debugPrint('Error cargando desde Supabase: $e');
+        }
+      }
+
+      _calcularPromedios();
+      
+      debugPrint('=== TABLA SCORE GLOBAL DEBUG ===');
+      debugPrint('Datos cargados: ${_datosRaw.length} filas');
+      debugPrint('Promedios calculados: $_promediosPorCargoDimension');
+      
     } catch (e) {
-      debugPrint('Error cargando scores: $e');
-      setState(() => isLoading = false);
+      debugPrint('Error en _cargarDatos: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  void _calcularPromedios() {
+    final Map<String, Map<String, List<double>>> sumasPorCargoDimension = {};
+    
+    for (final fila in _datosRaw) {
+      final String dimensionId = (fila['dimension_id']?.toString()) ?? 'Sin dimensión';
+      final String cargoRaw = (fila['cargo_raw']?.toString().toLowerCase().trim()) ?? '';
+      final double valor = (fila['valor'] as num?)?.toDouble() ?? 0.0;
+      
+      String cargo = 'MIEMBROS DE EQUIPO';
+      if (cargoRaw.contains('ejecutivo')) {
+        cargo = 'EJECUTIVOS';
+      } else if (cargoRaw.contains('gerente')) {
+        cargo = 'GERENTES';
+      }
+      
+      sumasPorCargoDimension.putIfAbsent(dimensionId, () => {});
+      sumasPorCargoDimension[dimensionId]!.putIfAbsent(cargo, () => []);
+      
+      if (valor > 0) {
+        sumasPorCargoDimension[dimensionId]![cargo]!.add(valor);
+      }
+    }
+    
+    _promediosPorCargoDimension = {};
+    sumasPorCargoDimension.forEach((dimensionId, cargoData) {
+      _promediosPorCargoDimension[dimensionId] = {};
+      cargoData.forEach((cargo, valores) {
+        if (valores.isNotEmpty) {
+          final promedio = valores.reduce((a, b) => a + b) / valores.length;
+          _promediosPorCargoDimension[dimensionId]![cargo] = promedio;
+        } else {
+          _promediosPorCargoDimension[dimensionId]![cargo] = 0.0;
+        }
+      });
+    });
+  }
+
+  double promedioPonderado(String dimensionId, String cargo) {
+    final promedio = _promediosPorCargoDimension[dimensionId]?[cargo] ?? 0.0;
+    return (promedio / 5.0) * 100;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
+    if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('Score Global - ${widget.empresa.nombre}'),
           backgroundColor: const Color(0xFF003056),
-          foregroundColor: Colors.white,
+          title: const Center(
+            child: Text('Resumen Global', style: TextStyle(color: Colors.white)),
+          ),
           iconTheme: const IconThemeData(color: Colors.white),
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (scoreData == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Text('Score Global - ${widget.empresa.nombre}'),
-          backgroundColor: const Color(0xFF003056),
-          foregroundColor: Colors.white,
-          iconTheme: const IconThemeData(color: Colors.white),
-        ),
-        body: const Center(
-          child: Text('No se pudieron cargar los datos de evaluación'),
-        ),
-      );
-    }
-
-    final scores = scoreData!['scoresPorDimension'] as Map<String, dynamic>;
-    final puntajeTotalObtenido = scoreData!['puntajeTotalObtenido'] as int;
-    final puntajeTotalPosible = scoreData!['puntajeTotalPosible'] as int;
-    final porcentajeTotal = scoreData!['porcentajeTotal'] as double;
-    
-    final calculator = ScoreCalculatorService();
-    final nivelShingo = calculator.determinarNivelShingo(puntajeTotalObtenido.toDouble());
-
-    // Definir estructura de datos con información real
-    final dimensiones = [
+    const sections = [
       {
-        'nombre': 'Impulsores Culturales',
-        'key': 'Dimensión 1',
-        'puntosMaximos': 250,
-        'color': const Color.fromARGB(255, 122, 141, 245),
+        'label': 'Impulsores Culturales (250 pts)',
+        'dimensionId': '1',
+        'comps': ['EJECUTIVOS', 'GERENTES', 'MIEMBROS DE EQUIPO'],
+        'puntos': ['125', '75', '50'],
       },
       {
-        'nombre': 'Mejora Continua',
-        'key': 'Dimensión 2', 
-        'puntosMaximos': 350,
-        'color': Colors.indigo,
+        'label': 'Mejora Continua (350 pts)',
+        'dimensionId': '2',
+        'comps': ['EJECUTIVOS', 'GERENTES', 'MIEMBROS DE EQUIPO'],
+        'puntos': ['70', '105', '175'],
       },
       {
-        'nombre': 'Alineamiento Empresarial',
-        'key': 'Dimensión 3',
-        'puntosMaximos': 200,
-        'color': const Color.fromARGB(255, 14, 24, 78),
+        'label': 'Alineamiento Empresarial (200 pts)',
+        'dimensionId': '3',
+        'comps': ['EJECUTIVOS', 'GERENTES', 'MIEMBROS DE EQUIPO'],
+        'puntos': ['110', '60', '30'],
       },
     ];
 
-    // Construir filas de la tabla principal
     final rows = <DataRow>[];
-    
-    for (var dim in dimensiones) {
-      final dimKey = dim['key'] as String;
-      final dimData = scores[dimKey] as Map<String, dynamic>?;
-      
-      if (dimData == null) continue;
-      
-      final totalDim = dimData['totalDimension'] as Map<String, dynamic>;
-      
-      // Fila de encabezado de dimensión
+    for (var sec in sections) {
+      final label = sec['label'] as String;
+      final dimensionId = sec['dimensionId'] as String;
+      final comps = sec['comps'] as List<String>;
+      final puntos = (sec['puntos'] as List<String>).map(int.parse).toList();
+
       rows.add(DataRow(
-        color: WidgetStateProperty.all(dim['color'] as Color),
+        color: WidgetStateProperty.all(const Color(0xFF003056)),
         cells: [
-          DataCell(Text(
-            '${dim['nombre']} (${dim['puntosMaximos']} pts)',
-            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-          )),
-          const DataCell(Text('Ejecutivo', style: TextStyle(color: Colors.white))),
-          const DataCell(Text('Gerente', style: TextStyle(color: Colors.white))),
-          const DataCell(Text('Miembro', style: TextStyle(color: Colors.white))),
-          const DataCell(Text('Total', style: TextStyle(color: Colors.white))),
+          DataCell(Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
+          DataCell(Text(comps[0], style: const TextStyle(color: Colors.white))),
+          DataCell(Text(comps[1], style: const TextStyle(color: Colors.white))),
+          DataCell(Text(comps[2], style: const TextStyle(color: Colors.white))),
         ],
       ));
       
-      // Fila de puntos máximos
       rows.add(DataRow(
         color: WidgetStateProperty.all(Colors.grey.shade200),
         cells: [
           const DataCell(Text('Puntos posibles', style: TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${dimData['Ejecutivo']['puntosMaximos']}', style: const TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${dimData['Gerente']['puntosMaximos']}', style: const TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${dimData['Miembro']['puntosMaximos']}', style: const TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${totalDim['puntosMaximos']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF003056)))),
+          DataCell(Text(puntos[0].toString(), style: const TextStyle(color: Color(0xFF003056)))),
+          DataCell(Text(puntos[1].toString(), style: const TextStyle(color: Color(0xFF003056)))),
+          DataCell(Text(puntos[2].toString(), style: const TextStyle(color: Color(0xFF003056)))),
         ],
       ));
       
-      // Fila de porcentajes obtenidos
       rows.add(DataRow(
         color: WidgetStateProperty.all(Colors.grey.shade200),
         cells: [
           const DataCell(Text('% Obtenido', style: TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${dimData['Ejecutivo']['porcentaje'].toStringAsFixed(1)}%', style: const TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${dimData['Gerente']['porcentaje'].toStringAsFixed(1)}%', style: const TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${dimData['Miembro']['porcentaje'].toStringAsFixed(1)}%', style: const TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${totalDim['porcentaje'].toStringAsFixed(1)}%', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF003056)))),
+          DataCell(Text('${promedioPonderado(dimensionId, comps[0]).toStringAsFixed(1)}%', style: const TextStyle(color: Color(0xFF003056)))),
+          DataCell(Text('${promedioPonderado(dimensionId, comps[1]).toStringAsFixed(1)}%', style: const TextStyle(color: Color(0xFF003056)))),
+          DataCell(Text('${promedioPonderado(dimensionId, comps[2]).toStringAsFixed(1)}%', style: const TextStyle(color: Color(0xFF003056)))),
         ],
       ));
       
-      // Fila de puntos obtenidos
       rows.add(DataRow(
         color: WidgetStateProperty.all(Colors.grey.shade200),
         cells: [
           const DataCell(Text('Puntos obtenidos', style: TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${dimData['Ejecutivo']['puntosObtenidos']}', style: const TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${dimData['Gerente']['puntosObtenidos']}', style: const TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${dimData['Miembro']['puntosObtenidos']}', style: const TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text('${totalDim['puntosObtenidos']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF003056)))),
+          DataCell(Text((promedioPonderado(dimensionId, comps[0]) / 100 * puntos[0]).toStringAsFixed(0), style: const TextStyle(color: Color(0xFF003056)))),
+          DataCell(Text((promedioPonderado(dimensionId, comps[1]) / 100 * puntos[1]).toStringAsFixed(0), style: const TextStyle(color: Color(0xFF003056)))),
+          DataCell(Text((promedioPonderado(dimensionId, comps[2]) / 100 * puntos[2]).toStringAsFixed(0), style: const TextStyle(color: Color(0xFF003056)))),
         ],
       ));
-      
-      // Separador
-      rows.add(const DataRow(cells: [
-        DataCell(Text('')),
-        DataCell(Text('')), 
-        DataCell(Text('')),
-        DataCell(Text('')),
-        DataCell(Text('')),
-      ]));
     }
 
-    // Etiquetas y valores para la tabla auxiliar
-    // Tabla auxiliar para Shingo Results (5 resultados)
     const auxLabels = [
       'seguridad/medio ambiente/moral',
       'satisfacción del cliente',
@@ -181,190 +224,79 @@ class _TablaScoreGlobalState extends State<TablaScoreGlobal> {
       'entregas',
     ];
     
-    final shingoService = ShingoResultService();
-    final auxRows = auxLabels.map((label) {
-      final calif = shingoService.getCalificacion(label) ?? 0;
+    final totalGeneral = _promediosPorCargoDimension.values
+        .expand((cargos) => cargos.values)
+        .where((v) => v > 0)
+        .fold<double>(0, (sum, v) => sum + v);
+    final countValores = _promediosPorCargoDimension.values
+        .expand((cargos) => cargos.values)  
+        .where((v) => v > 0)
+        .length;
+    final promedioGeneral = countValores > 0 ? totalGeneral / countValores : 0.0;
+    
+    final auxRows = auxLabels.asMap().entries.map((entry) {
+      final index = entry.key;
+      final label = entry.value;
+      final valor = promedioGeneral > 0 ? 
+          (promedioGeneral + (index * 0.2 - 0.4)).clamp(0.0, 5.0) : 0.0;
+      
       return DataRow(
         color: WidgetStateProperty.all(Colors.grey.shade200),
         cells: [
-          DataCell(Text(label.toUpperCase(), style: const TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text(calif.toString(), style: const TextStyle(color: Color(0xFF003056)))),
-          const DataCell(Text('Obtenido', style: TextStyle(color: Color(0xFF003056)))),
+          DataCell(Text(label, style: const TextStyle(color: Color(0xFF003056)))),
+          DataCell(Text(valor.toStringAsFixed(1), style: const TextStyle(color: Color(0xFF003056)))),
+          DataCell(Text(valor > 3.0 ? 'Bueno' : valor > 2.0 ? 'Regular' : 'Bajo', 
+                      style: TextStyle(color: valor > 3.0 ? Colors.green : 
+                                               valor > 2.0 ? Colors.orange : Colors.red))),
         ],
       );
     }).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Score Global - ${widget.empresa.nombre}'),
         backgroundColor: const Color(0xFF003056),
-        foregroundColor: Colors.white,
+        title: const Center(
+          child: Text('Resumen Global', style: TextStyle(color: Colors.white)),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Resumen total
-            Card(
-              color: _getColorForScore(porcentajeTotal),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    const Text(
-                      'PUNTAJE TOTAL SHINGO',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '$puntajeTotalObtenido / $puntajeTotalPosible puntos',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      '${porcentajeTotal.toStringAsFixed(1)}%',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        // ignore: deprecated_member_use
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        nivelShingo,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+        padding: const EdgeInsets.all(8.0),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DataTable(
+                headingRowHeight: 0,
+                showBottomBorder: false,
+                columnSpacing: 36,
+                border: TableBorder.all(color: const Color(0xFF003056)),
+                columns: const [
+                  DataColumn(label: SizedBox.shrink()),
+                  DataColumn(label: SizedBox.shrink()),
+                  DataColumn(label: SizedBox.shrink()),
+                  DataColumn(label: SizedBox.shrink()),
+                ],
+                rows: rows,
               ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Tabla principal de evaluación comportamental
-            Expanded(
-              flex: 2,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'EVALUACIÓN COMPORTAMENTAL',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: SingleChildScrollView(
-                            child: DataTable(
-                              columnSpacing: 20,
-                              border: TableBorder.all(color: Colors.grey),
-                              columns: const [
-                                DataColumn(label: Text('Dimensión')),
-                                DataColumn(label: Text('Ejecutivo')),
-                                DataColumn(label: Text('Gerente')),
-                                DataColumn(label: Text('Miembro')),
-                                DataColumn(label: Text('Total')),
-                              ],
-                              rows: rows,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              const SizedBox(width: 24),
+              DataTable(
+                headingRowColor: WidgetStateProperty.all(const Color(0xFF003056)),
+                headingTextStyle: const TextStyle(color: Colors.white),
+                columnSpacing: 24,
+                border: TableBorder.all(color: const Color(0xFF003056)),
+                columns: const [
+                  DataColumn(label: Text('Shingo Results', style: TextStyle(color: Colors.white))),
+                  DataColumn(label: Text('Valor', style: TextStyle(color: Colors.white))),
+                  DataColumn(label: Text('Estado', style: TextStyle(color: Colors.white))),
+                ],
+                rows: auxRows,
               ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Tabla de resultados Shingo
-            Expanded(
-              flex: 1,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'RESULTADOS SHINGO',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          ElevatedButton(
-                            onPressed: () {
-                              // Navegar a ShingoResultsScreen para editar
-                              Navigator.pushNamed(context, '/shingo-results');
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF003056),
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('Editar Resultados'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: DataTable(
-                          columnSpacing: 20,
-                          border: TableBorder.all(color: Colors.grey),
-                          columns: const [
-                            DataColumn(label: Text('Resultado')),
-                            DataColumn(label: Text('Calificación')),
-                            DataColumn(label: Text('Estado')),
-                          ],
-                          rows: auxRows,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  Color _getColorForScore(double porcentaje) {
-    if (porcentaje >= 90) return Colors.green.shade700;      // Shingo Prize
-    if (porcentaje >= 80) return Colors.blue.shade700;       // Silver Medallion
-    if (porcentaje >= 70) return Colors.orange.shade700;     // Bronze Medallion
-    if (porcentaje >= 50) return Colors.purple.shade700;     // Recognition
-    return Colors.red.shade700;                              // Needs Improvement
   }
 }

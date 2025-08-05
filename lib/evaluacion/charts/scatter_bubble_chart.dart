@@ -121,15 +121,9 @@ class ScatterBubbleChart extends StatelessWidget {
                 rightTitles:  AxisTitles(sideTitles: SideTitles(showTitles: false)),
               ),
               scatterSpots: data.map((d) {
-                // Desplazamiento horizontal según serie
-                double xPos = d.x;
-                if (d.seriesName == 'Ejecutivo') {
-                  xPos = (d.x - offset).clamp(minX, maxX);
-                } else if (d.seriesName == 'Miembro') {
-                  xPos = (d.x + offset).clamp(minX, maxX);
-                }
+                // Mostrar cada punto en su valor real sin desplazamiento
                 return ScatterSpot(
-                  xPos,
+                  d.x, // Usar el valor real calculado
                   d.y,
                   dotPainter: FlDotCirclePainter(
                     radius: d.radius > 0 ? d.radius : dotRadius,
@@ -143,6 +137,21 @@ class ScatterBubbleChart extends StatelessWidget {
                 handleBuiltInTouches: true,
                 touchTooltipData: ScatterTouchTooltipData(
                   getTooltipItems: (ScatterSpot touchedSpot) {
+                    // Encontrar el ScatterData correspondiente al punto tocado
+                    final ScatterData? matchedData = data.cast<ScatterData?>().firstWhere(
+                      (d) => d != null && 
+                             (d.x - touchedSpot.x).abs() < 0.1 && 
+                             (d.y - touchedSpot.y).abs() < 0.1,
+                      orElse: () => null,
+                    );
+                    
+                    if (matchedData != null) {
+                      return ScatterTooltipItem(
+                        '${matchedData.seriesName}: ${matchedData.x.toStringAsFixed(2)}\n${matchedData.principleNames}',
+                        textStyle: const TextStyle(color: Colors.white, fontSize: 12),
+                      );
+                    }
+                    
                     return ScatterTooltipItem(
                       'Valor: ${touchedSpot.x.toStringAsFixed(2)}',
                       textStyle: const TextStyle(color: Colors.white),
