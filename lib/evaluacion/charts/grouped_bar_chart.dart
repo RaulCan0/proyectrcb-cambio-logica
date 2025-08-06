@@ -54,7 +54,7 @@ class GroupedBarChart extends StatelessWidget {
 
     return Column(
       children: [
-        const SizedBox(height: 8),
+        const SizedBox(height: 8), // Volver al valor original
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -101,7 +101,7 @@ class GroupedBarChart extends StatelessWidget {
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 60,
+                            reservedSize: 58,
                             getTitlesWidget: (value, meta) {
                               final index = value.toInt();
                               if (index < 0 || index >= labels.length) {
@@ -128,7 +128,7 @@ class GroupedBarChart extends StatelessWidget {
                           sideTitles: SideTitles(
                             showTitles: true,
                             interval: 0.5,
-                            reservedSize: 28,
+                            reservedSize: 30, // Aumentar espacio para que se vea completo el número 5
                             getTitlesWidget: (value, meta) {
                               if (value % 1 == 0 && value >= minY && value <= maxY) {
                                 return Text(
@@ -156,6 +156,31 @@ class GroupedBarChart extends StatelessWidget {
                             strokeWidth: 1,
                           );
                         },
+                      ),
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final valor = rod.toY;
+                            // Si el valor es mayor a 3.5, mostrar tooltip abajo
+                            final showBelow = valor > 3.5;
+                            
+                            return BarTooltipItem(
+                              valor.toStringAsFixed(2),
+                              const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            );
+                          },
+                          tooltipPadding: const EdgeInsets.all(8),
+                          tooltipMargin: 8,
+                          // Configurar posición del tooltip
+                          fitInsideHorizontally: true,
+                          fitInsideVertically: true,
+                          direction: TooltipDirection.auto,
+                        ),
                       ),
                     ),
                   ),

@@ -16,7 +16,7 @@ import 'package:applensys/evaluacion/charts/scatter_bubble_chart.dart';
 import 'package:applensys/evaluacion/charts/grouped_bar_chart.dart';
 import 'package:applensys/evaluacion/charts/horizontal_bar_systems_chart.dart';
 import 'package:open_file/open_file.dart';
-import 'package:applensys/evaluacion/custom/table_names.dart';
+import 'package:applensys/custom/table_names.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:applensys/evaluacion/models/level_averages.dart';
@@ -630,7 +630,7 @@ List<ScatterData> _buildScatterData() {
                       child: MultiRingChart(
                         puntosObtenidos: _buildMultiringData(),
                         isDetail: false,
-                      ), color: const Color.fromARGB(255, 171, 172, 173), title: 'EVALUACION DIMENSION-ROL',
+                      ), color: const Color.fromARGB(255, 171, 172, 173), title: 'PROGRESO DIMENSION-ROL',
                     ),
               
                   _buildChartContainer(
@@ -657,7 +657,7 @@ List<ScatterData> _buildScatterData() {
                
                   _buildChartContainer(
                     color: const Color.fromARGB(255, 202, 208, 219),
-                    title: 'EVALUACION SISTEMAS ROL',
+                    title: 'EVALUACION SISTEMAS-ROL',
                     child: HorizontalBarSystemsChart(
                       data: horizontalData, 
                       minY: 0, 
@@ -816,9 +816,9 @@ List<ScatterData> _buildScatterData() {
 
             // Espacio para el gráfico (alto fijo de 420px)
             Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 4.0), // Reducir padding inferior
               child: SizedBox(
-                height: 420,
+                height: 430,
                 child: child,
               ),
             ),

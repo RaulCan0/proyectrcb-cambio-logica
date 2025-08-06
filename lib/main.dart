@@ -12,6 +12,7 @@ import 'package:applensys/custom/service_locator.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 import 'package:applensys/evaluacion/providers/theme_provider.dart';
 import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
+import 'package:applensys/evaluacion/services/helpers/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +20,10 @@ void main() async {
     url: Configurations.mSupabaseUrl,
     anonKey: Configurations.mSupabaseKey,
   );
+  
+  // Inicializar notificaciones
+  await NotificationService.init();
+  
   setupLocator();
   await locator<EvaluacionCacheService>().init();
 

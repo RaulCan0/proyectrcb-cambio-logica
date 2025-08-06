@@ -44,7 +44,7 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
       'id': '2',
       'nombre': 'MEJORA CONTINUA',
       'icono': Icons.update,
-      'color': Colors.indigo,
+      'color': Color.fromARGB(255, 67, 78, 141),
     },
     {
       'id': '3',

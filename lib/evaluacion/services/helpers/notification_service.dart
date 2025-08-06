@@ -54,6 +54,16 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    // Verificar si está inicializado antes de usar
+    if (!_isInitialized) {
+    ('⚠️ NotificationService no inicializado, inicializando ahora...');
+      final initialized = await init();
+      if (!initialized) {
+        ('❌ No se pudo inicializar NotificationService');
+        return;
+      }
+    }
+
     const androidDetails = AndroidNotificationDetails(
       'default_channel',
       'Notificaciones Generales',

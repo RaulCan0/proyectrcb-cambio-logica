@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/empresa.dart';
 import '../services/local/evaluacion_cache_service.dart';
-import '../custom/table_names.dart';
+import 'package:applensys/custom/table_names.dart';
 
 class TablaResumenGlobal extends StatefulWidget {
   final Empresa empresa;
