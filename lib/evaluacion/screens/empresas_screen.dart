@@ -1,7 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:applensys/evaluacion/screens/historial_screen.dart';
-import 'package:applensys/evaluacion/services/domain/empresa_service.dart';
+import 'package:applensys/evaluacion/services/empresa_service.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:flutter/material.dart';
@@ -126,8 +126,14 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
         backgroundColor: const Color(0xFF003056),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.message, color: Colors.white),
-          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/home',
+              (route) => false,
+            );
+          },
         ),
         title: const Text(
           'LensysApp',

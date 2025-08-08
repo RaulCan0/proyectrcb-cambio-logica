@@ -157,6 +157,31 @@ class GroupedBarChart extends StatelessWidget {
                           );
                         },
                       ),
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final valor = rod.toY;
+                            // Si el valor es mayor a 3.5, mostrar tooltip abajo
+                            final showBelow = valor > 3.5;
+                            
+                            return BarTooltipItem(
+                              valor.toStringAsFixed(2),
+                              const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            );
+                          },
+                          tooltipPadding: const EdgeInsets.all(8),
+                          tooltipMargin: 8,
+                          // Configurar posición del tooltip
+                          fitInsideHorizontally: true,
+                          fitInsideVertically: true,
+                          direction: TooltipDirection.auto,
+                        ),
+                      ),
                     ),
                   ),
                 ),

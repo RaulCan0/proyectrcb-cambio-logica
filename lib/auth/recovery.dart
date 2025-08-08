@@ -1,4 +1,4 @@
-import 'package:applensys/evaluacion/services/remote/auth_service.dart';
+import 'package:applensys/evaluacion/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import '../custom/appcolors.dart';
 

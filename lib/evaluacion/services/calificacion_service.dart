@@ -1,5 +1,5 @@
 import 'package:applensys/evaluacion/models/calificacion.dart';
-import 'package:applensys/evaluacion/services/domain/supabase_service.dart';
+import 'package:applensys/evaluacion/services/supabase_service.dart';
 
 class CalificacionService {
   final SupabaseService _remote = SupabaseService();

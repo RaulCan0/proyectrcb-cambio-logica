@@ -1,8 +1,10 @@
 // ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures
 
+import 'dart:io';
 import 'dart:convert';
+import 'package:applensys/evaluacion/services/pdf.dart';
+import 'package:flutter/services.dart';
 import 'package:applensys/evaluacion/charts/multiring.dart';
-import 'package:applensys/evaluacion/services/helpers/reporte_utils_final.dart';
 import 'package:flutter/material.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
@@ -11,15 +13,15 @@ import 'package:applensys/evaluacion/utils/evaluacion_chart_data.dart';
 import 'package:applensys/evaluacion/models/dimension.dart';
 import 'package:applensys/evaluacion/models/principio.dart';
 import 'package:applensys/evaluacion/models/comportamiento.dart';
-import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
+import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:applensys/evaluacion/charts/scatter_bubble_chart.dart';
 import 'package:applensys/evaluacion/charts/grouped_bar_chart.dart';
 import 'package:applensys/evaluacion/charts/horizontal_bar_systems_chart.dart';
 import 'package:open_file/open_file.dart';
-import 'package:applensys/evaluacion/custom/table_names.dart';
+import 'package:applensys/custom/table_names.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 
-import 'package:applensys/evaluacion/models/level_averages.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String evaluacionId;
@@ -46,6 +48,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // Flag para saber si aún estamos cargando
   bool _isLoading = true;
+
+  // Getters públicos para acceder a los datos desde otras screens
+  List<Dimension> get dimensiones => _dimensiones;
+  Map<String, Map<String, double>> get promediosPorDimensionCargo => _calcularPromediosPorDimensionCargo();
 
   // Lista ordenada de sistemas para el gráfico de barras horizontales
   // DEBES ACTUALIZAR ESTA LISTA CON TUS SISTEMAS REALES Y EN EL ORDEN DESEADO
@@ -209,15 +215,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final double promGe = (countGe > 0) ? (sumaGe / countGe) : 0.0;
           final double promMi = (countMi > 0) ? (sumaMi / countMi) : 0.0;
 
+          // Extraer todos los sistemas únicos de las filas de este comportamiento
+          final Set<String> sistemasSet = {};
+          String observacionesEj = '';
+          String observacionesGe = '';
+          String observacionesMi = '';
+          
+          for (final row in filasComp) {
+            final cargoRaw = (row['cargo_raw'] as String?)?.toLowerCase().trim() ?? '';
+            
+            // Extraer sistemas
+            final listaSistemas = (row['sistemas'] as List<dynamic>?)
+              ?.map((s) => s.toString().trim())
+              .where((s) => s.isNotEmpty)
+              .toList() ?? <String>[];
+            
+            sistemasSet.addAll(listaSistemas);
+            
+            // Extraer observaciones por cargo
+            final obs = (row['observaciones'] as String?) ?? '';
+            if (obs.isNotEmpty) {
+              if (cargoRaw.contains('ejecutivo')) {
+                observacionesEj = obs;
+              } else if (cargoRaw.contains('gerente')) {
+                observacionesGe = obs;
+              } else if (cargoRaw.contains('miembro')) {
+                observacionesMi = obs;
+              }
+            }
+          }
+          
+          final List<String> sistemas = sistemasSet.toList();
+          sistemas.sort(); // Ordenamos los sistemas alfabéticamente
+
           compsModel.add(
             Comportamiento(
               nombre: compNombre,
               promedioEjecutivo: promEj,
               promedioGerente: promGe,
               promedioMiembro: promMi,
-              sistemas: [],
+              sistemas: sistemas,
+              observaciones: observacionesEj.isNotEmpty ? observacionesEj : 
+                             observacionesGe.isNotEmpty ? observacionesGe : 
+                             observacionesMi.isNotEmpty ? observacionesMi : null,
               nivel: null,
-              principioId: '',
+              principioId: priNombre,
               id: '',
               cargo: null,
             ),
@@ -266,6 +308,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_dimensiones.isNotEmpty) {
       debugPrint('Primera dimensión: ${_dimensiones.first.nombre}, promedio: ${_dimensiones.first.promedioGeneral}');
     }
+  }
+
+  /// Calcula promedios por dimensión y cargo para la tabla de puntuación global
+  Map<String, Map<String, double>> _calcularPromediosPorDimensionCargo() {
+    final Map<String, Map<String, double>> resultado = {};
+    
+    for (final dim in _dimensiones) {
+      // Mapear nombres de dimensión a IDs numericos
+      String dimId;
+      if (dim.nombre.toUpperCase().contains('IMPULSORES CULTURALES')) {
+        dimId = '1';
+      } else if (dim.nombre.toUpperCase().contains('MEJORA CONTINUA')) {
+        dimId = '2';
+      } else if (dim.nombre.toUpperCase().contains('ALINEAMIENTO EMPRESARIAL')) {
+        dimId = '3';
+      } else {
+        continue; // Saltar dimensiones que no reconocemos
+      }
+      
+      // Inicializar estructura para esta dimensión
+      resultado[dimId] = {
+        'EJECUTIVOS': 0.0,
+        'GERENTES': 0.0,
+        'MIEMBROS DE EQUIPO': 0.0,
+      };
+      
+      // Calcular sumas y conteos por cargo para esta dimensión
+      double sumaEj = 0, sumaGe = 0, sumaMi = 0;
+      int countEj = 0, countGe = 0, countMi = 0;
+      
+      for (final pri in dim.principios) {
+        for (final comp in pri.comportamientos) {
+          if (comp.promedioEjecutivo > 0) {
+            sumaEj += comp.promedioEjecutivo;
+            countEj++;
+          }
+          if (comp.promedioGerente > 0) {
+            sumaGe += comp.promedioGerente;
+            countGe++;
+          }
+          if (comp.promedioMiembro > 0) {
+            sumaMi += comp.promedioMiembro;
+            countMi++;
+          }
+        }
+      }
+      
+      // Calcular promedios
+      resultado[dimId]!['EJECUTIVOS'] = (countEj > 0) ? (sumaEj / countEj) : 0.0;
+      resultado[dimId]!['GERENTES'] = (countGe > 0) ? (sumaGe / countGe) : 0.0;
+      resultado[dimId]!['MIEMBROS DE EQUIPO'] = (countMi > 0) ? (sumaMi / countMi) : 0.0;
+    }
+    
+    return resultado;
   }
 
   /// Calcula promedios por cargo para cada principio
@@ -519,61 +615,305 @@ List<ScatterData> _buildScatterData() {
         }
       }
     }
-    // debugPrint('Datos de PROMEDIOS para HorizontalBarSystemsChart: $promediosData');
     return promediosData;
   }
 
-  /// Callback al presionar “Generar Excel/Word”
-  Future<void> _onGenerarDocumentos() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Generando archivos Excel y Word...')),
-    );
-    try {
-      final List<LevelAverages> behaviorAverages = [];
-      int id = 1;
-      for (final dim in _dimensiones) {
-        for (final pri in dim.principios) {
-          for (final comp in pri.comportamientos) {
-            behaviorAverages.add(LevelAverages(
-              id: id++,
-              nombre: comp.nombre,
-              ejecutivo: comp.promedioEjecutivo,
-              gerente: comp.promedioGerente,
-              miembro: comp.promedioMiembro,
-              dimensionId: int.tryParse(dim.id),
-              nivel: '',
-            ));
-          }
-        }
+  /// Carga los datos de benchmark desde los archivos JSON
+  Future<List<Map<String, dynamic>>> _cargarDatosBenchmark() async {
+    final List<Map<String, dynamic>> allData = [];
+    
+    // Cargar los 3 archivos JSON
+    for (int i = 1; i <= 3; i++) {
+      try {
+        final jsonString = await rootBundle.loadString('assets/t$i.json');
+        final List<dynamic> data = json.decode(jsonString);
+        allData.addAll(data.cast<Map<String, dynamic>>());
+      } catch (e) {
+        debugPrint('Error cargando t$i.json: $e');
       }
-      final sistemasData = _buildHorizontalBarsData();
-      final List<LevelAverages> systemAverages = [];
-      sistemasData.forEach((sistema, niveles) {
-        systemAverages.add(LevelAverages(
-          id: id++,
-          nombre: sistema,
-          ejecutivo: (niveles['E'] ?? 0).toDouble(),
-          gerente: (niveles['G'] ?? 0).toDouble(),
-          miembro: (niveles['M'] ?? 0).toDouble(),
-          dimensionId: null,
-          nivel: '',
-        ));
-      });
-     
-      final t1 = await _loadJsonAsset('assets/t1.json');
-      final t2 = await _loadJsonAsset('assets/t2.json');
-      final t3 = await _loadJsonAsset('assets/t3.json');
-     
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al generar archivos: ${e.toString()}')),
-      );
     }
+    
+    return allData;
   }
 
-  Future<List<Map<String, dynamic>>> _loadJsonAsset(String path) async {
-    final data = await DefaultAssetBundle.of(context).loadString(path);
-    return List<Map<String, dynamic>>.from(jsonDecode(data));
+  /// Obtiene la interpretación del JSON según comportamiento, nivel y calificación
+  String _getInterpretacionFromJson(List<Map<String, dynamic>> benchmarkData, String comportamiento, String nivel, double promedio) {
+    // Convertir promedio a calificación C1-C5
+    String calificacion;
+    if (promedio <= 1.0) calificacion = 'C1';
+    else if (promedio <= 2.0) calificacion = 'C2';
+    else if (promedio <= 3.0) calificacion = 'C3';
+    else if (promedio <= 4.0) calificacion = 'C4';
+    else calificacion = 'C5';
+
+    // Mapear comportamiento desde nuestro modelo al JSON
+    String comportamientoJson = _mapearComportamientoAJson(comportamiento);
+    
+    // Mapear nivel a formato JSON
+    String nivelJson;
+    switch (nivel) {
+      case 'E':
+        nivelJson = 'EJECUTIVO';
+        break;
+      case 'G':
+        nivelJson = 'GERENTE';
+        break;
+      case 'M':
+        nivelJson = 'MIEMBRO DE EQUIPO';
+        break;
+      default:
+        nivelJson = 'EJECUTIVO';
+    }
+
+    // Buscar en el JSON
+    for (final item in benchmarkData) {
+      if (item['BENCHMARK DE COMPORTAMIENTOS'] != null && 
+          item['BENCHMARK DE COMPORTAMIENTOS'].toString().contains(comportamientoJson) &&
+          item['NIVEL'] == nivelJson) {
+        return item[calificacion]?.toString() ?? 'Sin interpretación disponible';
+      }
+    }
+
+    // Fallback si no se encuentra
+    return 'Interpretación no encontrada para $comportamiento - $nivel - $calificacion';
+  }
+
+  /// Obtiene el benchmark por cargo del JSON
+  String _getBenchmarkFromJson(List<Map<String, dynamic>> benchmarkData, String comportamiento, String nivel) {
+    // Mapear comportamiento desde nuestro modelo al JSON
+    String comportamientoJson = _mapearComportamientoAJson(comportamiento);
+    
+    // Mapear nivel a formato JSON
+    String nivelJson;
+    switch (nivel) {
+      case 'E':
+        nivelJson = 'EJECUTIVO';
+        break;
+      case 'G':
+        nivelJson = 'GERENTE';
+        break;
+      case 'M':
+        nivelJson = 'MIEMBRO DE EQUIPO';
+        break;
+      default:
+        nivelJson = 'EJECUTIVO';
+    }
+
+    // Buscar en el JSON
+    for (final item in benchmarkData) {
+      if (item['BENCHMARK DE COMPORTAMIENTOS'] != null && 
+          item['BENCHMARK DE COMPORTAMIENTOS'].toString().contains(comportamientoJson) &&
+          item['NIVEL'] == nivelJson) {
+        return item['BENCHMARK POR NIVEL']?.toString() ?? 'Benchmark no disponible';
+      }
+    }
+
+    // Fallback si no se encuentra
+    return 'Benchmark no encontrado para $comportamiento - $nivel';
+  }
+
+  /// Mapea los nombres de comportamientos de nuestro modelo a los del JSON
+  String _mapearComportamientoAJson(String comportamiento) {
+    // Mapeo de nombres de comportamientos
+    final Map<String, String> mapeo = {
+      'Soporte': 'Soporte',
+      'Reconocer': 'Reconocer',
+      'Comunidad': 'Comunidad',
+      'Liderazgo de Servidor': 'Liderazgo de Servidor',
+      'Valorar': 'Valorar',
+      'Empoderar': 'Empoderar',
+      'Mentalidad': 'Mentalidad',
+      'Estructura': 'Estructura',
+      'Reflexionar': 'Reflexionar',
+      'Análisis': 'Análisis',
+      'Colaborar': 'Colaborar',
+      'Comprender': 'Comprender',
+      'Diseño': 'Diseño',
+      'Atribución': 'Atribución',
+      'A Prueba de Errores': 'A Prueba de Errores',
+      'Propiedad': 'Propiedad',
+      'Conectar': 'Conectar',
+      'Ininterrumpido': 'Ininterrumpido',
+      'Demanda': 'Demanda',
+      'Eliminar': 'Eliminar',
+      'Optimizar': 'Optimizar',
+      'Impacto': 'Impacto',
+      'Alinear': 'Alinear',
+      'Aclarar': 'Aclarar',
+      'Comunicar': 'Comunicar',
+      'Relación': 'Relación',
+      'Valor': 'Valor',
+      'Medida': 'Medida'
+};
+
+
+    return mapeo[comportamiento] ?? comportamiento;
+  }
+
+/// Prepara los datos para el reporte PDF (modo horizontal)
+Future<List<ReporteComportamiento>> _prepararDatosPdf() async {
+  final List<ReporteComportamiento> reporteData = [];
+
+  // Cargar datos de benchmark desde JSON
+  final benchmarkData = await _cargarDatosBenchmark();
+
+  // Agrupar todas las filas de _dimensionesRaw por comportamiento y nivel
+  final Map<String, Map<String, List<Map<String, dynamic>>>> datosAgrupados = {};
+
+  for (final row in _dimensionesRaw) {
+    final compNombre = row['comportamiento'] as String?;
+    if (compNombre == null) continue;
+
+    String? nivelKey;
+    final cargoRaw = (row['cargo_raw'] as String?)?.toLowerCase().trim() ?? '';
+    if (cargoRaw.contains('ejecutivo')) {
+      nivelKey = 'E';
+    } else if (cargoRaw.contains('gerente')) {
+      nivelKey = 'G';
+    } else if (cargoRaw.contains('miembro')) {
+      nivelKey = 'M';
+    }
+    if (nivelKey == null) continue;
+
+    datosAgrupados.putIfAbsent(compNombre, () => {}).putIfAbsent(nivelKey, () => []).add(row);
+  }
+
+  // Extraer los comportamientos en orden desde el modelo
+  final todosLosComportamientos = EvaluacionChartData.extractComportamientos(_dimensiones);
+
+  for (final comp in todosLosComportamientos) {
+    final Map<String, NivelEvaluacion> nivelesData = {};
+
+    if (datosAgrupados.containsKey(comp.nombre)) {
+      for (final nivelEntry in datosAgrupados[comp.nombre]!.entries) {
+        final nivel = nivelEntry.key; // 'E', 'G', 'M'
+        final filasNivel = nivelEntry.value;
+
+        if (filasNivel.isEmpty) continue;
+
+        // Calcular promedio para este grupo
+        double suma = 0;
+        int conteo = 0;
+        final Set<String> sistemas = {};
+        final List<String> observaciones = [];
+
+        for (final fila in filasNivel) {
+          final valor = (fila['valor'] as num?)?.toDouble() ?? 0.0;
+          if (valor > 0) {
+            suma += valor;
+            conteo++;
+          }
+
+          // Extraer sistemas
+          final sistemasFila = (fila['sistemas'] as List<dynamic>?)?.map((s) => s.toString()).toList() ?? [];
+          sistemas.addAll(sistemasFila);
+
+          // Observaciones
+          final obs = fila['observaciones'] as String?;
+          if (obs != null && obs.isNotEmpty) {
+            observaciones.add(obs);
+          }
+        }
+
+        if (conteo > 0) {
+          final promedio = suma / conteo;
+          final interpretacion = _getInterpretacionFromJson(benchmarkData, comp.nombre, nivel, promedio);
+          final benchmark = _getBenchmarkFromJson(benchmarkData, comp.nombre, nivel);
+          final hallazgos = observaciones.isNotEmpty ? '- ${observaciones.join('\n- ')}' : 'Sin observaciones';
+
+          nivelesData[nivel] = NivelEvaluacion(
+            promedio: promedio,
+            interpretacion: interpretacion,
+            benchmarkPorCargo: benchmark,
+            obs: hallazgos,
+            sistemasSeleccionados: sistemas.toList(),
+          );
+        }
+      }
+    }
+
+  final benchmarkGeneral = benchmarkData.firstWhere(
+  (item) =>
+      item['BENCHMARK DE COMPORTAMIENTOS'] != null &&
+      item['BENCHMARK DE COMPORTAMIENTOS']
+          .toString()
+          .toLowerCase()
+          .contains(_mapearComportamientoAJson(comp.nombre).toLowerCase()),
+  orElse: () => {},
+)['BENCHMARK DE COMPORTAMIENTOS'] ?? 'Benchmark no disponible';
+
+reporteData.add(
+  ReporteComportamiento(
+    nombre: comp.nombre,
+    benchmarkGeneral: benchmarkGeneral,
+    niveles: nivelesData,
+  ),
+);
+  }
+
+  return reporteData;
+}
+
+
+ 
+  /// Callback al presionar "Generar PDF"
+  Future<void> _onGenerarReportePdf() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generando reporte PDF...')),
+      );
+
+      // Preparar datos para el PDF (ahora es asíncrono)
+      final datosPdf = await _prepararDatosPdf();
+
+      // 🐛 DEBUG: Mostrar datos que se envían al PDF
+      debugPrint('🎯 DATOS ENVIADOS AL PDF:');
+      debugPrint('📊 Total de comportamientos: ${datosPdf.length}');
+      for (int i = 0; i < datosPdf.length && i < 3; i++) {
+        final comp = datosPdf[i];
+        debugPrint('');
+        debugPrint('📈 Comportamiento ${i + 1}: "${comp.nombre}"');
+        comp.niveles.forEach((nivel, data) {
+          final nivelNombre = nivel == 'E' ? 'Ejecutivo' : nivel == 'G' ? 'Gerente' : 'Miembro';
+          debugPrint('   $nivelNombre: ${data.promedio.toStringAsFixed(2)} → ${data.interpretacion}');
+          debugPrint('   Benchmark: ${data.benchmarkPorCargo}');
+          debugPrint('   Observaciones: ${data.obs}');
+          debugPrint('   Sistemas: ${data.sistemasSeleccionados.join(", ")}');
+        });
+      }
+      if (datosPdf.length > 3) {
+        debugPrint('... y ${datosPdf.length - 3} comportamientos más');
+      }
+
+      if (datosPdf.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay datos suficientes para generar el reporte')),
+        );
+        return;
+      }
+
+      // Generar PDF
+      final pdfBytes = await ReportePdfService.generarReportePdf(datosPdf);
+
+      // Guardar archivo
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/reporte_evaluacion_${widget.empresa.nombre}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      await file.writeAsBytes(pdfBytes);
+
+      // Mostrar mensaje de éxito
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reporte PDF generado exitosamente')),
+      );
+
+      // Abrir archivo
+      await OpenFile.open(file.path);
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al generar reporte PDF: ${e.toString()}')),
+      );
+      debugPrint('Error generando PDF: $e');
+    }
   }
 
   @override
@@ -588,14 +928,12 @@ List<ScatterData> _buildScatterData() {
 
     // Preparar datos para el gráfico de sistemas
     final horizontalData = _buildHorizontalBarsData();
-    // La variable maxSystemCount ya no es necesaria aquí si maxY es fijo (0-5 para promedios)
 
     return Scaffold(
       key: _scaffoldKey,
 
       // Drawer izquierdo para chat (80% del ancho)
       drawer: SizedBox(
-        width: screenSize.width * 0.8,
         child: const ChatWidgetDrawer(),
       ),
 
@@ -630,7 +968,7 @@ List<ScatterData> _buildScatterData() {
                       child: MultiRingChart(
                         puntosObtenidos: _buildMultiringData(),
                         isDetail: false,
-                      ), color: const Color.fromARGB(255, 171, 172, 173), title: 'EVALUACION DIMENSION-ROL',
+                      ), color: const Color.fromARGB(255, 171, 172, 173), title: 'PROGRESO DIMENSION-ROL',
                     ),
               
                   _buildChartContainer(
@@ -657,7 +995,7 @@ List<ScatterData> _buildScatterData() {
                
                   _buildChartContainer(
                     color: const Color.fromARGB(255, 202, 208, 219),
-                    title: 'EVALUACION SISTEMAS ROL',
+                    title: 'EVALUACION SISTEMAS-ROL',
                     child: HorizontalBarSystemsChart(
                       data: horizontalData, 
                       minY: 0, 
@@ -684,94 +1022,11 @@ List<ScatterData> _buildScatterData() {
                   tooltip: 'Chat Interno',
                 ),
 
-                // Generar Excel/Word
+                // Generar PDF
                 IconButton(
-                  icon: const Icon(Icons.file_download, color: Colors.white),
-                  onPressed: _onGenerarDocumentos,
-                  tooltip: 'Generar prereporte Excel/Word',
-                ),
-                const SizedBox(height: 16),
-
-                // Generar y abrir Excel
-                IconButton(
-                  icon: const Icon(Icons.table_chart, color: Colors.green),
-                  onPressed: () async {
-                    try {
-                      final List<LevelAverages> behaviorAverages = [];
-                      int id = 1;
-                      for (final dim in _dimensiones) {
-                        for (final pri in dim.principios) {
-                          for (final comp in pri.comportamientos) {
-                            behaviorAverages.add(LevelAverages(
-                              id: id++,
-                              nombre: comp.nombre,
-                              ejecutivo: comp.promedioEjecutivo,
-                              gerente: comp.promedioGerente,
-                              miembro: comp.promedioMiembro,
-                              dimensionId: int.tryParse(dim.id),
-                              nivel: '',
-                            ));
-                          }
-                        }
-                      }
-                      final sistemasData = _buildHorizontalBarsData();
-                      final List<LevelAverages> systemAverages = [];
-                      sistemasData.forEach((sistema, niveles) {
-                        systemAverages.add(LevelAverages(
-                          id: id++,
-                          nombre: sistema,
-                          ejecutivo: (niveles['E'] ?? 0).toDouble(),
-                          gerente: (niveles['G'] ?? 0).toDouble(),
-                          miembro: (niveles['M'] ?? 0).toDouble(),
-                          dimensionId: null,
-                          nivel: '',
-                        ));
-                      });
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error al generar Excel: ${e.toString()}')),
-                      );
-                    }
-                  },
-                  tooltip: 'Abrir Excel',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.description, color: Colors.blue),
-                  onPressed: () async {
-                    try {
-                      final t1 = await _loadJsonAsset('assets/t1.json');
-                      final t2 = await _loadJsonAsset('assets/t2.json');
-                      final t3 = await _loadJsonAsset('assets/t3.json');
-                      final wordResult =
-                          await ReporteUtils.generarReporte(
-                        _dimensionesRaw,
-                        t1,
-                        t2,
-                        t3,
-                      );
-                      // Si esperas un String (ruta de archivo), asegúrate de que generarReporte devuelva un String.
-                      // Si realmente devuelve una lista, ajusta el uso aquí según lo que necesites hacer con esa lista.
-                      if (wordResult is String && wordResult.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('No se pudo generar Word.')),
-                        );
-                        return;
-                      }
-                      if (wordResult is String) {
-                        await OpenFile.open(wordResult as String?);
-                      } else {
-                        // Manejo alternativo si no es un String
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('El reporte generado no es un archivo Word válido.')),
-                        );
-                      }
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error al abrir Word: ${e.toString()}')),
-                      );
-                    }
-                  },
-                  tooltip: 'Abrir Word',
+                  icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                  onPressed: _onGenerarReportePdf,
+                  tooltip: 'Generar Reporte PDF',
                 ),
               ],
             ),
@@ -818,12 +1073,11 @@ List<ScatterData> _buildScatterData() {
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: SizedBox(
-                height: 420,
+                height: 428,
                 child: child,
               ),
             ),
           ],
-        ),
-      );    
+        ));
   }
 }

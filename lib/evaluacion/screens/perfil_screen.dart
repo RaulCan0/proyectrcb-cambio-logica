@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:applensys/evaluacion/providers/theme_provider.dart';
-import 'package:applensys/evaluacion/services/domain/supabase_service.dart';
+import 'package:applensys/evaluacion/services/supabase_service.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:image_picker/image_picker.dart';
 

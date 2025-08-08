@@ -89,17 +89,21 @@ class ScatterBubbleChart extends StatelessWidget {
                   sideTitles: SideTitles(
                     showTitles: true,
                     interval: 1,
-                    reservedSize: 160,
+                    reservedSize: 220, // Aumentar espacio para nombres completos
                     getTitlesWidget: (value, meta) {
                       final idx = value.toInt();
                       if (idx >= 1 && idx <= principleNames.length) {
                         return Padding(
-                          padding: const EdgeInsets.only(right: 4.0),
-                          child: Text(
-                            principleNames[idx - 1],
-                            style: const TextStyle(fontSize: 13, color: Colors.black),
-                            textAlign: TextAlign.right,
-                            overflow: TextOverflow.ellipsis,
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: SizedBox(
+                            width: 200, // Ancho fijo para el texto
+                            child: Text(
+                              principleNames[idx - 1],
+                              style: const TextStyle(fontSize: 13, color: Colors.black),
+                              textAlign: TextAlign.right,
+                              maxLines: 2, // Permitir hasta 2 líneas
+                              overflow: TextOverflow.visible, // Mostrar texto completo
+                            ),
                           ),
                         );
                       }
@@ -132,36 +136,24 @@ class ScatterBubbleChart extends StatelessWidget {
                   ),
                 );
               }).toList(),
-              scatterTouchData: ScatterTouchData(
-                enabled: true,
-                handleBuiltInTouches: true,
-                touchTooltipData: ScatterTouchTooltipData(
-                  getTooltipItems: (ScatterSpot touchedSpot) {
-                    // Encontrar el ScatterData correspondiente al punto tocado
-                    final ScatterData? matchedData = data.cast<ScatterData?>().firstWhere(
-                      (d) => d != null && 
-                             (d.x - touchedSpot.x).abs() < 0.1 && 
-                             (d.y - touchedSpot.y).abs() < 0.1,
-                      orElse: () => null,
-                    );
-                    
-                    if (matchedData != null) {
-                      return ScatterTooltipItem(
-                        '${matchedData.seriesName}: ${matchedData.x.toStringAsFixed(2)}\n${matchedData.principleNames}',
-                        textStyle: const TextStyle(color: Colors.white, fontSize: 12),
-                      );
-                    }
-                    
-                    return ScatterTooltipItem(
-                      'Valor: ${touchedSpot.x.toStringAsFixed(2)}',
-                      textStyle: const TextStyle(color: Colors.white),
-                    );
-                  },
-                ),
+   scatterTouchData: ScatterTouchData(
+  enabled: true,
+  handleBuiltInTouches: true,
+  touchTooltipData: ScatterTouchTooltipData(
+    getTooltipItems: (ScatterSpot touchedSpot) {
+      return ScatterTooltipItem(
+        touchedSpot.x.toStringAsFixed(2), // Solo muestra X
+        textStyle: const TextStyle(color: Colors.white, fontSize: 12),
+      );
+    },
+  ),
+),
+
+
               ),
             ),
           ),
-        ),
+        
       ],
     );
   }

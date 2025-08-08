@@ -1,7 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'package:applensys/evaluacion/services/helpers/chat_service.dart';
-import 'package:applensys/evaluacion/services/helpers/notification_service.dart';
+import 'package:applensys/evaluacion/services/chat_service.dart';
+import 'package:applensys/evaluacion/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/message.dart';
@@ -110,7 +110,7 @@ class _ChatWidgetDrawerState extends State<ChatWidgetDrawer> {
           ),
           Expanded(
             child: StreamBuilder<List<Message>>(
-              stream: _chatService.messageStream(),
+              stream: _chatService.messageStream() as Stream<List<Message>>?,
               builder: (context, snapshot) {
                 if (snapshot.hasError) return Center(child: Text('Error: [${snapshot.error}'));
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());

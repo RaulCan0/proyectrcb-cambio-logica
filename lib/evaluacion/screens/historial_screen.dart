@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:applensys/evaluacion/services/domain/empresa_service.dart';
+import 'package:applensys/evaluacion/services/empresa_service.dart';
 import 'package:applensys/evaluacion/models/empresa.dart';
 
 class HistorialScreen extends StatefulWidget {

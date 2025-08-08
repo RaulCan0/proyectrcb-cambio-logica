@@ -1,9 +1,9 @@
 // lib/screens/detalles_evaluacion.dart
 
 import 'package:applensys/evaluacion/models/empresa.dart';
+import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
 import '../widgets/drawer_lensys.dart';
 // Nueva importación
 

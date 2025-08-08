@@ -1,9 +1,9 @@
-import 'package:applensys/evaluacion/services/domain/calificacion_service.dart';
-import 'package:applensys/evaluacion/services/domain/empresa_service.dart';
-import 'package:applensys/evaluacion/services/domain/evaluacion_service.dart';
-import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
-import 'package:applensys/evaluacion/services/remote/auth_service.dart';
-import 'package:applensys/evaluacion/services/remote/storage_service.dart';
+import 'package:applensys/evaluacion/services/calificacion_service.dart';
+import 'package:applensys/evaluacion/services/empresa_service.dart';
+import 'package:applensys/evaluacion/services/evaluacion_service.dart';
+import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
+import 'package:applensys/evaluacion/services/auth_service.dart';
+import 'package:applensys/evaluacion/services/storage_service.dart';
 
 import 'package:get_it/get_it.dart';
 

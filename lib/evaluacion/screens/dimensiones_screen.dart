@@ -10,8 +10,8 @@ import 'package:applensys/evaluacion/screens/empresas_screen.dart';
 import 'package:applensys/evaluacion/screens/tablas_screen.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
-import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
-import 'package:applensys/evaluacion/services/domain/evaluacion_service.dart';
+import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
+import 'package:applensys/evaluacion/services/evaluacion_service.dart';
 import '../models/empresa.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
@@ -44,7 +44,7 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
       'id': '2',
       'nombre': 'MEJORA CONTINUA',
       'icono': Icons.update,
-      'color': Colors.indigo,
+      'color': Color.fromARGB(255, 67, 78, 141),
     },
     {
       'id': '3',
@@ -192,9 +192,8 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => TablaResumenGlobal(
-            empresa: widget.empresa,
-            evaluacionId: widget.evaluacionId,
+          builder: (_) => TablaResumenGlobal(promediosPorDimension: {}, resultadosShingo: {},
+          
           ),
         ),
       );

@@ -2,8 +2,8 @@ import 'package:applensys/evaluacion/models/asociado.dart';
 import 'package:applensys/evaluacion/models/calificacion.dart';
 import 'package:applensys/evaluacion/models/principio_json.dart';
 import 'package:applensys/evaluacion/screens/tablas_screen.dart' as tablas_screen;
-import 'package:applensys/evaluacion/services/domain/json_service.dart';
-import 'package:applensys/evaluacion/services/domain/supabase_service.dart';
+import 'package:applensys/evaluacion/services/json_service.dart';
+import 'package:applensys/evaluacion/services/supabase_service.dart';
 import 'package:flutter/material.dart';
 import '../models/empresa.dart';
 

@@ -11,17 +11,17 @@ class MultiRingChart extends StatelessWidget {
     this.isDetail = false,
   });
 
-  // Máximos corregidos según los valores requeridos
+  // Para promedios, el máximo es 5.0-convertirlos al puntajemaximo
   static const Map<String, double> puntosTotales = {
-    'IMPULSORES CULTURALES': 250.0,
-    'MEJORA CONTINUA': 350.0,
-    'ALINEAMIENTO EMPRESARIAL': 200.0,
+    'IMPULSORES CULTURALES': 5.0,
+    'MEJORA CONTINUA': 5.0,
+    'ALINEAMIENTO EMPRESARIAL': 5.0,
   };
 
   static const Map<String, Color> coloresPorDimension = {
-    'IMPULSORES CULTURALES': Color(0xFF00BCD4),   // azul claro
-    'MEJORA CONTINUA': Color(0xFF8BC34A),         // verde lima
-    'ALINEAMIENTO EMPRESARIAL': Color(0xFF757575),// gris
+    'IMPULSORES CULTURALES': Color.fromARGB(255, 122, 141, 245),   // azul
+    'MEJORA CONTINUA':Color.fromARGB(255, 67, 78, 141),          // azul oscuro
+    'ALINEAMIENTO EMPRESARIAL': Color.fromARGB(255, 14, 24, 78),   // azul más oscuro
   };
 
   @override
@@ -31,13 +31,17 @@ class MultiRingChart extends StatelessWidget {
 
     final double chartSize = isDetail ? 360 : 260;
     final double maxRadius = isDetail ? 120 : 90;
-    final double ringWidth = maxRadius / n;
+    final double ringWidth = (maxRadius * 0.6) / n; // Hacer los anillos más delgados
+    final double centerRadius = maxRadius * 0.3; // Espacio central fijo
 
     // Log para depuración
     debugPrint('MultiRingChart recibió datos: $puntosObtenidos');
 
     return Column(
       children: [
+        // Espacio superior para centrar el gráfico
+        const SizedBox(height: 40),
+        
         // Gráfico de anillos
         SizedBox(
           width: chartSize,
@@ -51,12 +55,16 @@ class MultiRingChart extends StatelessWidget {
               final double porcentaje = (obtenido / total).clamp(0.0, 1.0);
 
               final double outerRadius = maxRadius - index * ringWidth;
+              final double innerRadius = outerRadius - ringWidth;
+              
+              // Asegurar que el anillo más interno tenga un espacio central
+              final double actualCenterRadius = index == n - 1 ? centerRadius : innerRadius;
 
               return PieChart(
                 PieChartData(
                   startDegreeOffset: -90,
                   sectionsSpace: 0,
-                  centerSpaceRadius: outerRadius - ringWidth,
+                  centerSpaceRadius: actualCenterRadius,
                   sections: [
                     PieChartSectionData(
                       value: porcentaje * total,
@@ -66,7 +74,7 @@ class MultiRingChart extends StatelessWidget {
                     ),
                     PieChartSectionData(
                       value: (1 - porcentaje) * total,
-                      color: Colors.grey.shade200,
+                      color: Colors.white,
                       radius: outerRadius,
                       showTitle: false,
                     ),
@@ -77,10 +85,14 @@ class MultiRingChart extends StatelessWidget {
           ),
         ),
         
-        const SizedBox(height: 16),
+        // Más espacio entre el gráfico y la leyenda para empujar los textos hacia abajo
+        const SizedBox(height: 32),
         
         // Leyenda
         _buildLegend(),
+        
+        // Espacio inferior adicional
+        const SizedBox(height: 16),
       ],
     );
   }
@@ -100,7 +112,7 @@ class MultiRingChart extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: const Color.fromARGB(255, 255, 255, 255)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -133,7 +145,7 @@ class MultiRingChart extends StatelessWidget {
                     '${obtenido.toStringAsFixed(2)}/5.0 (${porcentaje.toStringAsFixed(1)}%)',
                     style: const TextStyle(
                       fontSize: 10,
-                      color: Colors.grey,
+                      color: Color.fromARGB(255, 0, 0, 0),
                     ),
                   ),
                 ],
@@ -145,3 +157,5 @@ class MultiRingChart extends StatelessWidget {
     );
   }
 }
+
+//aagregretiqueta -8conveion a puntos)

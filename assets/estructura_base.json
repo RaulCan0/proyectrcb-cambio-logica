@@ -25,7 +25,7 @@
           "nombre": "Liderar con Humildad",
           "comportamientos": [
             {
-              "nombre": "Liderazgo de servidor",
+              "nombre": "Liderazgo de Servidor",
               "descripcion": "Los líderes consideran primero las necesidades de los demás."
             },
             {
@@ -58,7 +58,7 @@
           ]
         },
         {
-          "nombre": "Abrazar el pensamiento Cientifico",
+          "nombre": "Abrazar el Pensamiento Cientifico",
           "comportamientos": [
             {
               "nombre": "Reflexionar",
@@ -75,7 +75,7 @@
           ]
         },
         {
-          "nombre": "Enfocarse en el proceso",
+          "nombre": "Enfocarse en el Proceso",
           "comportamientos": [
             {
               "nombre": "Comprender",
@@ -95,7 +95,7 @@
           "nombre": "Asegurar la Calidad en la Fuente",
           "comportamientos": [
             {
-              "nombre": "A prueba de error",
+              "nombre": "A prueba de Errores",
               "descripcion": "Nuestros procesos están diseñados para prevenir, revelar y resolver de inmediato cualquier problema."
             },
             {

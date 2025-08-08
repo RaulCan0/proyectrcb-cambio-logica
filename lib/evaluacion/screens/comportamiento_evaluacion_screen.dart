@@ -1,8 +1,8 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:typed_data';
-import 'package:applensys/evaluacion/services/domain/calificacion_service.dart';
-import 'package:applensys/evaluacion/services/remote/storage_service.dart';
+import 'package:applensys/evaluacion/services/calificacion_service.dart';
+import 'package:applensys/evaluacion/services/storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

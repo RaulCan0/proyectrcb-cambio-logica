@@ -1,4 +1,4 @@
-import 'package:applensys/evaluacion/services/domain/supabase_service.dart';
+import 'package:applensys/evaluacion/services/supabase_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
