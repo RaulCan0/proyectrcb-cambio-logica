@@ -3,6 +3,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:applensys/evaluacion/services/pdf.dart';
+import 'package:applensys/evaluacion/services/excel.dart';
 import 'package:flutter/services.dart';
 import 'package:applensys/evaluacion/charts/multiring.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +22,6 @@ import 'package:open_file/open_file.dart';
 import 'package:applensys/custom/table_names.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:path_provider/path_provider.dart';
-
 
 class DashboardScreen extends StatefulWidget {
   final String evaluacionId;
@@ -56,30 +56,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Lista ordenada de sistemas para el gráfico de barras horizontales
   // DEBES ACTUALIZAR ESTA LISTA CON TUS SISTEMAS REALES Y EN EL ORDEN DESEADO
  
- final List<String> _sistemasOrdenados = [
-  'Medición',
-  'Involucramiento',
-  'Reconocimiento',
-  'Desarrollo de Personas',
-  'Seguridad',
-  'Ambiental',
-  'EHS',
-  'Compromiso',
-  'Sistemas de Mejora',
-  'Solución de Problemas',
-  'Gestión Visual',
-  'Comunicación',
-  'Desarrollo de personas',
-  'Despliegue de estrategia',
-  'Gestion visual',
-  'Medicion',
-  'Mejora y alineamiento estratégico',
-  'Mejora y gestion visual',
-  'Planificacion',
-  'Programacion y de mejora',
-  'Voz de cliente',
-  'Visitas al Gemba',
-];
 
   @override
   void initState() {
@@ -145,7 +121,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  /// Procesa las filas crudas a modelos [Dimension], [Principio] y [Comportamiento].
+  
   void _procesarDimensionesDesdeRaw(List<Map<String, dynamic>> raw) {
     final Map<String, List<Map<String, dynamic>>> porDimension = {};
     for (final fila in raw) {
@@ -545,12 +521,33 @@ List<ScatterData> _buildScatterData() {
   }
 
   Map<String, Map<String, double>> _buildHorizontalBarsData() {
+    // Lista de sistemas ordenados (misma que en HorizontalBarSystemsChart)
+    const List<String> sistemasOrdenados = [
+      'Ambiental',
+      'Compromiso',
+      'Comunicación',
+      'Despliegue de Estrategia',
+      'Desarrollo de Personas',
+      'EHS',
+      'Gestión Visual',
+      'Involucramiento',
+      'Medición',
+      'Planificación y Programación',
+      'Recompensas',
+      'Reconocimientos',
+      'Seguridad',
+      'Sistemas de Mejora',
+      'Solución de Problemas',
+      'Voz del Cliente',
+      'Visitas al Gemba',
+    ];
+    
     // Mapas para acumular sumas y conteos
     final Map<String, Map<String, double>> sumasPorSistemaNivel = {};
     final Map<String, Map<String, int>> conteosPorSistemaNivel = {};
 
     // Inicializar mapas para todos los sistemas ordenados y niveles
-    for (final sistemaNombre in _sistemasOrdenados) {
+    for (final sistemaNombre in sistemasOrdenados) {
       sumasPorSistemaNivel[sistemaNombre] = {'E': 0.0, 'G': 0.0, 'M': 0.0};
       conteosPorSistemaNivel[sistemaNombre] = {'E': 0, 'G': 0, 'M': 0};
     }
@@ -603,7 +600,7 @@ List<ScatterData> _buildScatterData() {
 
     // Calcular promedios
     final Map<String, Map<String, double>> promediosData = {};
-    for (final sistemaNombre in _sistemasOrdenados) {
+    for (final sistemaNombre in sistemasOrdenados) {
       promediosData[sistemaNombre] = {'E': 0.0, 'G': 0.0, 'M': 0.0};
       for (final nivelKey in ['E', 'G', 'M']) {
         final double suma = sumasPorSistemaNivel[sistemaNombre]![nivelKey]!;
@@ -916,6 +913,48 @@ reporteData.add(
     }
   }
 
+  /// Callback al presionar "Generar Excel"
+  Future<void> _onGenerarReporteExcel() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generando reporte Excel...')),
+      );
+
+      // Preparar datos para el Excel usando la misma función que el PDF
+      final datosExcel = await _prepararDatosPdf();
+
+      if (datosExcel.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay datos suficientes para generar el reporte')),
+        );
+        return;
+      }
+
+      // Generar Excel
+      final excelBytes = ReporteExcelService.generarReporteExcel(datosExcel);
+
+      // Guardar archivo
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final file = File('${directory.path}/reporte_evaluacion_$timestamp.xlsx');
+      await file.writeAsBytes(excelBytes);
+
+      // Mostrar mensaje de éxito
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reporte Excel generado exitosamente')),
+      );
+
+      // Abrir archivo
+      await OpenFile.open(file.path);
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al generar reporte Excel: ${e.toString()}')),
+      );
+      debugPrint('Error generando Excel: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
@@ -1000,7 +1039,6 @@ reporteData.add(
                       data: horizontalData, 
                       minY: 0, 
                       maxY: 5, // Adecuado para promedios en escala 0-5
-                      sistemasOrdenados: _sistemasOrdenados, 
                     ),
                   ),
 
@@ -1015,21 +1053,54 @@ reporteData.add(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Chat interno
-                IconButton(
-                  icon: const Icon(Icons.chat, color: Colors.white),
-                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                  tooltip: 'Chat Interno',
+                const SizedBox(width: 16),
+                Tooltip(
+                  message: 'Gerente',
+                  child: Icon(
+                    Icons.help_outline,
+                    color: Colors.orange,
+                    size: 32,
+                  ),
                 ),
-
-                // Generar PDF
-                IconButton(
-                  icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                  onPressed: _onGenerarReportePdf,
-                  tooltip: 'Generar Reporte PDF',
-                ),
-              ],
-            ),
+                        const SizedBox(width: 26),
+                        Tooltip(
+                          message: 'Gerente',
+                          child: Icon(
+                            Icons.help_outline,
+                            color: Colors.green,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 26),
+                        Tooltip(
+                          message: 'Miembro de equipo',
+                          child: Icon(
+                            Icons.help_outline,
+                            color: Colors.blue,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(height: 26),
+                        // Chat interno
+                        IconButton(
+                          icon: const Icon(Icons.chat, color: Colors.white),
+                          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                          tooltip: 'Chat Interno',
+                        ),
+                        // Generar PDF
+                        IconButton(
+                          icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                          onPressed: _onGenerarReportePdf,
+                          tooltip: 'Generar Reporte PDF',
+                        ),
+                        // Generar Excel
+                        IconButton(
+                          icon: const Icon(Icons.table_chart, color: Colors.green),
+                          onPressed: _onGenerarReporteExcel,
+                          tooltip: 'Generar Reporte Excel',
+                        ),
+                      ],
+                    ),
           ),
         ],
       ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color primary = Color(0xFF003056);     // Azul AppBar (0,48,86)
+  static const Color primary = Color.fromARGB(255, 3, 34, 59);     // Azul AppBar (0,48,86)
   static const Color c1 = Color(0xFFFF9800);           // Ejecutivo: Naranja
   static const Color c2 = Color(0xFF4CAF50);           // Gerente: Verde
   static const Color c3 = Color(0xFF1976D2);           // Miembro: Azul

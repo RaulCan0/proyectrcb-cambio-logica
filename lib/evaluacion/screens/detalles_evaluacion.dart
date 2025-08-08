@@ -219,59 +219,11 @@ class _DetallesEvaluacionScreenState extends State<DetallesEvaluacionScreen>
               ),
             ),
             SizedBox(height: screenSize.height * 0.02),
-            _buildColorBar(avgE, avgG, avgM),
+            // _buildColorBar(avgE, avgG, avgM), // Comentado: quitar líneas horizontales
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildColorBar(double ejecutivo, double gerente, double miembro) {
-    const total = 5.0;
-    final ejecutivoWidth = (ejecutivo / total).clamp(0.0, 1.0);
-    final gerenteWidth = (gerente / total).clamp(0.0, 1.0);
-    final miembroWidth = (miembro / total).clamp(0.0, 1.0);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildBarSegment(Colors.orange, ejecutivoWidth, ejecutivo),
-        const SizedBox(height: 8),
-        _buildBarSegment(Colors.green, gerenteWidth, gerente),
-        const SizedBox(height: 8),
-        _buildBarSegment(Colors.blue, miembroWidth, miembro),
-      ],
-    );
-  }
-
-  Widget _buildBarSegment(Color color, double percent, double value) {
-    return LayoutBuilder(builder: (context, constraints) {
-      return Stack(
-        children: [
-          Container(
-            width: constraints.maxWidth,
-            height: 16,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(6),
-            ),
-          ),
-          Container(
-            width: constraints.maxWidth * percent,
-            height: 16,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              value.toStringAsFixed(1),
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-            ),
-          ),
-        ],
-      );
-    });
   }
 
   BarChartGroupData _buildBarGroup(int x, double y, Color color) {

@@ -72,8 +72,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
         destinations: const [
+          NavigationDestination(icon: Icon(Icons.logout), label: 'Salir'),
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Inicio'),
-          NavigationDestination(icon: Icon(Icons.analytics_outlined), label: 'Diagnóstico'),
           NavigationDestination(icon: Icon(Icons.person_outline), label: 'Perfil'),
           NavigationDestination(icon: Icon(Icons.logout), label: 'Salir'),
         ],
@@ -320,9 +320,7 @@ class _DashboardCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _WeatherWidget extends StatelessWidget {
+}class _WeatherWidget extends StatelessWidget {
   const _WeatherWidget();
 
   static const double _defaultLat = 19.432608;

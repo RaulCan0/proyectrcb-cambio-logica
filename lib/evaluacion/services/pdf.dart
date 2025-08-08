@@ -120,7 +120,7 @@ class ReportePdfService {
       comp.niveles['G']?.promedio ?? 0,
       comp.niveles['M']?.promedio ?? 0,
     ];
-    final colors = [PdfColors.red, PdfColors.green, PdfColors.blue];
+    final colors = [PdfColors.orange, PdfColors.green, PdfColors.blue];
 
     return pw.Center(
       child: pw.Row(

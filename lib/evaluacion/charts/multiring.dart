@@ -11,11 +11,11 @@ class MultiRingChart extends StatelessWidget {
     this.isDetail = false,
   });
 
-  // Para promedios, el máximo es 5.0-convertirlos al puntajemaximo
+  // Puntaje máximo por dimensión (convertido de escala 5.0 a puntos)
   static const Map<String, double> puntosTotales = {
-    'IMPULSORES CULTURALES': 5.0,
-    'MEJORA CONTINUA': 5.0,
-    'ALINEAMIENTO EMPRESARIAL': 5.0,
+    'IMPULSORES CULTURALES': 250.0,     // 250 puntos máximo
+    'MEJORA CONTINUA': 350.0,           // 350 puntos máximo
+    'ALINEAMIENTO EMPRESARIAL': 200.0,  // 200 puntos máximo
   };
 
   static const Map<String, Color> coloresPorDimension = {
@@ -50,9 +50,12 @@ class MultiRingChart extends StatelessWidget {
             alignment: Alignment.center,
             children: List.generate(n, (index) {
               final nombre = dimensiones[index];
-              final double total = puntosTotales[nombre]!;
-              final double obtenido = puntosObtenidos[nombre] ?? 0;
-              final double porcentaje = (obtenido / total).clamp(0.0, 1.0);
+              final double totalPuntos = puntosTotales[nombre]!;
+              final double promedioObtenido = puntosObtenidos[nombre] ?? 0; // Promedio 0-5
+              
+              // Convertir promedio (0-5) a puntos (0-totalPuntos)
+              final double puntosCalculados = (promedioObtenido / 5.0) * totalPuntos;
+              final double porcentaje = (promedioObtenido / 5.0).clamp(0.0, 1.0);
 
               final double outerRadius = maxRadius - index * ringWidth;
               final double innerRadius = outerRadius - ringWidth;
@@ -67,13 +70,13 @@ class MultiRingChart extends StatelessWidget {
                   centerSpaceRadius: actualCenterRadius,
                   sections: [
                     PieChartSectionData(
-                      value: porcentaje * total,
+                      value: porcentaje * totalPuntos,
                       color: coloresPorDimension[nombre],
                       radius: outerRadius,
                       showTitle: false,
                     ),
                     PieChartSectionData(
-                      value: (1 - porcentaje) * total,
+                      value: (1 - porcentaje) * totalPuntos,
                       color: Colors.white,
                       radius: outerRadius,
                       showTitle: false,
@@ -92,7 +95,7 @@ class MultiRingChart extends StatelessWidget {
         _buildLegend(),
         
         // Espacio inferior adicional
-        const SizedBox(height: 16),
+        const SizedBox(height: 4),
       ],
     );
   }
@@ -103,12 +106,14 @@ class MultiRingChart extends StatelessWidget {
       spacing: 16,
       runSpacing: 8,
       children: puntosTotales.keys.map((nombre) {
-        final obtenido = puntosObtenidos[nombre] ?? 0;
-        final total = puntosTotales[nombre]!;
-        final porcentaje = ((obtenido / total) * 100).clamp(0.0, 100.0);
+        final promedioObtenido = puntosObtenidos[nombre] ?? 0; // Promedio 0-5
+        final totalPuntos = puntosTotales[nombre]!;
+        
+        // Convertir promedio (0-5) a puntos (0-totalPuntos)
+        final puntosCalculados = (promedioObtenido / 5.0) * totalPuntos;
         
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
@@ -136,15 +141,15 @@ class MultiRingChart extends StatelessWidget {
                   Text(
                     nombre,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF003056),
                     ),
                   ),
                   Text(
-                    '${obtenido.toStringAsFixed(2)}/5.0 (${porcentaje.toStringAsFixed(1)}%)',
+                    '${puntosCalculados.round()}/${totalPuntos.round()}pts',
                     style: const TextStyle(
-                      fontSize: 10,
+                      fontSize: 14,
                       color: Color.fromARGB(255, 0, 0, 0),
                     ),
                   ),
@@ -158,4 +163,3 @@ class MultiRingChart extends StatelessWidget {
   }
 }
 
-//aagregretiqueta -8conveion a puntos)

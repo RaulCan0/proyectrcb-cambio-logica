@@ -200,8 +200,7 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
     },
   );
 } 
-                
-                // Envolver la cardItem con SizedBox para darle una altura fija
+        // Envolver la cardItem con SizedBox para darle una altura fija
                 return SizedBox(
                   height: cardHeight,
                   child: cardItem,

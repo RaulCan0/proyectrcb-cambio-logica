@@ -429,131 +429,78 @@ class SistemasPromedio {
     final nivelesConSistemas = _sistemasPorNivel.values.where((set) => set.isNotEmpty).length;
     return nivelesConSistemas == 0 ? 0.0 : totalSistemas / _sistemasPorNivel.length;
   }
-}
-/*
-
-  void _irADetalles(BuildContext context) {
-    final currentIndex = DefaultTabController.of(context).index;
-    final dimensionActual = dimensiones[currentIndex];
-
-    final promediosPorDimension = <String, Map<String, double>>{};
-    for (final dim in dimensiones) {
-      final keyInterna = dimensionInterna[dim] ?? dim;
-      final filas = TablasDimensionScreen.tablaDatos[keyInterna]?.values.expand((l) => l).toList() ?? [];
-
-      final sumasNivel = {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0};
-      final conteosNivel = {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0};
-      final sistemasPromedio = SistemasPromedio();
-
-      for (var f in filas) {
-        final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
-        final valor = (f['valor'] ?? 0).toDouble();
-        final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
-        sumasNivel[nivel] = sumasNivel[nivel]! + valor;
-        conteosNivel[nivel] = conteosNivel[nivel]! + 1;
-        sistemasPromedio.agregar(nivel, sistemas);
-      }
-
-      final promediosNivel = <String, double>{};
-      double totalProm = 0;
-      sumasNivel.forEach((nivel, suma) {
-        final cnt = conteosNivel[nivel]!;
-        final prom = cnt > 0 ? suma / cnt : 0;
-        promediosNivel[nivel] = double.parse(prom.toStringAsFixed(2));
-        totalProm += prom;
-      });
-      promediosNivel['General'] = double.parse((totalProm / sumasNivel.length).toStringAsFixed(2));
-      promediosNivel['Sistemas'] = double.parse(sistemasPromedio.promedio().toStringAsFixed(2));
-      promediosPorDimension[dim] = promediosNivel;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DetallesEvaluacionScreen(
-          dimensionesPromedios: promediosPorDimension,
-          empresa: widget.empresa,
-          evaluacionId: widget.evaluacionId,
-          promedios: promediosPorDimension[dimensionActual],
-          dimension: dimensionActual,
-          initialTabIndex: currentIndex, 
-        ),
-      ),
-    );
-  }
-
-  List<DataRow> _buildRows(List<Map<String, dynamic>> filas) {
-    final sumas = <String, Map<String, Map<String, int>>>{};
-    final conteos = <String, Map<String, Map<String, int>>>{};
-    final sistemasPorNivel = <String, Map<String, Map<String, Set<String>>>>{};
-
-    for (var f in filas) {
-      final principio = f['principio'] ?? '';
-      final comportamiento = f['comportamiento'] ?? '';
-      final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
-      final int valor = ((f['valor'] ?? 0) as num).toInt();
-      final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
-
-      sumas.putIfAbsent(principio, () => {});
-      sumas[principio]!.putIfAbsent(comportamiento, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
-      conteos.putIfAbsent(principio, () => {});
-      conteos[principio]!.putIfAbsent(comportamiento, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
-      sistemasPorNivel.putIfAbsent(principio, () => {});
-      sistemasPorNivel[principio]!.putIfAbsent(comportamiento, () => {
-        'Ejecutivo': <String>{},
-        'Gerente': <String>{},
-        'Miembro': <String>{},
-      });
-
-      sumas[principio]![comportamiento]![nivel] = sumas[principio]![comportamiento]![nivel]! + valor;
-      conteos[principio]![comportamiento]![nivel] = conteos[principio]![comportamiento]![nivel]! + 1;
-      for (var s in sistemas) {
-        sistemasPorNivel[principio]![comportamiento]![nivel]!.add(s);
-      }
-    }
-
-    return sumas.entries.expand((e) {
-      final p = e.key;
-      return e.value.entries.map((cEntry) {
-        final c = cEntry.key;
-        final nivelVals = cEntry.value;
-        final niveles = ['Ejecutivo', 'Gerente', 'Miembro'];
-        return DataRow(cells: [
-          DataCell(Text(p, style: const TextStyle(color: Color(0xFF003056)))),
-          DataCell(Text(c, style: const TextStyle(color: Color(0xFF003056)))),
-          ...niveles.map((n) {
-            final suma = nivelVals[n] ?? 0;
-            final count = conteos[p]![c]![n]!;
-            return DataCell(Text(count > 0 ? (suma / count).toStringAsFixed(2) : '-', style: const TextStyle(color: Color(0xFF003056))));
-          }),
-          ...niveles.map((n) {
-            final sistemas = sistemasPorNivel[p]![c]![n]!;
-            return DataCell(Text(sistemas.isEmpty ? '-' : sistemas.join(', '), style: const TextStyle(color: Color(0xFF003056))));
-          }),
-        ]);
-      });
-    }).toList();
-  }
-}
-
-class SistemasPromedio {
-  final Map<String, Set<String>> _sistemasPorNivel = {
-    'Ejecutivo': <String>{},
-    'Gerente': <String>{},
-    'Miembro': <String>{},
+}class AuxTablaService {
+  static const Map<String, String> dimensionInterna = {
+    'IMPULSORES CULTURALES': 'Dimensión 1',
+    'MEJORA CONTINUA': 'Dimensión 2',
+    'ALINEAMIENTO EMPRESARIAL': 'Dimensión 3',
   };
 
-  void agregar(String nivel, List<String> sistemas) {
-    final key = nivel.capitalize();
-    if (_sistemasPorNivel.containsKey(key)) {
-      _sistemasPorNivel[key]!.addAll(sistemas);
+  static const Map<String, String> dimensionId = {
+    'Dimensión 1': '1',
+    'Dimensión 2': '2',
+    'Dimensión 3': '3',
+  };
+
+  static Map<String, Map<String, double>> obtenerPromediosPorDimensionYCargo() {
+    final Map<String, Map<String, double>> resultado = {};
+
+    for (final entry in dimensionInterna.entries) {
+      final nombre = entry.key;
+      final keyInterna = entry.value;
+      final id = dimensionId[keyInterna]!;
+
+      final filas = TablasDimensionScreen.tablaDatos[keyInterna]?.values.expand((l) => l).toList() ?? [];
+
+      final suma = {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0};
+      final conteo = {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0};
+
+      for (final fila in filas) {
+        final cargo = _normalizarNivel(fila['cargo_raw'] ?? '');
+        final valor = (fila['valor'] ?? 0).toDouble();
+
+        if (suma.containsKey(cargo)) {
+          suma[cargo] = suma[cargo]! + valor;
+          conteo[cargo] = conteo[cargo]! + 1;
+        }
+      }
+
+      resultado[id] = {
+        'EJECUTIVOS': conteo['Ejecutivo']! > 0 ? suma['Ejecutivo']! / conteo['Ejecutivo']! : 0.0,
+        'GERENTES': conteo['Gerente']! > 0 ? suma['Gerente']! / conteo['Gerente']! : 0.0,
+        'MIEMBROS DE EQUIPO': conteo['Miembro']! > 0 ? suma['Miembro']! / conteo['Miembro']! : 0.0,
+      };
     }
+
+    return resultado;
   }
 
-  double promedio() {
-    if (_sistemasPorNivel.isEmpty) return 0.0;
-    final totalSistemas = _sistemasPorNivel.values.fold<int>(0, (sum, set) => sum + set.length);
-    final nivelesConSistemas = _sistemasPorNivel.values.where((set) => set.isNotEmpty).length;
-    return nivelesConSistemas == 0 ? 0.0 : totalSistemas / nivelesConSistemas;
+  static String _normalizarNivel(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('miembro')) return 'Miembro';
+    if (lower.contains('gerente')) return 'Gerente';
+    return 'Ejecutivo';
   }
-}*/
+
+  static double obtenerTotalPuntosGlobal() {
+    final promedios = obtenerPromediosPorDimensionYCargo();
+    final config = {
+      '1': {'EJECUTIVOS': 125.0, 'GERENTES': 75.0, 'MIEMBROS DE EQUIPO': 50.0},
+      '2': {'EJECUTIVOS': 70.0, 'GERENTES': 105.0, 'MIEMBROS DE EQUIPO': 175.0},
+      '3': {'EJECUTIVOS': 110.0, 'GERENTES': 60.0, 'MIEMBROS DE EQUIPO': 30.0},
+    };
+
+    double total = 0;
+
+    for (final id in promedios.keys) {
+      final cargos = promedios[id]!;
+      final pesos = config[id]!;
+
+      cargos.forEach((cargo, prom) {
+        total += (prom / 5.0) * pesos[cargo]!;
+      });
+    }
+
+    return total; // Máximo 800
+  }
+}
