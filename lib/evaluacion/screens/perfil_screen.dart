@@ -50,6 +50,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
         _nombreController.text = data['nombre'] ?? '';
         _emailController.text = data['email'] ?? '';
         _telefonoController.text = data['telefono'] ?? '';
+        // Guardar solo el path relativo
         _fotoUrl = data['foto_url'];
       }
     } catch (e) {
@@ -109,11 +110,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
     }
     try {
       final uploaded = await _supabaseService.subirFotoPerfil(path);
-      final url = _supabaseService.getPublicUrl(
-        bucket: 'profile_photos',
-        path: uploaded,
-      );
-      setState(() => _fotoUrl = url);
+      setState(() => _fotoUrl = uploaded);
       _showMessage('Foto actualizada');
     } catch (e) {
       _showError('Error al subir foto: \$e');
@@ -157,15 +154,15 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                     child: Stack(
                       alignment: Alignment.bottomRight,
                       children: [
-                        CircleAvatar(
-                          radius: 60,
-                          backgroundImage: _fotoUrl != null
-                              ? NetworkImage(_fotoUrl!)
-                              : null,
-                          child: _fotoUrl == null
-                              ? const Icon(Icons.person, size: 60)
-                              : null,
-                        ),
+            CircleAvatar(
+              radius: 60,
+              backgroundImage: _fotoUrl != null
+                ? NetworkImage(_supabaseService.getPublicUrl(bucket: 'perfil', path: _fotoUrl!))
+                : null,
+              child: _fotoUrl == null
+                ? const Icon(Icons.person, size: 60)
+                : null,
+            ),
                         GestureDetector(
                           onTap: _seleccionarFoto,
                           child: Container(

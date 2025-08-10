@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:applensys/evaluacion/widgets/tabla_shingo.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -50,40 +51,80 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Evaluación por Categorías')),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.all(20),
-              children: [
-                const Text('Selecciona una categoría:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                ...categorias.map((cat) => GestureDetector(
-                      onTap: () => abrirHoja(cat),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.lightBlue.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: Text(cat.toUpperCase(), textAlign: TextAlign.center),
+              itemCount: categorias.length,
+              itemBuilder: (context, index) {
+                final cat = categorias[index];
+                final hoja = hojas[cat]!;
+                return GestureDetector(
+                  onTap: () async {
+                    final resultado = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ShingoResultSheet(
+                          title: cat,
+                          initialData: hoja,
                         ),
                       ),
-                    )),
-                const SizedBox(height: 20),
-                const Text('Resumen de Puntos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                ...ShingoResumenService.generarResumen(hojas).map((res) => ListTile(
-                  title: Text(res.categoria),
-                  subtitle: Text('Puntos: ${res.puntos.toStringAsFixed(1)}, Porcentaje: ${res.porcentaje.toStringAsFixed(1)}%'),
-                  tileColor: res.esTotal ? Colors.blue.shade100 : null,
-                )),
-              ],
+                    );
+                    if (resultado != null && resultado is ShingoResultData) {
+                      setState(() {
+                        hojas[cat] = resultado;
+                      });
+                    }
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.lightBlue.shade100,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(cat.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text('Calificación: ${hoja.calificacion}', style: const TextStyle(fontSize: 14)),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-        ],
+            const SizedBox(height: 30),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text('Tabla Resultados Shingo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TablaResultadosShingo(resultados: hojas),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -97,8 +138,8 @@ class ShingoResultData {
   ShingoResultData({
     Map<String, String>? campos,
     this.imagen,
-    this.calificacion = 0,
-  }) : campos = campos ?? {
+    int? calificacion,
+  })  : campos = campos ?? {
           'Cómo se calcula': '',
           'Cómo se mide': '',
           '¿Por qué es importante?': '',
@@ -106,7 +147,8 @@ class ShingoResultData {
           'Explicación de desviaciones': '',
           'Cambios en 3 años': '',
           'Cómo se definen metas': '',
-        };
+        },
+        calificacion = calificacion ?? 0;
 }
 
 class ShingoResultSheet extends StatefulWidget {
@@ -278,7 +320,7 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
                   ),
                   const Text('5'),
                 ],
-              )
+              ),
             ],
           ),
         ),

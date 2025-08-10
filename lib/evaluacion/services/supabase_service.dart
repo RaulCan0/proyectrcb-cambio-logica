@@ -313,12 +313,11 @@ class SupabaseService {
           fileOptions: const FileOptions(upsert: true),
         );
 
-    final publicUrl = _client.storage.from('perfil').getPublicUrl(storagePath);
+    // Solo guarda el path relativo en la base de datos, no la URL completa
+    await _client.from('usuarios').update({'foto_url': storagePath}).eq('id', userId);
 
-    // Guarda la URL en la tabla usuarios
-    await _client.from('usuarios').update({'foto_url': publicUrl}).eq('id', userId);
-
-    return publicUrl;
+    // Devuelve solo el path relativo
+    return storagePath;
   }
 
   // NUEVO: Buscar evaluacion existente

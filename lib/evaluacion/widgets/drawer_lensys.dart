@@ -151,13 +151,11 @@ class DrawerLensys extends ConsumerWidget {
               title: Text("Historial", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
               onTap: () {
                 Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => HistorialScreen(
-                      empresas: [], // Proporcionar una lista vacía o los datos reales
-                      empresasHistorial: [], // Proporcionar una lista vacía o los datos reales
+                    context,
+                    MaterialPageRoute(
+                    builder: (_) => const HistorialScreen(),
                     ),
-                  ),
+                 
                 );
               },
             ),

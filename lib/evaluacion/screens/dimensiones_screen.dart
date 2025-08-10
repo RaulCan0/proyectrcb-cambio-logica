@@ -1,7 +1,8 @@
 // ignore_for_file: use_build_context_synchronously
 
 
-import 'package:applensys/evaluacion/screens/shingo_result.dart';
+import 'package:applensys/evaluacion/screens/shingo_result.dart' as shingo_screen;
+import 'package:applensys/evaluacion/services/shingoresult.dart' as shingo_service;
 import 'package:applensys/evaluacion/screens/tabla_resumen_global.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -170,36 +171,54 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                     icon: Icons.insert_chart,
                     color: const Color.fromARGB(255, 27, 31, 66),
                     title: 'Resultados',
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      final categoriaSeleccionada = await Navigator.push<String>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => shingo_screen.ShingoCategorias(
+                            // Puedes agregar un callback para devolver la categoría seleccionada
+                          ),
+                        ),
+                      );
+                      if (categoriaSeleccionada != null) {
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => ShingoResultSheet(
-                              title: 'Resultados',
-                              initialData: ShingoResultData(), // Replace with appropriate default or required data
+                            builder: (_) => shingo_screen.ShingoResultSheet(
+                              title: categoriaSeleccionada,
+                              initialData: shingo_screen.ShingoResultData(),
                             ),
                           ),
                         );
+                      }
                     },
                   );
                 } // index == 4
-                 else { // index == 4
-  cardItem = _buildCard(
-    icon: Icons.assignment_turned_in,
-    color: const Color.fromARGB(255, 2, 33, 58),
-    title: 'Evaluación Final',
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TablaResumenGlobal(promediosPorDimension: {}, resultadosShingo: {},
-          
-          ),
-        ),
-      );
-    },
-  );
-} 
+                else { // index == 4
+                  // Obtener promedios y resultados Shingo
+                  final promediosPorDimension = AuxTablaService.obtenerPromediosPorDimensionYCargo();
+                  // Convertir los resultadosShingo al tipo correcto usando un mapeo
+                  final resultadosShingo = <String, shingo_screen.ShingoResultData>{};
+                  shingo_service.ShingoResultStore.resultados.forEach((key, value) {
+                    resultadosShingo[key] = shingo_screen.ShingoResultData(calificacion: value.calificacion);
+                  });
+                  cardItem = _buildCard(
+                    icon: Icons.assignment_turned_in,
+                    color: const Color.fromARGB(255, 2, 33, 58),
+                    title: 'Evaluación Final',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => TablaResumenGlobal(
+                            promediosPorDimension: promediosPorDimension,
+                            resultadosShingo: resultadosShingo,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }
         // Envolver la cardItem con SizedBox para darle una altura fija
                 return SizedBox(
                   height: cardHeight,

@@ -219,10 +219,7 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => HistorialScreen(
-                                empresas: empresas,
-                                empresasHistorial: [],
-                              ),
+                              builder: (_) => const HistorialScreen(),
                             ),
                           ),
                         ),

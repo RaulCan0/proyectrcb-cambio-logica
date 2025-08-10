@@ -3,6 +3,8 @@ import 'package:applensys/evaluacion/widgets/tabla_puntuacion_global.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/tabla_shingo.dart';
+import '../widgets/termometro.dart';
+import 'package:applensys/evaluacion/screens/tablas_screen.dart';
 
 class TablaResumenGlobal extends ConsumerWidget {
   final Map<String, Map<String, double>> promediosPorDimension;
@@ -30,6 +32,10 @@ class TablaResumenGlobal extends ConsumerWidget {
     //   'resultadosShingo': resultadosShingo,
     // }));
 
+  // Calcular puntos globales
+  final puntosGlobales = AuxTablaService.obtenerTotalPuntosGlobal();
+  const puntosMaximos = 800.0;
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -47,23 +53,22 @@ class TablaResumenGlobal extends ConsumerWidget {
             indicatorColor: Colors.white,
             tabs: [
               Tab(
-          child: Text(
-            'Puntuación Global',
-            style: TextStyle(color: Colors.white),
-            textAlign: TextAlign.center,
-          ),
+                child: Text(
+                  'Puntuación Global',
+                  style: TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
               ),
               Tab(
-          child: Text(
-            'Resultados Shingo',
-            style: TextStyle(color: Colors.white),
-            textAlign: TextAlign.center,
-          ),
+                child: Text(
+                  'Resultados Shingo',
+                  style: TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),
         ),
-        
         body: TabBarView(
           children: [
             SingleChildScrollView(
@@ -74,8 +79,18 @@ class TablaResumenGlobal extends ConsumerWidget {
             ),
             SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
-              child: TablaResultadosShingo(
-                resultados: resultadosShingo,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TablaResultadosShingo(
+                    resultados: resultadosShingo,
+                  ),
+                  const SizedBox(height: 32),
+                  TermometroGlobal(
+                    valorObtenido: puntosGlobales,
+                    valorMaximo: puntosMaximos,
+                  ),
+                ],
               ),
             ),
           ],
