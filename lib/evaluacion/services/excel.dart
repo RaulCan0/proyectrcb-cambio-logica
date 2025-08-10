@@ -13,14 +13,10 @@ class ReporteExcelService {
       // Título del benchmark (con formato destacado)
       sheet.merge(CellIndex.indexByString("A${rowIndex + 1}"), CellIndex.indexByString("F${rowIndex + 1}"));
       final tituloCell = sheet.cell(CellIndex.indexByString("A${rowIndex + 1}"));
-      tituloCell.value = TextCellValue("BENCHMARK DE COMPORTAMIENTOS");
-      tituloCell.cellStyle = CellStyle(
-        bold: true,
-        fontSize: 14,
-      );
+   
 
       final subtituloCell = sheet.cell(CellIndex.indexByString("A${rowIndex + 2}"));
-      subtituloCell.value = TextCellValue("${comp.nombre}: ${comp.benchmarkGeneral}");
+      subtituloCell.value = TextCellValue(" ${comp.benchmarkGeneral}");
       subtituloCell.cellStyle = CellStyle(
         bold: true,
         fontSize: 12,
