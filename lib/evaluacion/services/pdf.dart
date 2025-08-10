@@ -55,7 +55,7 @@ class ReportePdfService {
             children: [
               pw.Text("BENCHMARK DE COMPORTAMIENTOS", style: headerStyle),
               pw.SizedBox(height: 4),
-              pw.Text("${comp.nombre}: ${comp.benchmarkGeneral}", style: textStyle),
+              pw.Text(" ${comp.benchmarkGeneral}", style: textStyle),
               pw.SizedBox(height: 12),
               _fila("Nivel", "Promedio", "Interpretación", "Benchmark por Cargo", "Sistemas", "Hallazgos", isHeader: true),
               for (final nivel in ["E", "G", "M"])
@@ -69,7 +69,7 @@ class ReportePdfService {
                     comp.niveles[nivel]!.obs,
                   ),
               pw.SizedBox(height: 20),
-              pw.Text("Resumen Gráfico", style: headerStyle),
+                pw.Center(child: pw.Text("Resumen Gráfico", style: headerStyle)),
               pw.SizedBox(height: 10),
               _buildVerticalBarChart(comp),
             ],
@@ -137,7 +137,7 @@ class ReportePdfService {
                   width: 15,
                   color: colors[i],
                 ),
-                pw.SizedBox(height: 4),
+                pw.SizedBox(height: 0),
                 pw.Text(labels[i], style: const pw.TextStyle(fontSize: 9)),
               ],
             ),
