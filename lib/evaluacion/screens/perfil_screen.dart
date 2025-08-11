@@ -49,12 +49,9 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
       if (data != null) {
         _nombreController.text = data['nombre'] ?? '';
         _emailController.text = data['email'] ?? '';
-        _telefonoController.text = data['telefono'] ?? '';
-        // Guardar solo el path relativo
-        _fotoUrl = data['foto_url'];
       }
     } catch (e) {
-      _showError('Error al cargar perfil: \$e');
+      _showError('Error al cargar perfil: $e');
     } finally {
       setState(() => _loading = false);
     }

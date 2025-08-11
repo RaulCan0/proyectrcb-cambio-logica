@@ -149,8 +149,8 @@ class ReportePdfService {
         children: [
           pw.Expanded(flex: 1, child: pw.Text(nivel, style: style, textAlign: pw.TextAlign.center)),
           pw.Expanded(flex: 1, child: pw.Text(promedio, style: style, textAlign: pw.TextAlign.center)),
-          pw.Expanded(flex: 8, child: pw.Text(interp, style: style)),
-          pw.Expanded(flex: 8, child: pw.Text(benchmark, style: style)),
+          pw.Expanded(flex: 6, child: pw.Text(interp, style: style)),
+          pw.Expanded(flex: 6, child: pw.Text(benchmark, style: style)),
           pw.Expanded(flex: 1, child: plano(sistemas)),
           pw.Expanded(flex: 1, child: plano(hallazgos)),
         ],
