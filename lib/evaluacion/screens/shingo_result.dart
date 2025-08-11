@@ -6,6 +6,17 @@ import 'package:image_picker/image_picker.dart';
 class ShingoCategorias extends StatefulWidget {
   const ShingoCategorias({super.key});
 
+  // Tabla Shingo accesible globalmente
+  static final Map<String, ShingoResultData> tablaShingo = {
+    for (var cat in [
+      'seguridad/medio/ambiente/moral',
+      'satisfacción del cliente',
+      'calidad',
+      'costo/productividad',
+      'entregas',
+    ]) cat: ShingoResultData()
+  };
+
   @override
   State<ShingoCategorias> createState() => _ShingoCategoriasState();
 }
@@ -19,15 +30,6 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
     'entregas',
   ];
 
-  final Map<String, ShingoResultData> hojas = {
-    for (var cat in [
-      'seguridad/medio/ambiente/moral',
-      'satisfacción del cliente',
-      'calidad',
-      'costo/productividad',
-      'entregas',
-    ]) cat: ShingoResultData()
-  };
 
   void abrirHoja(String categoria) async {
     final resultado = await Navigator.push(
@@ -35,14 +37,14 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
       MaterialPageRoute(
         builder: (_) => ShingoResultSheet(
           title: categoria,
-          initialData: hojas[categoria]!,
+          initialData: ShingoCategorias.tablaShingo[categoria]!,
         ),
       ),
     );
 
     if (resultado != null && resultado is ShingoResultData) {
       setState(() {
-        hojas[categoria] = resultado;
+        ShingoCategorias.tablaShingo[categoria] = resultado;
       });
     }
   }
@@ -62,7 +64,7 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
               itemCount: categorias.length,
               itemBuilder: (context, index) {
                 final cat = categorias[index];
-                final hoja = hojas[cat]!;
+                final hoja = ShingoCategorias.tablaShingo[cat]!;
                 return GestureDetector(
                   onTap: () async {
                     final resultado = await Navigator.push(
@@ -76,7 +78,7 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
                     );
                     if (resultado != null && resultado is ShingoResultData) {
                       setState(() {
-                        hojas[cat] = resultado;
+                        ShingoCategorias.tablaShingo[cat] = resultado;
                       });
                     }
                   },
@@ -121,7 +123,7 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: TablaResultadosShingo(resultados: hojas),
+              child: TablaResultadosShingo(resultados: ShingoCategorias.tablaShingo),
             ),
           ],
         ),
@@ -197,7 +199,17 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
   Future<void> seleccionarImagen() async {
     final picker = ImagePicker();
     final archivo = await picker.pickImage(source: ImageSource.gallery);
-    if (archivo != null) setState(() => imagen = File(archivo.path));
+    if (archivo == null) return;
+    try {
+      setState(() => imagen = File(archivo.path));
+      // Aquí puedes agregar lógica para subir la imagen a la nube si lo necesitas
+    } catch (e) {
+      // Puedes mostrar un mensaje de error si ocurre algún problema
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar imagen: $e')),
+      );
+    }
   }
 
   String _tooltipForField(String campo) {
@@ -327,48 +339,4 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
       ),
     );
   }
-}
-class ShingoResumenService {
-  static List<ResumenCategoria> generarResumen(Map<String, ShingoResultData> hojas) {
-    final List<ResumenCategoria> resumen = [];
-    double totalPts = 0;
-
-    for (final entry in hojas.entries) {
-      final nombre = entry.key;
-      final cal = entry.value.calificacion;
-      final puntos = cal * 8;
-      final porcentaje = puntos / 40 * 100;
-      totalPts += puntos;
-
-      resumen.add(ResumenCategoria(
-        categoria: nombre,
-        puntos: puntos.toDouble(),
-        porcentaje: porcentaje,
-        esTotal: false,
-      ));
-    }
-
-    resumen.add(ResumenCategoria(
-      categoria: 'TOTAL',
-      puntos: totalPts,
-      porcentaje: totalPts / 200 * 100,
-      esTotal: true,
-    ));
-
-    return resumen;
-  }
-}
-
-class ResumenCategoria {
-  final String categoria;
-  final double puntos;
-  final double porcentaje;
-  final bool esTotal;
-
-  ResumenCategoria({
-    required this.categoria,
-    required this.puntos,
-    required this.porcentaje,
-    this.esTotal = false,
-  });
 }

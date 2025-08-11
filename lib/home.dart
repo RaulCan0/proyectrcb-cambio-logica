@@ -13,7 +13,7 @@ import 'package:http/http.dart' as http;
 
 class HomeScreen extends ConsumerStatefulWidget {
   final int initialIndex;
-  
+
   const HomeScreen({super.key, this.initialIndex = 0});
 
   @override
@@ -25,7 +25,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   late PageController _pageController;
   static const List<Widget> _pages = [
     _DashboardView(),
-    EmpresasScreen(),
     PerfilScreen(),
   ];
 
@@ -42,13 +41,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
-  void _onItemTapped(int index) {
-    if (index == _pages.length) {
-      // Logout
-      Supabase.instance.client.auth.signOut();
-      Navigator.pushReplacementNamed(context, '/loader');
+  Future<void> _onItemTapped(int index) async {
+    if (index == 2) {
+      // Botón de salir
+      final shouldLogout = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Cerrar sesión"),
+            content: const Text("¿Seguro que quieres salir?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text("Cancelar"),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                ),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text("Salir"),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (shouldLogout == true) {
+        await Supabase.instance.client.auth.signOut();
+        Navigator.pushReplacementNamed(context, '/loader');
+      }
       return;
     }
+
     setState(() {
       _selectedIndex = index;
       _pageController.jumpToPage(index);
@@ -66,21 +91,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: _pages,
       ),
       bottomNavigationBar: NavigationBar(
-        height: 60,
-        backgroundColor: AppColors.primary,
-        elevation: 1,
+        height: 65,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        // ignore: deprecated_member_use
+        indicatorColor: AppColors.primary.withOpacity(0.15),
+        elevation: 3,
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.logout), label: 'Salir'),
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Inicio'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Perfil'),
-          NavigationDestination(icon: Icon(Icons.logout), label: 'Salir'),
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined, color: Colors.grey),
+            selectedIcon: Icon(Icons.home_rounded, color: AppColors.primary),
+            label: 'Inicio',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline, color: Colors.grey),
+            selectedIcon: Icon(Icons.person, color: AppColors.primary),
+            label: 'Perfil',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.logout, color: Colors.redAccent),
+            selectedIcon: Icon(Icons.logout, color: Colors.red),
+            label: 'Salir',
+          ),
         ],
       ),
     );
   }
 }
+
+// ---------------------------------------------
+// DASHBOARD VIEW
+// ---------------------------------------------
 
 class _DashboardView extends ConsumerWidget {
   const _DashboardView();
@@ -114,16 +158,20 @@ class _DashboardView extends ConsumerWidget {
                             .select('foto_url')
                             .eq('id', user?.id ?? '')
                             .maybeSingle();
-                        return response != null ? Map<String, dynamic>.from(response) : <String, dynamic>{};
+                        return response != null
+                            ? Map<String, dynamic>.from(response)
+                            : <String, dynamic>{};
                       }(),
                       builder: (context, snapshot) {
                         final fotoUrl = snapshot.data?['foto_url'] ??
                             user?.userMetadata?['avatar_url'] ??
                             '';
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return const CircleAvatar(
                             radius: 30,
-                            child: CircularProgressIndicator(color: Colors.white),
+                            child: CircularProgressIndicator(
+                                color: Colors.white),
                           );
                         }
                         if (fotoUrl.isNotEmpty) {
@@ -151,7 +199,8 @@ class _DashboardView extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        const Text('Bienvenido', style: TextStyle(color: Colors.white70)),
+                        const Text('Bienvenido',
+                            style: TextStyle(color: Colors.white70)),
                       ],
                     ),
                   ],
@@ -167,6 +216,10 @@ class _DashboardView extends ConsumerWidget {
     );
   }
 }
+
+// ---------------------------------------------
+// TARJETAS
+// ---------------------------------------------
 
 class _DashboardCards extends StatefulWidget {
   const _DashboardCards();
@@ -320,7 +373,13 @@ class _DashboardCard extends StatelessWidget {
       ),
     );
   }
-}class _WeatherWidget extends StatelessWidget {
+}
+
+// ---------------------------------------------
+// WIDGET CLIMA
+// ---------------------------------------------
+
+class _WeatherWidget extends StatelessWidget {
   const _WeatherWidget();
 
   static const double _defaultLat = 19.432608;
@@ -336,13 +395,16 @@ class _DashboardCard extends StatelessWidget {
           future: fetchWeatherCelsius(_defaultLat, _defaultLon),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Text('Cargando...', style: TextStyle(color: Colors.white));
+              return const Text('Cargando...',
+                  style: TextStyle(color: Colors.white));
             }
             if (snapshot.hasError || !snapshot.hasData) {
-              return const Text('Sin datos', style: TextStyle(color: Colors.white));
+              return const Text('Sin datos',
+                  style: TextStyle(color: Colors.white));
             }
             final temp = snapshot.data!;
-            return Text('${temp.toStringAsFixed(1)} °C', style: const TextStyle(color: Colors.white));
+            return Text('${temp.toStringAsFixed(1)} °C',
+                style: const TextStyle(color: Colors.white));
           },
         ),
       ],
@@ -364,6 +426,7 @@ Future<double> fetchWeatherCelsius(double lat, double lon) async {
   }
 
   final Map<String, dynamic> data = json.decode(resp.body);
-  final tempCelsius = (data['current_weather']['temperature'] as num).toDouble();
+  final tempCelsius =
+      (data['current_weather']['temperature'] as num).toDouble();
   return tempCelsius;
 }

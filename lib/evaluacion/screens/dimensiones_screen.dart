@@ -212,7 +212,6 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                         MaterialPageRoute(
                           builder: (_) => TablaResumenGlobal(
                             promediosPorDimension: promediosPorDimension,
-                            resultadosShingo: resultadosShingo,
                           ),
                         ),
                       );

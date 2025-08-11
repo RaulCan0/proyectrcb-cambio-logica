@@ -11,8 +11,6 @@ import 'package:applensys/evaluacion/screens/tablas_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../screens/anotaciones_screen.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 
 class DrawerLensys extends ConsumerWidget {
@@ -200,24 +198,10 @@ class DrawerLensys extends ConsumerWidget {
               title: Text("Chat", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
               onTap: () {
                 Navigator.of(context).pop(); // Cierra el endDrawer (DrawerLensys)
-                // Intenta abrir el drawer principal del .
                 Scaffold.of(context).openDrawer();
               },
             ),
             const Divider(),
-            ListTile(
-              leading: Icon(Icons.note_add, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
-              title: Text('Mis Anotaciones', style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => AnotacionesScreen(userId: Supabase.instance.client.auth.currentUser!.id),
-                  ),
-                );
-              },
-            ),
-            const Divider(),
-            // Selector de tamaño de letra
             ListTile(
               leading: Icon(Icons.text_fields, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
               title: Text('Letra', style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
@@ -255,25 +239,19 @@ class DrawerLensys extends ConsumerWidget {
     );
   }
 }
-// AÑADIDO: Servicio singleton que notifica cambios en tablaDatos
 class DetallesEvaluacionService extends ChangeNotifier {
   static final DetallesEvaluacionService _instance = DetallesEvaluacionService._();
   factory DetallesEvaluacionService() => _instance;
   DetallesEvaluacionService._() {
-    // inicializa con los datos actuales
     _tabla = TablasDimensionScreen.tablaDatos;
-    // se suscribe a futuros cambios
     TablasDimensionScreen.dataChanged.addListener(_onDataChanged);
   }
-
   late Map<String, Map<String, List<Map<String, dynamic>>>> _tabla;
   Map<String, Map<String, List<Map<String, dynamic>>>> get tablaDatos => _tabla;
-
   void _onDataChanged() {
     _tabla = TablasDimensionScreen.tablaDatos;
     notifyListeners();
   }
-
   @override
   void dispose() {
     TablasDimensionScreen.dataChanged.removeListener(_onDataChanged);

@@ -2,7 +2,7 @@ import 'package:applensys/auth/loader.dart';
 import 'package:applensys/auth/login.dart';
 import 'package:applensys/auth/recovery.dart';
 import 'package:applensys/auth/register.dart';
-import 'package:applensys/home_app.dart';
+import 'package:applensys/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';

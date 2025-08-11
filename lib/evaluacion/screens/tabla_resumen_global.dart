@@ -8,33 +8,23 @@ import 'package:applensys/evaluacion/screens/tablas_screen.dart';
 
 class TablaResumenGlobal extends ConsumerWidget {
   final Map<String, Map<String, double>> promediosPorDimension;
-  final Map<String, ShingoResultData> resultadosShingo;
 
   const TablaResumenGlobal({
     super.key,
     required this.promediosPorDimension,
-    required this.resultadosShingo,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Si no usas un provider, elimina la línea y usa directamente los datos recibidos por el widget.
-    // final state = ref.watch(({
-    //   'promediosPorDimension': promediosPorDimension,
-    //   'resultadosShingo': resultadosShingo,
-    // }));
-
-    // También podemos usar el nuevo provider para dashboard si tenemos las dimensiones y datos raw
-    // Ejemplo de cómo usarlo:
-    // final dashboardState = ref.watch(dashboardTablesProvider({
-    //   'dimensiones': dimensiones,
-    //   'datosRaw': datosRaw,
-    //   'resultadosShingo': resultadosShingo,
-    // }));
-
-  // Calcular puntos globales
+  // Calcular puntos globales (máx 800)
   final puntosGlobales = AuxTablaService.obtenerTotalPuntosGlobal();
-  const puntosMaximos = 800.0;
+
+  // Usar la instancia global de resultados Shingo de la pantalla
+  final resumenShingo = ShingoResumenService.generarResumen(ShingoCategorias.tablaShingo);
+  final puntosShingo = resumenShingo.isNotEmpty ? resumenShingo.last.puntos : 0.0;
+
+  // Suma total (máx 1000)
+  final puntosTotales = puntosGlobales + puntosShingo;
 
     return DefaultTabController(
       length: 2,
@@ -82,13 +72,10 @@ class TablaResumenGlobal extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TablaResultadosShingo(
-                    resultados: resultadosShingo,
-                  ),
+                  TablaResultadosShingo(resultados: ShingoCategorias.tablaShingo),
                   const SizedBox(height: 32),
                   TermometroGlobal(
-                    valorObtenido: puntosGlobales,
-                    valorMaximo: puntosMaximos,
+                    valorObtenido: puntosTotales,
                   ),
                 ],
               ),

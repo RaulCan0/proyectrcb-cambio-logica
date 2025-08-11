@@ -863,25 +863,6 @@ reporteData.add(
       // Preparar datos para el PDF (ahora es asíncrono)
       final datosPdf = await _prepararDatosPdf();
 
-      // 🐛 DEBUG: Mostrar datos que se envían al PDF
-      debugPrint('🎯 DATOS ENVIADOS AL PDF:');
-      debugPrint('📊 Total de comportamientos: ${datosPdf.length}');
-      for (int i = 0; i < datosPdf.length && i < 3; i++) {
-        final comp = datosPdf[i];
-        debugPrint('');
-        debugPrint('📈 Comportamiento ${i + 1}: "${comp.nombre}"');
-        comp.niveles.forEach((nivel, data) {
-          final nivelNombre = nivel == 'E' ? 'Ejecutivo' : nivel == 'G' ? 'Gerente' : 'Miembro';
-          debugPrint('   $nivelNombre: ${data.promedio.toStringAsFixed(2)} → ${data.interpretacion}');
-          debugPrint('   Benchmark: ${data.benchmarkPorCargo}');
-          debugPrint('   Observaciones: ${data.obs}');
-          debugPrint('   Sistemas: ${data.sistemasSeleccionados.join(", ")}');
-        });
-      }
-      if (datosPdf.length > 3) {
-        debugPrint('... y ${datosPdf.length - 3} comportamientos más');
-      }
-
       if (datosPdf.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No hay datos suficientes para generar el reporte')),
@@ -892,17 +873,28 @@ reporteData.add(
       // Generar PDF
       final pdfBytes = await ReportePdfService.generarReportePdf(datosPdf);
 
-      // Guardar archivo
+      // Guardar archivo local
       final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/reporte_evaluacion_${widget.empresa.nombre}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final nombreEmpresa = widget.empresa.nombre.replaceAll(' ', '_');
+      final fileName = 'Reporte_$nombreEmpresa.pdf';
+      final file = File('${directory.path}/$fileName');
       await file.writeAsBytes(pdfBytes);
+
+      // Subir a Supabase Storage (bucket: reportes)
+      try {
+        final supabase = Supabase.instance.client;
+        await supabase.storage.from('reportes').upload(fileName, file);
+        debugPrint('PDF subido a Supabase Storage: $fileName');
+      } catch (e) {
+        debugPrint('Error subiendo PDF a Supabase Storage: $e');
+      }
 
       // Mostrar mensaje de éxito
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reporte PDF generado exitosamente')),
+        const SnackBar(content: Text('Reporte PDF generado y subido exitosamente')),
       );
 
-      // Abrir archivo
+      // Abrir archivo local
       await OpenFile.open(file.path);
 
     } catch (e) {
@@ -933,18 +925,28 @@ reporteData.add(
       // Generar Excel
       final excelBytes = ReporteExcelService.generarReporteExcel(datosExcel);
 
-      // Guardar archivo
+      // Guardar archivo local
       final directory = await getApplicationDocumentsDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final file = File('${directory.path}/reporte_evaluacion_$timestamp.xlsx');
+      final nombreEmpresa = widget.empresa.nombre.replaceAll(' ', '_');
+      final fileName = 'Reporte_$nombreEmpresa.xlsx';
+      final file = File('${directory.path}/$fileName');
       await file.writeAsBytes(excelBytes);
+
+      // Subir a Supabase Storage (bucket: reportes)
+      try {
+        final supabase = Supabase.instance.client;
+        await supabase.storage.from('reportes').upload(fileName, file);
+        debugPrint('Excel subido a Supabase Storage: $fileName');
+      } catch (e) {
+        debugPrint('Error subiendo Excel a Supabase Storage: $e');
+      }
 
       // Mostrar mensaje de éxito
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reporte Excel generado exitosamente')),
+        const SnackBar(content: Text('Reporte Excel generado y subido exitosamente')),
       );
 
-      // Abrir archivo
+      // Abrir archivo local
       await OpenFile.open(file.path);
 
     } catch (e) {

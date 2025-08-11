@@ -1,13 +1,11 @@
-
 import 'package:flutter/material.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class TermometroGlobal extends ConsumerWidget {
   final double valorObtenido;
-  final double valorMaximo;
+  static const double valorMaximo = 1000.0;
 
-  const TermometroGlobal({super.key, required this.valorObtenido, required this.valorMaximo});
+  const TermometroGlobal({super.key, required this.valorObtenido});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

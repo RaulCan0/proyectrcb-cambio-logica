@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:applensys/evaluacion/services/empresa_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HistorialScreen extends StatefulWidget {
   const HistorialScreen({super.key});
@@ -37,12 +38,17 @@ class _HistorialScreenState extends State<HistorialScreen> {
     }
   }
 
-  void _mostrarArchivosEmpresa(dynamic empresa) {
+  Future<void> _mostrarArchivosEmpresa(dynamic empresa) async {
     final nombre = empresa.nombre.toString().replaceAll(' ', '_');
-    final pdfUrl = 'https://hdwbaswbinbjbnziwsyu.supabase.co/storage/v1/object/public/reportes/Reporte_$nombre.pdf';
-    final excelUrl = 'https://hdwbaswbinbjbnziwsyu.supabase.co/storage/v1/object/public/reportes/Reporte_$nombre.xlsx';
+    List<Map<String, dynamic>> archivos = [];
+    try {
+      archivos = await obtenerArchivosEmpresa(empresa.nombre);
+    } catch (e) {
+      archivos = [];
+    }
 
     showModalBottomSheet(
+      // ignore: use_build_context_synchronously
       context: context,
       builder: (_) => Container(
         padding: const EdgeInsets.all(16),
@@ -51,16 +57,16 @@ class _HistorialScreenState extends State<HistorialScreen> {
           children: [
             Text('Archivos de ${empresa.nombre}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
-              title: Text('Reporte_$nombre.pdf'),
-              onTap: () => _abrirUrl(pdfUrl),
-            ),
-            ListTile(
-              leading: const Icon(Icons.table_chart, color: Colors.green),
-              title: Text('Reporte_$nombre.xlsx'),
-              onTap: () => _abrirUrl(excelUrl),
-            ),
+            if (archivos.isEmpty)
+              const Text('No hay reportes generados para esta empresa.'),
+            for (final archivo in archivos)
+              ListTile(
+                leading: archivo['name'].endsWith('.pdf')
+                    ? const Icon(Icons.picture_as_pdf, color: Colors.red)
+                    : const Icon(Icons.table_chart, color: Colors.green),
+                title: Text(archivo['name']),
+                onTap: () => _abrirUrl(archivo['url']),
+              ),
           ],
         ),
       ),
@@ -77,6 +83,26 @@ class _HistorialScreenState extends State<HistorialScreen> {
         const SnackBar(content: Text('No se pudo abrir el archivo.')),
       );
     }
+  }
+
+  Future<List<Map<String, dynamic>>> obtenerArchivosEmpresa(String nombreEmpresa) async {
+    final supabase = Supabase.instance.client;
+    final prefijo = 'Reporte_${nombreEmpresa.replaceAll(' ', '_')}';
+    final response = await supabase.storage.from('reportes').list(
+      path: '', // raíz del bucket
+      searchOptions: SearchOptions(search: prefijo),
+    );
+
+    if (response.isEmpty) return [];
+
+    // Construir la lista de archivos con nombre y URL pública
+    return response.map((archivo) {
+      final url = supabase.storage.from('reportes').getPublicUrl(archivo.name);
+      return {
+        'name': archivo.name,
+        'url': url,
+      };
+    }).toList();
   }
 
   @override
