@@ -17,26 +17,27 @@ class TermometroGlobal extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 12),
-        Builder(builder: (_) {
-          String mensaje;
-          if (valorObtenido >= 775) {
-            mensaje = "🏆 SHINGO PRIZE ALCANZADO";
-          } else if (valorObtenido >= 758) {
-            mensaje = "🥈 PREMIO PLATA";
-          } else if (valorObtenido >= 757) {
-            mensaje = "🥉 PREMIO BRONCE";
-          } else {
-            mensaje = "⏳ NO SE HA ALCANZADO PREMIO";
-          }
-          return Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              mensaje,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
-              textAlign: TextAlign.right,
-            ),
-          );
-        }),
+Builder(builder: (_) {
+  String mensaje;
+  if (valorObtenido >= 775) {
+    mensaje = "LA EVALUACIÓN ESTIMA QUÉ TU NIVEL ES CERCANO A 775 O MÁS (SHINGO PRIZE)";
+  } else if (valorObtenido >= 675) {
+    mensaje = "LA EVALUACIÓN ESTIMA QUE TU NIVEL ES CERCANO A 675–774 (PLATA)";
+  } else if (valorObtenido >= 575) {
+    mensaje = "LA EVALUACIÓN ESTIMA QUÉ TU NIVEL ES CERCANO A 575–674 (BRONCE)";
+  } else {
+    mensaje = "LA EVALUACIÓN ESTIMA QUE TU NIVEL ES INFERIOR A 575 (MEJORA-INMEDIATA)";
+  }
+  return Align(
+    alignment: Alignment.center,
+    child: Text(
+      mensaje,
+      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
+      textAlign: TextAlign.center,
+    ),
+  );
+}),
+
 
         Align(
           alignment: Alignment.centerRight,

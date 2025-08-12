@@ -1009,11 +1009,11 @@ reporteData.add(
                       child: MultiRingChart(
                         puntosObtenidos: _buildMultiringData(),
                         isDetail: false,
-                      ), color: const Color.fromARGB(255, 171, 172, 173), title: 'PROGRESO DIMENSION-ROL',
+                      ), color: const Color.fromARGB(255, 218, 221, 221), title: 'PROGRESO DIMENSION',
                     ),
               
                   _buildChartContainer(
-                    color: const Color.fromARGB(255, 160, 163, 163),
+                    color: const Color.fromARGB(255, 225, 226, 226),
                     child: ScatterBubbleChart(
                       key: ValueKey('scatter_${DateTime.now().millisecondsSinceEpoch}'),
                       data: _buildScatterData(),
@@ -1057,7 +1057,7 @@ reporteData.add(
               children: [
                 const SizedBox(width: 16),
                 Tooltip(
-                  message: 'Gerente',
+                  message: 'Ejecutivo',
                   child: Icon(
                     Icons.help_outline,
                     color: Colors.orange,

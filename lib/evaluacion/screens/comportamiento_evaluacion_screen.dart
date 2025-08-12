@@ -31,7 +31,7 @@ const Map<String, String> sistemasRecomendadosPorComportamiento = {
   "Comprender": "Solución de Problemas, Gestión Visual",
   "Diseño": "Sistemas de Mejora, Gestión Visual",
   "Atribución": "Sistemas de Mejora, Solución de Problemas",
-  "A prueba de Errores": "Sistemas de Mejora, Solución de Problemas",
+  "A Prueba de Errores": "Sistemas de Mejora, Solución de Problemas",
   "Propiedad": "Sistemas de Mejora, Solución de Problemas",
   "Conectar": "Sistemas de Mejora",
   "Ininterrumpido": "Planificación y Programación, Sistemas de Mejora",
@@ -537,7 +537,7 @@ class _ComportamientoEvaluacionScreenState
               style: TextStyle(
                 color: const Color(0xFF003056),
                 fontSize: 13 * scaleFactor,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.bold,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
