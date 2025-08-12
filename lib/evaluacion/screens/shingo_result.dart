@@ -53,8 +53,9 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Evaluación por Categorías')),
-      body: SingleChildScrollView(
-        child: Column(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ListView.builder(
@@ -126,6 +127,7 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
               child: TablaResultadosShingo(resultados: ShingoCategorias.tablaShingo),
             ),
           ],
+        ),
         ),
       ),
     );
@@ -204,7 +206,7 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
       setState(() => imagen = File(archivo.path));
       // Aquí puedes agregar lógica para subir la imagen a la nube si lo necesitas
     } catch (e) {
-      // Puedes mostrar un mensaje de error si ocurre algún problema
+  
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al cargar imagen: $e')),
@@ -254,8 +256,9 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Container(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Container(
           margin: const EdgeInsets.all(20),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -335,6 +338,7 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

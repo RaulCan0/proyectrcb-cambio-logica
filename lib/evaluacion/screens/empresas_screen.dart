@@ -20,16 +20,12 @@ class EmpresasScreen extends StatefulWidget {
   State<EmpresasScreen> createState() => _EmpresasScreenState();
 }
 
-// NOTA SOBRE RealtimeSubscribeException:
-// Si encuentras "RealtimeSubscribeException: Realtime was unable to connect to the project database",
-// verifica la configuración de REPLICACIÓN en tu panel de Supabase (Database > Replication).
-// Las tablas deben estar añadidas a la publicación para que Realtime funcione.
-
 class _EmpresasScreenState extends State<EmpresasScreen> {
   final List<Empresa> empresas = [];
   bool isLoading = true;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String correoUsuario = '';
+  Empresa? empresaCreada;
 
   @override
   void initState() {
@@ -42,74 +38,32 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
   Future<void> _verificarNuevoUsuario() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+    // Aquí podrías verificar si el usuario es nuevo y realizar alguna acción
+  }
 
-    final existe = await Supabase.instance.client
-        .from('usuarios')
-        .select()
-        .eq('id', user.id)
-        .maybeSingle();
-
-    if (existe == null) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          title: const Text('¡Bienvenido a LensysApp!'),
-          content: const Text('¿Aceptas los términos y condiciones para continuar?'),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await Supabase.instance.client.auth.signOut();
-              },
-              child: const Text('No aceptar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final nombre = user.userMetadata?['nombre'] ?? 'Usuario';
-                final telefono = user.userMetadata?['telefono'] ?? '';
-
-                await Supabase.instance.client.from('usuarios').insert({
-                  'id': user.id,
-                  'email': user.email,
-                  'nombre': nombre,
-                  'telefono': telefono,
-                }).then((_) {
-                  Navigator.pop(context);
-                }).catchError((e) {
-                  debugPrint('❌ Error al insertar usuario: $e');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error al guardar usuario: $e')),
-                  );
-                });
-              },
-              child: const Text('Aceptar'),
-            ),
-          ],
-        ),
-      );
+  Future<void> _cargarEmpresas() async {
+    setState(() => isLoading = true);
+    try {
+      final loadedEmpresas = await empresaService.getEmpresas();
+      setState(() {
+        empresas.clear();
+        empresas.addAll(loadedEmpresas);
+        isLoading = false;
+        if (empresas.isNotEmpty) {
+          empresaCreada = empresas.first;
+        }
+      });
+    } catch (e) {
+      setState(() => isLoading = false);
+      debugPrint('Error cargando empresas: $e');
     }
   }
 
   Future<void> _obtenerCorreoUsuario() async {
-    final session = Supabase.instance.client.auth.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     setState(() {
-      correoUsuario = session?.email ?? 'Usuario';
+      correoUsuario = user?.email ?? '';
     });
-  }
-
-  Future<void> _cargarEmpresas() async {
-    try {
-      final data = await empresaService.getEmpresas();
-      setState(() {
-        empresas.clear();
-        empresas.addAll(data);
-        isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error al cargar empresas: $e');
-      setState(() => isLoading = false);
-    }
   }
 
   @override
@@ -121,115 +75,77 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
     return Scaffold(
       key: _scaffoldKey,
       drawer: SizedBox(width: 300, child: const ChatWidgetDrawer()),
-      endDrawer: DrawerLensys(),
+      endDrawer: const DrawerLensys(),
       appBar: AppBar(
         backgroundColor: const Color(0xFF003056),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/home',
-              (route) => false,
-            );
-          },
+          onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false),
         ),
         title: const Text(
           'LensysApp',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white),
         ),
         actions: [
-          // Botón para ir al Home
           IconButton(
             icon: const Icon(Icons.home, color: Colors.white),
-            onPressed: () {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/home', 
-                (route) => false,
-              );
-            },
+            onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false),
             tooltip: 'Ir a Inicio',
           ),
-          // Botón para ir al Perfil
-        
           IconButton(
             icon: const Icon(Icons.menu, color: Colors.white),
             onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Bienvenido: $correoUsuario',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.white : Colors.black54,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  if (correoUsuario == 'sistemas@lensys.com.mx')
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.science),
-                      label: const Text('Modo pruebas: Usar/Cargar empresa'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
-                        foregroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Bienvenido: \$correoUsuario',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.black54,
                       ),
-                      onPressed: _mostrarDialogoEmpresaPruebas,
                     ),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (empresaCreada != null)
-                          _buildButton(
-                            context,
-                            label: 'Evaluación de ${empresaCreada.nombre}',
-                          // al navegar a DimensionesScreen…
-                            onTap: () {
-                              final String nuevaEvaluacionId = const Uuid().v4(); // Generar ID único para nueva evaluación
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => DimensionesScreen(
-                                    empresa: empresaCreada,
-                                    evaluacionId: nuevaEvaluacionId, // Usar el nuevo ID
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        const SizedBox(height: 20),
-                        _buildButton(
-                          context,
-                          label: 'HISTORIAL',
-                          onTap: () => Navigator.push(
+                    const SizedBox(height: 20),
+                    if (correoUsuario == 'sistemas@lensys.com.mx')
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.science),
+                        label: const Text('Modo pruebas: Usar/Cargar empresa'),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white),
+                        onPressed: () => _mostrarDialogoEmpresaPruebas(),
+                      ),
+                    const SizedBox(height: 20),
+                    if (empresaCreada != null)
+                      _buildButton(
+                        context,
+                        label: 'Evaluación de ${empresaCreada.nombre}',
+                        onTap: () {
+                          final String nuevaEvaluacionId = const Uuid().v4();
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const HistorialScreen(),
+                              builder: (_) => DimensionesScreen(empresa: empresaCreada, evaluacionId: nuevaEvaluacionId),
                             ),
-                          ),
-                        ),
-                      ],
+                          );
+                        },
+                      ),
+                    const SizedBox(height: 20),
+                    _buildButton(
+                      context,
+                      label: 'HISTORIAL',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistorialScreen())),
                     ),
-                  ),
-                  // Botones de navegación rápida
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Row(
+                    const Spacer(),
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         _buildQuickNavButton(
@@ -237,35 +153,25 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
                           icon: Icons.home,
                           label: 'Inicio',
                           color: const Color(0xFF4CAF50),
-                          onTap: () {
-                            Navigator.pushNamedAndRemoveUntil(
-                              context,
-                              '/home',
-                              (route) => false,
-                            );
-                          },
+                          onTap: () => Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false),
                         ),
                         _buildQuickNavButton(
                           context: context,
                           icon: Icons.person,
                           label: 'Perfil',
                           color: const Color(0xFF2196F3),
-                          onTap: () {
-                            Navigator.pushNamed(context, '/perfil');
-                          },
+                          onTap: () => Navigator.pushNamed(context, '/perfil'),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _mostrarDialogoNuevaEmpresa(context),
-                backgroundColor: const Color(0xFF003056),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(100),
-        ),
+        backgroundColor: const Color(0xFF003056),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
         elevation: 8,
         child: const Icon(Icons.add, size: 25, color: Colors.white),
       ),
@@ -274,13 +180,14 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
 
   Widget _buildButton(BuildContext context, {required String label, required VoidCallback onTap}) {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return InkWell(
       onTap: onTap,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFF003056)),
+          border: Border.all(color: const Color(0xFF003056)),
           borderRadius: BorderRadius.circular(12),
           color: isDarkMode ? Colors.grey[700] : Colors.grey[200], // Color de fondo del contenedor
         ),
@@ -288,7 +195,10 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const SizedBox(width: 20),
-            Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black)), // Color de texto del botón
+            Text(
+              label,
+              style: TextStyle(fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black),
+            ), // Color de texto del botón
             const Padding(
               padding: EdgeInsets.only(right: 20),
               child: Icon(Icons.chevron_right, color: Color(0xFF003056)),
@@ -306,6 +216,8 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
     required Color color,
     required VoidCallback onTap,
   }) {
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -314,11 +226,8 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
           icon: Icon(icon, size: 20),
           label: Text(
             label,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
+            style: TextStyle(fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black),
+          ), // Color de texto del botón
           style: ElevatedButton.styleFrom(
             backgroundColor: color,
             foregroundColor: Colors.white,
@@ -344,8 +253,7 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Registrar nueva empresa',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('Registrar nueva empresa', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         content: SingleChildScrollView(
           child: Column(
             children: [
@@ -375,10 +283,7 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: unidadesController,
-                decoration: const InputDecoration(
-                  labelText: 'Unidades de negocio',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Unidades de negocio', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -392,18 +297,15 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: sectorController,
-                decoration: const InputDecoration(
-                  labelText: 'Sector',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Sector', border: OutlineInputBorder()),
               ),
             ],
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
             child: const Text('Cancelar'),
+            onPressed: () => Navigator.pop(context),
           ),
           ElevatedButton(
             onPressed: () async {

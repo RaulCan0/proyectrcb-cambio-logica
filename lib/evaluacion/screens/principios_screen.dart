@@ -13,12 +13,14 @@ class PrincipiosScreen extends StatefulWidget {
   final Empresa empresa;
   final Asociado asociado;
   final String dimensionId;
+  final String evaluacionId;
 
   const PrincipiosScreen({
     super.key,
     required this.empresa,
     required this.asociado,
-    required this.dimensionId, required String evaluacionId,
+    required this.dimensionId,
+    required this.evaluacionId,
   });
 
   @override
@@ -129,16 +131,16 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
           IconButton(
             icon: const Icon(Icons.assessment, color: Colors.white),
             onPressed: () {
-              // Obtener el nombre interno de la dimensión para consistencia con TablasDimensionScreen
-              String nombreDimensionInternaActual = obtenerNombreDimensionInterna(widget.dimensionId);
-
+              final nombreDimInt = obtenerNombreDimensionInterna(widget.dimensionId);
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => tablas_screen.TablasDimensionScreen(
-                    empresa: widget.empresa, // Pasando la empresa completa
-                    empresaId: widget.empresa.id, // Pasando el ID de la empresa
-                    dimension: nombreDimensionInternaActual, evaluacionId: '', asociadoId: '', // Pasando el nombre interno de la dimensión actual
+                    empresa: widget.empresa,
+                    evaluacionId: widget.evaluacionId,
+                    asociadoId: widget.asociado.id,
+                    empresaId: widget.empresa.id,
+                    dimension: nombreDimInt,
                   ),
                 ),
               );
@@ -146,16 +148,17 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
           ),
         ],
       ),
-      body: cargando
-          ? const Center(child: CircularProgressIndicator())
-          : principiosUnicos.isEmpty
-              ? const Center(child: Text('No hay principios para este nivel'))
-              : Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Card(
+      body: SafeArea(
+        child: cargando
+            ? const Center(child: CircularProgressIndicator())
+            : principiosUnicos.isEmpty
+                ? const Center(child: Text('No hay principios para este nivel'))
+                : Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Card(
                         elevation: 4,
                         margin: const EdgeInsets.symmetric(vertical: 16),
                         child: Padding(
@@ -286,6 +289,6 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                     ],
                   ),
                 ),
-    );
+    ));
   }
 }
