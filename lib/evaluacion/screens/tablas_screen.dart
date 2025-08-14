@@ -143,23 +143,72 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
   }
 
   Future<void> _cargarDatosIniciales() async {
-    // 1) Cache
-    final cache = await EvaluacionCacheService().cargarTablas();
-    if (cache.isNotEmpty) {
-      if (mounted) {
-        setState(() => TablasDimensionScreen.tablaDatos = cache);
-      } else {
-        TablasDimensionScreen.tablaDatos = cache;
+    try {
+      // 1. Cargar datos desde Supabase
+      final supabase = Supabase.instance.client;
+      final datos = await supabase
+          .from('calificaciones')
+          .select()
+          .eq('empresa_id', widget.empresaId)
+          .eq('evaluacion_id', widget.evaluacionId);
+      final nuevaTabla = {
+        'Dimensión 1': <String, List<Map<String, dynamic>>>{},
+        'Dimensión 2': <String, List<Map<String, dynamic>>>{},
+        'Dimensión 3': <String, List<Map<String, dynamic>>>{},
+      };
+       for (final fila in datos) {
+        final dimId = (fila['dimension_id'] ?? '').toString();
+        final dimensionKey = 'Dimensión $dimId';
+        final evalId = (fila['evaluacion_id'] ?? '').toString();
+        final sistemasRaw = fila['sistemas'];
+        final List<String> sistemasList = sistemasRaw is List
+            ? List<String>.from(sistemasRaw.whereType<String>())
+            : <String>[];
+
+        nuevaTabla[dimensionKey]!
+            .putIfAbsent(evalId, () => [])
+            .add({
+          'principio': fila['principio'],
+          'comportamiento': fila['comportamiento'],
+          'cargo': (fila['cargo'] ?? '').toString().trim().capitalize(),
+          'cargo_raw': (fila['cargo'] ?? '').toString(),
+          'valor': fila['valor'],
+          'sistemas': sistemasList,
+          'dimension_id': dimId,
+          'asociado_id': fila['asociado_id'],
+          'observaciones': fila['observaciones'] ?? '',
+        });
       }
-    }
-    // 2) Backend
-    await _recargarDesdeSupabase();
-    if (mounted) {
-      setState(() {
+
+      // 2. Actualiza la cache local con los datos de Supabase
+      await EvaluacionCacheService().guardarTablas(nuevaTabla);
+
+      // 3. Actualiza la tabla en memoria y la UI
+      if (mounted) {
+        setState(() {
+          TablasDimensionScreen.tablaDatos = nuevaTabla;
+          dimensiones = dimensionInterna.keys.toList();
+        });
+      } else {
+        TablasDimensionScreen.tablaDatos = nuevaTabla;
         dimensiones = dimensionInterna.keys.toList();
-      });
-    } else {
-      dimensiones = dimensionInterna.keys.toList();
+      }
+      TablasDimensionScreen.dataChanged.value = !TablasDimensionScreen.dataChanged.value;
+    } catch (e) {
+      // 4. Si hay error, carga desde cache local
+      final cache = await EvaluacionCacheService().cargarTablas();
+      if (cache.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            TablasDimensionScreen.tablaDatos = cache;
+            dimensiones = dimensionInterna.keys.toList();
+          });
+        } else {
+          TablasDimensionScreen.tablaDatos = cache;
+          dimensiones = dimensionInterna.keys.toList();
+        }
+        TablasDimensionScreen.dataChanged.value = !TablasDimensionScreen.dataChanged.value;
+      }
     }
   }
 

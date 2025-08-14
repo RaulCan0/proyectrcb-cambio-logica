@@ -71,22 +71,21 @@ class HorizontalBarSystemsChart extends StatelessWidget {
             toY: levels['E'] ?? 0,
             width: 14, // 3 veces más gruesa (era 8, ahora 24)
             color: Colors.orange,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(0),
           ),
           BarChartRodData(
             toY: levels['G'] ?? 0,
             width: 14, // 3 veces más gruesa (era 8, ahora 24)
             color: Colors.green,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(0),
           ),
           BarChartRodData(
             toY: levels['M'] ?? 0,
             width: 14, // 3 veces más gruesa (era 8, ahora 24)
             color: Colors.blue,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(0),
           ),
         ],
-        barsSpace: 2, // Más juntas (era 4, ahora 2)
       );
     }).toList();
 
