@@ -96,7 +96,7 @@ class GroupedBarChart extends StatelessWidget {
                           ],
                         );
                       }),
-                      groupsSpace: 16,
+                      groupsSpace: 20,
                       titlesData: FlTitlesData(
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(

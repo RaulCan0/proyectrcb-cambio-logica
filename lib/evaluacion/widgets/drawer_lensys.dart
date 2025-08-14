@@ -3,7 +3,6 @@
 import 'package:applensys/auth/loader.dart';
 import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
-import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
 import 'package:applensys/evaluacion/screens/empresas_screen.dart';
 import 'package:applensys/evaluacion/screens/historial_screen.dart';
 import 'package:applensys/evaluacion/screens/perfil_screen.dart';
@@ -118,32 +117,7 @@ class DrawerLensys extends ConsumerWidget {
                 );
               },
             ),
-            ListTile(
-              leading: Icon(Icons.insert_chart, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
-              title: Text("Detalle Evaluación", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DetallesEvaluacionScreen(
-                      dimensionesPromedios: const {},
-                      empresa: Empresa(
-                        id: '',
-                        nombre: '',
-                        tamano: '',
-                        empleadosTotal: 0,
-                        empleadosAsociados: [],
-                        unidades: '',
-                        areas: 0,
-                        sector: '',
-                        createdAt: DateTime.now(),
-                      ),
-                      evaluacionId: '', dimension: '', 
-                    ),
-                  ),
-                );
-              },
-            ),
+         
             ListTile(
               leading: Icon(Icons.history, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
               title: Text("Historial", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),

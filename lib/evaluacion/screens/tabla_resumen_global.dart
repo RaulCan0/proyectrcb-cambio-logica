@@ -44,14 +44,14 @@ class TablaResumenGlobal extends ConsumerWidget {
             tabs: [
               Tab(
                 child: Text(
-                  'Puntuación Global',
+                  'PUNTUACION EN DIMENSIONES',
                   style: TextStyle(color: Colors.white),
                   textAlign: TextAlign.center,
                 ),
               ),
               Tab(
                 child: Text(
-                  'Resultados Shingo',
+                  'PUNTUACION EN LOGROS',
                   style: TextStyle(color: Colors.white),
                   textAlign: TextAlign.center,
                 ),

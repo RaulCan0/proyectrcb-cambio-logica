@@ -57,36 +57,33 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
   Future<void> cargarDatos() async {
     setState(() => cargando = true);
     try {
-      // Cargar principios
-      final List<dynamic> datosJson = await JsonService.cargarJson('t${widget.dimensionId}.json');
-      if (datosJson.isEmpty) throw Exception('El archivo JSON de principios está vacío.');
+      // Cargar principios y calificaciones en paralelo
+      final resultados = await Future.wait([
+        JsonService.cargarJson('t${widget.dimensionId}.json'),
+        _supabaseService.getCalificacionesPorAsociado(widget.asociado.id),
+      ]);
+      final List<dynamic> datosJson = resultados[0];
+      final List<Calificacion> todasLasCalificacionesDelAsociado = resultados[1] as List<Calificacion>;
 
+      if (datosJson.isEmpty) throw Exception('El archivo JSON de principios está vacío.');
       final todosLosPrincipios = datosJson.map((e) => PrincipioJson.fromJson(e)).toList();
       final principiosFiltrados = todosLosPrincipios
           .where((p) => p.nivel.toLowerCase().contains(widget.asociado.cargo.toLowerCase()))
           .toList();
-
       final agrupados = <String, List<PrincipioJson>>{};
       for (var p in principiosFiltrados) {
         agrupados.putIfAbsent(p.nombre.trim(), () => []).add(p);
       }
-      // Elimina principios con lista vacía
       agrupados.removeWhere((key, value) => value.isEmpty);
-
-      // Cargar calificaciones existentes usando el método disponible y filtrando
-      final todasLasCalificacionesDelAsociado = await _supabaseService.getCalificacionesPorAsociado(widget.asociado.id);
-
       final tempComportamientosEvaluados = <String>[];
       final tempCalificacionesExistentes = <String, Calificacion>{};
       final int dimensionIdActual = int.tryParse(widget.dimensionId) ?? 1;
-
       for (var cal in todasLasCalificacionesDelAsociado) {
-        if (cal.idDimension == dimensionIdActual) { // Filtrar por la dimensión actual
+        if (cal.idDimension == dimensionIdActual) {
           tempComportamientosEvaluados.add(cal.comportamiento);
           tempCalificacionesExistentes[cal.comportamiento] = cal;
         }
       }
-
       setState(() {
         principiosUnicos = agrupados;
         comportamientosEvaluados = tempComportamientosEvaluados;
@@ -96,7 +93,7 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
     } catch (e) {
       debugPrint('Error al cargar datos: $e');
       if (mounted) {
-        setState(() => cargando = false); // Asegúrate de detener la carga en caso de error
+        setState(() => cargando = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al cargar datos: $e')),
         );
@@ -164,15 +161,41 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: Center(
-                            child: Text(
-                                'EVALUANDO A: ${widget.asociado.nombre}\nNivel Organizacional: ${widget.asociado.cargo.toLowerCase() == 'miembro' ? 'MIEMBRO DE EQUIPO' : widget.asociado.cargo.toUpperCase()}',
-                                style: TextStyle(
-                                fontSize: 15, 
-                                fontFamily: 'Roboto', 
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87, // Esto se mantiene dinámico según el tema
+                            child: Column(
+                              children: [
+                                Text(
+                                  'EVALUANDO A: ${widget.asociado.nombre}',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontFamily: 'Roboto',
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                              textAlign: TextAlign.center,
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Nivel Organizacional: ${widget.asociado.cargo.toLowerCase() == 'miembro' ? 'MIEMBRO DE EQUIPO' : widget.asociado.cargo.toUpperCase()}',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontFamily: 'Roboto',
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Puesto: ${widget.asociado.puesto}',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontFamily: 'Roboto',
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             ),
                           ),
                         ),

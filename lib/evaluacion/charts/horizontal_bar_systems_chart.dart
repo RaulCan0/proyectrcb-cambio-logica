@@ -53,11 +53,7 @@ class HorizontalBarSystemsChart extends StatelessWidget {
         Expanded(
           child: _buildChartRow(primeraFila, 'Fila 1'),
         ),
-        const SizedBox(height: 16),
-        // Segunda fila de gráficos
-        Expanded(
-          child: _buildChartRow(segundaFila, 'Fila 2'),
-        ),
+       
       ],
     );
   }
@@ -73,19 +69,19 @@ class HorizontalBarSystemsChart extends StatelessWidget {
         barRods: [
           BarChartRodData(
             toY: levels['E'] ?? 0,
-            width: 16, // 3 veces más gruesa (era 8, ahora 24)
+            width: 14, // 3 veces más gruesa (era 8, ahora 24)
             color: Colors.orange,
             borderRadius: BorderRadius.circular(4),
           ),
           BarChartRodData(
             toY: levels['G'] ?? 0,
-            width: 16, // 3 veces más gruesa (era 8, ahora 24)
+            width: 14, // 3 veces más gruesa (era 8, ahora 24)
             color: Colors.green,
             borderRadius: BorderRadius.circular(4),
           ),
           BarChartRodData(
             toY: levels['M'] ?? 0,
-            width: 16, // 3 veces más gruesa (era 8, ahora 24)
+            width: 14, // 3 veces más gruesa (era 8, ahora 24)
             color: Colors.blue,
             borderRadius: BorderRadius.circular(4),
           ),

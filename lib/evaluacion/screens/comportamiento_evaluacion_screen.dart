@@ -20,7 +20,7 @@ const Map<String, String> sistemasRecomendadosPorComportamiento = {
   "Soporte": "Desarrollo de personas, Medición, Reconocimiento",
   "Reconocer": "Medición, Involucramiento, Reconocimiento, Desarrollo de Personas",
   "Comunidad": "Seguridad, Ambiental, EHS, Compromiso, Desarrollo de Personas",
-  "Liderazgo de servidor": "Desarrollo de Personas",
+  "Liderazgo de Servidor": "Desarrollo de Personas",
   "Valorar": "Desarrollo de Personas, Involucramiento",
   "Empoderar": "Medición, Reconocimiento, Desarrollo de Personas",
   "Mentalidad": "Sistemas de Mejora",
@@ -93,6 +93,7 @@ class _ComportamientoEvaluacionScreenState
   final observacionController = TextEditingController();
   List<String> sistemasSeleccionados = [];
   bool isSaving = false;
+  bool showCheck = false;
   String? evidenciaUrl;
 
   @override
@@ -165,7 +166,8 @@ class _ComportamientoEvaluacionScreenState
       _showAlert('Validación', 'Selecciona al menos un sistema.');
       return;
     }
-    setState(() => isSaving = true);
+    setState(() { isSaving = true; showCheck = false; });
+    final inicio = DateTime.now();
     try {
       final nombreComp =
           widget.principio.benchmarkComportamiento.split(':').first.trim();
@@ -253,16 +255,20 @@ class _ComportamientoEvaluacionScreenState
       await calificacionService.addCalificacion(calObj);
       TablasDimensionScreen.actualizarDato(
         widget.evaluacionId,
-        dimension: obtenerNombreDimensionInterna(widget.dimensionId), // Usar la nueva función
+        dimension: obtenerNombreDimensionInterna(widget.dimensionId),
         principio: widget.principio.nombre,
         comportamiento: nombreComp,
         cargo: widget.cargo,
         valor: calificacion,
         sistemas: sistemasSeleccionados,
-        dimensionId: widget.dimensionId, // Se mantiene por si es útil en otro lado, pero la clave principal es 'dimension'
+        dimensionId: widget.dimensionId,
         asociadoId: widget.asociadoId,
-          observaciones: obs,
+        observaciones: obs,
       );
+      final duracion = DateTime.now().difference(inicio);
+      final restante = Duration(milliseconds: 1000) - duracion;
+      setState(() { showCheck = true; });
+      await Future.delayed(restante > Duration.zero ? restante : Duration.zero);
       if (mounted) Navigator.pop(context, nombreComp);
     } catch (e) {
       if (mounted) {
@@ -271,7 +277,7 @@ class _ComportamientoEvaluacionScreenState
             backgroundColor: Colors.red));
       }
     } finally {
-      if (mounted) setState(() => isSaving = false);
+      if (mounted) setState(() { isSaving = false; showCheck = false; });
     }
   }
 
@@ -445,9 +451,10 @@ class _ComportamientoEvaluacionScreenState
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [IconButton(icon: const Icon(Icons.menu), onPressed: () => _scaffoldKey.currentState?.openEndDrawer())],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // Benchmark text
           Text(
             'Benchmark: ${widget.principio.benchmarkPorNivel}',
@@ -586,20 +593,26 @@ class _ComportamientoEvaluacionScreenState
 
           const SizedBox(height: 24),
           Center(
-            child: ElevatedButton.icon(
-              icon: isSaving
-                ? SizedBox(width: 20 * scaleFactor, height: 20 * scaleFactor, child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.save, color: Colors.white),
-              label: Text(isSaving ? 'Guardando...' : 'Guardar Evaluación', style: TextStyle(fontSize: 14 * scaleFactor)),
-              onPressed: isSaving ? null : _guardarEvaluacion,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF003056),
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 30 * scaleFactor, vertical: 15 * scaleFactor),
-                side: const BorderSide(color: Color(0xFF003056), width: 2),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-              ),
+            child: AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      child: showCheck
+        ? Icon(Icons.check_circle, color: Colors.green, size: 40 * scaleFactor, key: ValueKey('check'))
+        : ElevatedButton.icon(
+            key: ValueKey('btn'),
+            icon: isSaving
+              ? const SizedBox(width: 20, height: 20)
+              : const Icon(Icons.save, color: Colors.white),
+            label: Text(isSaving ? 'Guardando...' : 'Guardar Evaluación', style: TextStyle(fontSize: 14 * scaleFactor)),
+            onPressed: isSaving ? null : _guardarEvaluacion,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF003056),
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 30 * scaleFactor, vertical: 15 * scaleFactor),
+              side: const BorderSide(color: Color(0xFF003056), width: 2),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
             ),
           ),
+    ),
+          ),
         ]),
-      ),  );}}
+      ),  ),);}}

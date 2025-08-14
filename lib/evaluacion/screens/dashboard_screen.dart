@@ -18,7 +18,7 @@ import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:applensys/evaluacion/charts/scatter_bubble_chart.dart';
 import 'package:applensys/evaluacion/charts/grouped_bar_chart.dart';
 import 'package:applensys/evaluacion/charts/horizontal_bar_systems_chart.dart';
-import 'package:open_file/open_file.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:applensys/custom/table_names.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:path_provider/path_provider.dart';
@@ -895,7 +895,7 @@ reporteData.add(
       );
 
       // Abrir archivo local
-      await OpenFile.open(file.path);
+      await OpenFilex.open(file.path);
 
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -947,7 +947,7 @@ reporteData.add(
       );
 
       // Abrir archivo local
-      await OpenFile.open(file.path);
+      await OpenFilex.open(file.path);
 
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1023,7 +1023,7 @@ reporteData.add(
                   ),
 
                   _buildChartContainer(
-                    color: const Color.fromARGB(255, 231, 220, 187),
+                    color: const Color.fromARGB(255, 225, 226, 226),
                     title: 'EVALUACION COMPORTAMIENTO-ROL',
                     child: GroupedBarChart(
                       data: _buildGroupedBarData(),
@@ -1035,7 +1035,7 @@ reporteData.add(
 
                
                   _buildChartContainer(
-                    color: const Color.fromARGB(255, 202, 208, 219),
+                    color: const Color.fromARGB(255, 225, 226, 226),
                     title: 'EVALUACION SISTEMAS-ROL',
                     child: HorizontalBarSystemsChart(
                       data: horizontalData, 
@@ -1130,7 +1130,7 @@ reporteData.add(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 14),
               child: Text(
                 title,
                 textAlign: TextAlign.center,

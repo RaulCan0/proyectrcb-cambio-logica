@@ -48,12 +48,6 @@
 @import image_picker_ios;
 #endif
 
-#if __has_include(<open_file_ios/OpenFilePlugin.h>)
-#import <open_file_ios/OpenFilePlugin.h>
-#else
-@import open_file_ios;
-#endif
-
 #if __has_include(<open_filex/OpenFilePlugin.h>)
 #import <open_filex/OpenFilePlugin.h>
 #else
@@ -112,7 +106,6 @@
   [FlutterLocalNotificationsPlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterLocalNotificationsPlugin"]];
   [FLTGoogleSignInPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTGoogleSignInPlugin"]];
   [FLTImagePickerPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTImagePickerPlugin"]];
-  [OpenFilePlugin registerWithRegistrar:[registry registrarForPlugin:@"OpenFilePlugin"]];
   [OpenFilePlugin registerWithRegistrar:[registry registrarForPlugin:@"OpenFilePlugin"]];
   [FPPPackageInfoPlusPlugin registerWithRegistrar:[registry registrarForPlugin:@"FPPPackageInfoPlusPlugin"]];
   [PathProviderPlugin registerWithRegistrar:[registry registrarForPlugin:@"PathProviderPlugin"]];

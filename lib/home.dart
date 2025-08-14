@@ -146,7 +146,8 @@ class _DashboardView extends ConsumerWidget {
                 bottomRight: Radius.circular(30),
               ),
             ),
-            child: Row(
+            
+                 child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
@@ -158,20 +159,16 @@ class _DashboardView extends ConsumerWidget {
                             .select('foto_url')
                             .eq('id', user?.id ?? '')
                             .maybeSingle();
-                        return response != null
-                            ? Map<String, dynamic>.from(response)
-                            : <String, dynamic>{};
+                        return response != null ? Map<String, dynamic>.from(response) : <String, dynamic>{};
                       }(),
                       builder: (context, snapshot) {
                         final fotoUrl = snapshot.data?['foto_url'] ??
                             user?.userMetadata?['avatar_url'] ??
                             '';
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
                           return const CircleAvatar(
                             radius: 30,
-                            child: CircularProgressIndicator(
-                                color: Colors.white),
+                            child: CircularProgressIndicator(color: Colors.white),
                           );
                         }
                         if (fotoUrl.isNotEmpty) {
