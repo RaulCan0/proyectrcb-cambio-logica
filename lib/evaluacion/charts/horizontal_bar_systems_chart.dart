@@ -94,7 +94,7 @@ class HorizontalBarSystemsChart extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: SizedBox(
-          width: sistemas.length * 120, // Un poco más ancho para acomodar barras más gruesas
+          width: sistemas.length * 110, // Un poco más ancho para acomodar barras más gruesas
           height: 180, // Altura reducida para cada fila
           child: BarChart(
             BarChartData(

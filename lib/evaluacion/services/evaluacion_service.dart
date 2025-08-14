@@ -85,6 +85,31 @@ class EvaluacionService {
     }
   }
 
+  /// Devuelve la evaluación actual (ejemplo: la última creada para el usuario actual)
+  Future<Evaluacion> getEvaluacionActual() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) throw Exception('Usuario no autenticado');
+    final res = await Supabase.instance.client
+        .from('evaluaciones')
+        .select()
+        .eq('usuario_id', user.id)
+        .order('fecha', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    if (res == null) throw Exception('No hay evaluación actual');
+    return Evaluacion.fromMap(res);
+  }
+
+  /// Devuelve las calificaciones actuales (ejemplo: todas las de la evaluación actual)
+  Future<List<Calificacion>> getCalificacionesActuales() async {
+    final evaluacion = await getEvaluacionActual();
+    final res = await Supabase.instance.client
+        .from('calificaciones')
+        .select()
+        .eq('evaluacion_id', evaluacion.id);
+    return (res as List).map((e) => Calificacion.fromMap(e)).toList();
+  }
+
   // Métodos de calificaciones fusionados desde calificacion_service.dart
 
   Future<void> addCalificacion(Calificacion calificacion) async {
