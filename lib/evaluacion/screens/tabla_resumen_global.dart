@@ -72,7 +72,20 @@ class TablaResumenGlobal extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TablaResultadosShingo(resultados: ShingoCategorias.tablaShingo),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TablaPuntuacionGlobal(
+                          promediosPorDimension: promediosPorDimension,
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: TablaResultadosShingo(resultados: ShingoCategorias.tablaShingo),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 32),
                   TermometroGlobal(
                     valorObtenido: puntosTotales,

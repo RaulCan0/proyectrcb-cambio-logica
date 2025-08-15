@@ -1,15 +1,14 @@
 import 'package:applensys/evaluacion/services/supabase_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
-
 import '../models/asociado.dart';
 import '../models/empresa.dart';
 import 'principios_screen.dart';
 import '../widgets/drawer_lensys.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AsociadoScreen extends StatefulWidget {
   final Empresa empresa;
@@ -27,11 +26,9 @@ class AsociadoScreen extends StatefulWidget {
   State<AsociadoScreen> createState() => _AsociadoScreenState();
 }
 
-class _AsociadoScreenState extends State<AsociadoScreen>
-    with SingleTickerProviderStateMixin {
+class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProviderStateMixin {
   final supabase = Supabase.instance.client;
   final SupabaseService _supabaseService = SupabaseService();
-
   final Map<String, double> progresoAsociado = {};
   final GlobalKey<ScaffoldState> _scaffoldKeyAsociado = GlobalKey<ScaffoldState>();
 
@@ -40,7 +37,6 @@ class _AsociadoScreenState extends State<AsociadoScreen>
   List<Asociado> miembros = [];
 
   TabController? _tabController;
-  bool _loading = false;
 
   @override
   void initState() {
@@ -50,45 +46,36 @@ class _AsociadoScreenState extends State<AsociadoScreen>
   }
 
   Future<void> _cargarAsociados() async {
-    setState(() => _loading = true);
     try {
-      final list = await _supabaseService.getAsociadosPorEmpresa(widget.empresa.id);
-      ejecutivos.clear();
-      gerentes.clear();
-      miembros.clear();
+      final asociadosCargados = await _supabaseService.getAsociadosPorEmpresa(widget.empresa.id);
+      // Obtiene el progreso en paralelo
+      final futures = asociadosCargados.map((asociado) => _supabaseService.obtenerProgresoAsociado(
+        evaluacionId: widget.empresa.id,
+        asociadoId: asociado.id,
+        dimensionId: widget.dimensionId,
+      )).toList();
+      final progresos = await Future.wait(futures);
       progresoAsociado.clear();
-        for (final aso in list) {
-          final prog = await _supabaseService.obtenerProgresoAsociado(
-            evaluacionId: widget.evaluacionId,
-            asociadoId: aso.id,
-            dimensionId: widget.dimensionId,
-            empresaId: widget.empresa.id,
-          );
-          progresoAsociado[aso.id] = prog;
-          switch (aso.cargo.toLowerCase()) {
-            case 'ejecutivo':
-              ejecutivos.add(aso);
-              break;
-            case 'gerente':
-              gerentes.add(aso);
-              break;
-            default:
-              miembros.add(aso);
-          }
-        }
+      for (int i = 0; i < asociadosCargados.length; i++) {
+        progresoAsociado[asociadosCargados[i].id] = progresos[i];
+      }
+      ejecutivos = asociadosCargados.where((a) => a.cargo.toLowerCase() == 'ejecutivo').toList();
+      gerentes = asociadosCargados.where((a) => a.cargo.toLowerCase() == 'gerente').toList();
+      miembros = asociadosCargados.where((a) => a.cargo.toLowerCase() == 'miembro').toList();
+      if (mounted) setState(() {});
     } catch (e) {
+      if (!mounted) return;
       _mostrarAlerta('Error', 'Error al cargar asociados: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
   }
 
   void _mostrarAlerta(String titulo, String mensaje) {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(titulo, style: GoogleFonts.roboto(fontWeight: FontWeight.bold)),
+  if (!mounted) return; // ← Agrega esta línea
+  showDialog(
+    context: context,
+        builder: (_) => AlertDialog(
+
+        title: Text(titulo, style: GoogleFonts.roboto()),
         content: Text(mensaje, style: GoogleFonts.roboto()),
         actions: [
           TextButton(
@@ -106,7 +93,7 @@ class _AsociadoScreenState extends State<AsociadoScreen>
     final puestoController = TextEditingController();
     String cargoSeleccionado = 'Ejecutivo';
 
-    await showDialog(
+    showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: Text('Nuevo Asociado', style: GoogleFonts.roboto(fontWeight: FontWeight.bold)),
@@ -147,13 +134,15 @@ class _AsociadoScreenState extends State<AsociadoScreen>
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: cargoSeleccionado,
-                items: const ['Ejecutivo', 'Gerente', 'Miembro']
-                    .map((nivel) => DropdownMenuItem(
-                          value: nivel,
-                          child: Text(nivel, style: GoogleFonts.roboto()),
-                        ))
-                    .toList(),
-                onChanged: (value) => cargoSeleccionado = value!,
+                items: ['Ejecutivo', 'Gerente', 'Miembro'].map((nivel) {
+                  return DropdownMenuItem<String>(
+                    value: nivel,
+                    child: Text(nivel, style: GoogleFonts.roboto()),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  cargoSeleccionado = value!;
+                },
                 decoration: InputDecoration(
                   labelText: 'Nivel',
                   labelStyle: GoogleFonts.roboto(),
@@ -186,11 +175,10 @@ class _AsociadoScreenState extends State<AsociadoScreen>
                 nombre: nombre,
                 cargo: cargoSeleccionado.toLowerCase(),
                 empresaId: widget.empresa.id,
-                empleadosAsociados: const [],
-                progresoDimensiones: const {},
-                comportamientosEvaluados: const {},
-                antiguedad: antiguedad,
-                puesto: puesto,
+                empleadosAsociados: [],
+                progresoDimensiones: {},
+                comportamientosEvaluados: {},
+                antiguedad: antiguedad, puesto: puesto,
               );
 
               try {
@@ -205,8 +193,25 @@ class _AsociadoScreenState extends State<AsociadoScreen>
                 });
 
                 if (!mounted) return;
-                Navigator.pop(context);
-                await _cargarAsociados();
+                setState(() {
+                  switch (cargoSeleccionado.toLowerCase()) {
+                    case 'ejecutivo':
+                      ejecutivos.add(nuevo);
+                      _tabController?.index = 0;
+                      break;
+                    case 'gerente':
+                      gerentes.add(nuevo);
+                      _tabController?.index = 1;
+                      break;
+                    case 'miembro':
+                      miembros.add(nuevo);
+                      _tabController?.index = 2;
+                      break;
+                  }
+                  progresoAsociado[nuevoId] = 0.0;
+                });
+
+                if (mounted) Navigator.pop(context);
                 _mostrarAlerta('Éxito', 'Asociado agregado exitosamente.');
               } catch (e) {
                 if (mounted) Navigator.pop(context);
@@ -224,270 +229,82 @@ class _AsociadoScreenState extends State<AsociadoScreen>
     );
   }
 
-  Future<void> _mostrarDialogoEditarAsociado(Asociado asociado) async {
-  final nombreController = TextEditingController(text: asociado.nombre);
-  final puestoController = TextEditingController(text: asociado.puesto);
-  final antiguedadController = TextEditingController(text: (asociado.antiguedad).toString());
-  String cargoSeleccionado = (asociado.cargo.isNotEmpty)
-    ? asociado.cargo[0].toUpperCase() + asociado.cargo.substring(1).toLowerCase()
-    : 'Ejecutivo';
-
-    await showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Editar Asociado', style: GoogleFonts.roboto(fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nombreController,
-                decoration: InputDecoration(
-                  labelText: 'Nombre',
-                  labelStyle: GoogleFonts.roboto(),
-                  border: const OutlineInputBorder(),
-                ),
-                style: GoogleFonts.roboto(),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: puestoController,
-                decoration: InputDecoration(
-                  labelText: 'Puesto (puede estar vacío)',
-                  labelStyle: GoogleFonts.roboto(),
-                  border: const OutlineInputBorder(),
-                ),
-                style: GoogleFonts.roboto(),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: antiguedadController,
-                decoration: InputDecoration(
-                  labelText: 'Antigüedad (años)',
-                  labelStyle: GoogleFonts.roboto(),
-                  border: const OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                style: GoogleFonts.roboto(),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: cargoSeleccionado,
-                items: const ['Ejecutivo', 'Gerente', 'Miembro']
-                    .map((nivel) => DropdownMenuItem(
-                          value: nivel,
-                          child: Text(nivel, style: GoogleFonts.roboto()),
-                        ))
-                    .toList(),
-                onChanged: (value) => cargoSeleccionado = value!,
-                decoration: InputDecoration(
-                  labelText: 'Nivel',
-                  labelStyle: GoogleFonts.roboto(),
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: GoogleFonts.roboto()),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final nombre = nombreController.text.trim();
-              final puesto = puestoController.text.trim();
-              final antiguedadTexto = antiguedadController.text.trim();
-              final antiguedad = int.tryParse(antiguedadTexto);
-
-              if (nombre.isEmpty || antiguedad == null) {
-                _mostrarAlerta('Error', 'Completa todos los campos correctamente.');
-                return;
-              }
-
-              try {
-                await _supabaseService.updateAsociado(
-                  asociado.id,
-                  Asociado(
-                    id: asociado.id,
-                    nombre: nombre,
-                    cargo: cargoSeleccionado.toLowerCase(),
-                    empresaId: asociado.empresaId,
-                    empleadosAsociados: asociado.empleadosAsociados,
-                    progresoDimensiones: asociado.progresoDimensiones,
-                    comportamientosEvaluados: asociado.comportamientosEvaluados,
-                    antiguedad: antiguedad,
-                    puesto: puesto.isEmpty ? '' : puesto,
-                  ),
-                );
-                if (!mounted) return;
-                Navigator.pop(context);
-                await _cargarAsociados();
-                _mostrarAlerta('Éxito', 'Asociado actualizado exitosamente.');
-              } catch (e) {
-                if (mounted) Navigator.pop(context);
-                _mostrarAlerta('Error', 'Error al actualizar asociado: $e');
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF003056),
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Guardar cambios', style: GoogleFonts.roboto()),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _confirmarEliminarAsociado(Asociado asociado) async {
-    await showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Eliminar Asociado', style: GoogleFonts.roboto(fontWeight: FontWeight.bold)),
-        content: Text(
-          '¿Estás seguro de que deseas eliminar a ${asociado.nombre}?',
-          style: GoogleFonts.roboto(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: GoogleFonts.roboto()),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await _supabaseService.deleteAsociado(asociado.id);
-                if (!mounted) return;
-                Navigator.pop(context);
-                await _cargarAsociados();
-                _mostrarAlerta('Éxito', 'Asociado eliminado exitosamente.');
-              } catch (e) {
-                if (!mounted) return;
-                Navigator.pop(context);
-                _mostrarAlerta('Error', 'Error al eliminar asociado: $e');
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Eliminar', style: GoogleFonts.roboto()),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildLista(List<Asociado> lista) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     return lista.isEmpty
         ? const Center(child: Text('SIN ASOCIADOS'))
-        : Padding(
+        : Padding( // Añadido Padding horizontal
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: ListView.builder(
               itemCount: lista.length,
               itemBuilder: (context, index) {
                 final asociado = lista[index];
                 final progreso = progresoAsociado[asociado.id] ?? 0.0;
-
-                return Dismissible(
-                  key: ValueKey(asociado.id),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    color: Colors.red,
-                    child: const Icon(Icons.delete, color: Colors.white),
-                  ),
-                  confirmDismiss: (_) async {
-                    await _confirmarEliminarAsociado(asociado);
-                    // No hacemos el borrado local aquí; recargamos desde BD tras confirmar
-                    return false;
-                  },
-                  child: Card(
-                    child: ListTile(
-                      leading: Icon(
-                        Icons.person_outline,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white
-                            : const Color(0xFF003056),
-                      ),
-                      title: Text(asociado.nombre, style: GoogleFonts.roboto()),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${asociado.cargo.trim().toLowerCase() == "miembro" ? "MIEMBRO DE EQUIPO" : asociado.cargo.toUpperCase()} - ${asociado.puesto} - ${asociado.antiguedad} años',
-                            style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Progreso:',
-                                style: GoogleFonts.roboto(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white
-                                      : Colors.blueGrey[800],
-                                ),
-                              ),
-                              Text(
-                                '${(progreso * 100).toStringAsFixed(1)}% completado',
-                                style: GoogleFonts.roboto(
-                                  fontWeight: FontWeight.w500,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white
-                                      : Colors.blueGrey[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          LinearProgressIndicator(
-                            value: progreso,
-                            backgroundColor: Colors.grey[300],
-                            color: Colors.green,
-                          ),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            tooltip: 'Editar',
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () => _mostrarDialogoEditarAsociado(asociado),
-                          ),
-                          IconButton(
-                            tooltip: 'Eliminar',
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _confirmarEliminarAsociado(asociado),
-                          ),
-                        ],
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PrincipiosScreen(
-                              empresa: widget.empresa,
-                              asociado: asociado,
-                              dimensionId: widget.dimensionId,
-                              evaluacionId: widget.evaluacionId,
-                            ),
-                          ),
-                        ).then((_) => _cargarAsociados());
-                      },
+                return Card(
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.person_outline,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : const Color(0xFF003056),
                     ),
-                  ),
-                );
+                    title: Text(asociado.nombre, style: GoogleFonts.roboto()),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                            '${asociado.cargo.trim().toLowerCase() == "miembro" ? "MIEMBRO DE EQUIPO" : asociado.cargo.toUpperCase()} - ${asociado.puesto} - ${asociado.antiguedad} años',
+                          style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey),
+                        ),
+                       const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Progreso:',
+                              style: GoogleFonts.roboto(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.blueGrey[800],
+                              ),
+                            ),
+                            Text(
+                              '${(progreso * 100).toStringAsFixed(1)}% completado',
+                              style: GoogleFonts.roboto(
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.blueGrey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        const SizedBox(height: 4),
+                        LinearProgressIndicator(
+                          value: progreso,
+                          backgroundColor: Colors.grey[300],
+                          color: Colors.green,
+                        ),
+                        Text('${(progreso * 100).toStringAsFixed(1)}% completado', style: GoogleFonts.roboto()),
+                      
+                      ],
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PrincipiosScreen(
+                            empresa: widget.empresa,
+                            asociado: asociado,
+                            dimensionId: widget.dimensionId, 
+                            evaluacionId: widget.evaluacionId, 
+                            // Corregido: Usar el evaluacionId del widget actual
+                          ),
+                        ),
+                      ).then((_) => _cargarAsociados());
+                    },
+                  ));
               },
             ),
           );
@@ -501,6 +318,8 @@ class _AsociadoScreenState extends State<AsociadoScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+
     return Scaffold(
       key: _scaffoldKeyAsociado,
       drawer: SizedBox(width: 300, child: const ChatWidgetDrawer()),
@@ -538,7 +357,7 @@ class _AsociadoScreenState extends State<AsociadoScreen>
         ),
       ),
       endDrawer: const DrawerLensys(),
-      body: Padding(
+      body: Padding( // Añadido Padding superior para el TabBarView
         padding: const EdgeInsets.only(top: 15.0),
         child: TabBarView(
           controller: _tabController,
@@ -555,7 +374,9 @@ class _AsociadoScreenState extends State<AsociadoScreen>
           await _cargarAsociados();
         },
         backgroundColor: const Color(0xFF003056),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(100),
+        ),
         elevation: 8,
         child: const Icon(FluentIcons.people_add_16_regular, size: 25, color: Colors.white),
       ),

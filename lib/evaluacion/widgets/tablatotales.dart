@@ -34,6 +34,7 @@ class TablaTotales extends StatelessWidget {
   String _fmt(num? n) {
     if (n == null) return '—';
     final v = n.toDouble();
+    // sin decimales si es entero; 1 decimal si no
     return v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
   }
 

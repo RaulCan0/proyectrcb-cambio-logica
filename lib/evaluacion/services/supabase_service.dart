@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:applensys/evaluacion/models/asociado.dart';
@@ -297,28 +296,6 @@ class SupabaseService {
     await _client.auth.updateUser(UserAttributes(password: newPassword));
   }
 
-  Future<String> subirFotoPerfil(String rutaLocal) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) throw Exception("Usuario no autenticado");
-
-    final archivo = File(rutaLocal);
-    final fileName = archivo.uri.pathSegments.last;
-    final storagePath = '$userId/$fileName';
-
-    await _client.storage
-        .from('perfil')
-        .upload(
-          storagePath,
-          archivo,
-          fileOptions: const FileOptions(upsert: true),
-        );
-
-    // Solo guarda el path relativo en la base de datos, no la URL completa
-    await _client.from('usuarios').update({'foto_url': storagePath}).eq('id', userId);
-
-    // Devuelve solo el path relativo
-    return storagePath;
-  }
 
   // NUEVO: Buscar evaluacion existente
   Future<Evaluacion?> buscarEvaluacionExistente(String empresaId, String asociadoId) async {
@@ -546,7 +523,7 @@ class SupabaseService {
   Future<double> obtenerProgresoAsociado({
     required String evaluacionId,
     required String asociadoId,
-    required String dimensionId, required String empresaId,
+    required String dimensionId,
   }) async {
     if (evaluacionId.isEmpty || asociadoId.isEmpty || dimensionId.isEmpty) return 0.0;
     final response = await _client

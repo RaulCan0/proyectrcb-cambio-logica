@@ -183,4 +183,9 @@ class _HistorialScreenState extends State<HistorialScreen> {
       ),
     );
   }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 }

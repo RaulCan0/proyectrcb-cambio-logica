@@ -314,4 +314,9 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                 ),
     ));
   }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 }

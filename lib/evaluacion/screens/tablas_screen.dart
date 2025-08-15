@@ -1,3 +1,5 @@
+// 🛠 TablasDimensionScreen corregida y completa
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:applensys/evaluacion/models/empresa.dart';
@@ -37,7 +39,7 @@ class TablasDimensionScreen extends StatefulWidget {
     required this.dimension,
   });
 
-  /// Guardar o actualizar un dato en memoria, cache y Supabase
+  /// Guardar/actualizar en memoria + cache + Supabase
   static Future<void> actualizarDato(
     String evaluacionId, {
     required String dimension,
@@ -49,40 +51,41 @@ class TablasDimensionScreen extends StatefulWidget {
     required String dimensionId,
     required String asociadoId,
     String? observaciones,
+    String? evidenciaUrl,
+    DateTime? fechaEvaluacion,
   }) async {
-    // 1️⃣ Memoria
     final tablaDim = tablaDatos.putIfAbsent(dimension, () => {});
     final lista = tablaDim.putIfAbsent(evaluacionId, () => []);
 
-    final indiceExistente = lista.indexWhere((item) =>
+    final i = lista.indexWhere((item) =>
         item['principio'] == principio &&
         item['comportamiento'] == comportamiento &&
         item['cargo_raw'] == cargo &&
         item['dimension_id'] == dimensionId &&
         item['asociado_id'] == asociadoId);
 
-    if (indiceExistente != -1) {
-      lista[indiceExistente]['valor'] = valor;
-      lista[indiceExistente]['sistemas'] = sistemas;
-      lista[indiceExistente]['observaciones'] = observaciones ?? '';
+    final base = {
+      'principio': principio,
+      'comportamiento': comportamiento,
+      'cargo': cargo.trim().capitalize(),
+      'cargo_raw': cargo,
+      'valor': valor,
+      'sistemas': sistemas,
+      'dimension_id': dimensionId,
+      'asociado_id': asociadoId,
+      'observaciones': observaciones ?? '',
+      'evidencia_url': evidenciaUrl,
+      'fecha_evaluacion': (fechaEvaluacion ?? DateTime.now()).toIso8601String(),
+    };
+
+    if (i != -1) {
+      lista[i].addAll(base);
     } else {
-      lista.add({
-        'principio': principio,
-        'comportamiento': comportamiento,
-        'cargo': cargo.trim().capitalize(),
-        'cargo_raw': cargo,
-        'valor': valor,
-        'sistemas': sistemas,
-        'dimension_id': dimensionId,
-        'asociado_id': asociadoId,
-        'observaciones': observaciones ?? '',
-      });
+      lista.add(base);
     }
 
-    // 2️⃣ Cache local
     await EvaluacionCacheService().guardarTablas(tablaDatos);
 
-    // 3️⃣ Supabase (empresa_id desde metadatos si existe; fallback a uid)
     final supabase = Supabase.instance.client;
     final user = supabase.auth.currentUser;
     final empresaIdJwt =
@@ -91,19 +94,20 @@ class TablasDimensionScreen extends StatefulWidget {
         (user?.id ?? '');
 
     await supabase.from('calificaciones').upsert({
-      'evaluacion_id': evaluacionId,
-      'dimension_id': dimensionId,
-      'asociado_id': asociadoId,
+      'id_evaluacion': evaluacionId,
+      'id_dimension': int.tryParse(dimensionId) ?? dimensionId,
+      'id_asociado': asociadoId,
+      'id_empresa': empresaIdJwt,
       'principio': principio,
       'comportamiento': comportamiento,
       'cargo': cargo,
-      'valor': valor,
+      'puntaje': valor,
       'sistemas': sistemas,
       'observaciones': observaciones ?? '',
-      'empresa_id': empresaIdJwt,
+      'evidencia_url': evidenciaUrl,
+      'fecha_evaluacion': (fechaEvaluacion ?? DateTime.now()).toIso8601String(),
     });
 
-    // 4️⃣ Notificar UI
     dataChanged.value = !dataChanged.value;
   }
 
@@ -111,9 +115,8 @@ class TablasDimensionScreen extends StatefulWidget {
   State<TablasDimensionScreen> createState() => _TablasDimensionScreenState();
 }
 
-class _TablasDimensionScreenState extends State<TablasDimensionScreen>
-    with TickerProviderStateMixin {
-  final Map<String, String> dimensionInterna = {
+class _TablasDimensionScreenState extends State<TablasDimensionScreen> with TickerProviderStateMixin {
+  final Map<String, String> dimensionInterna = const {
     'IMPULSORES CULTURALES': 'Dimensión 1',
     'MEJORA CONTINUA': 'Dimensión 2',
     'ALINEAMIENTO EMPRESARIAL': 'Dimensión 3',
@@ -126,7 +129,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
   void initState() {
     super.initState();
     TablasDimensionScreen.dataChanged.addListener(_onDataChanged);
-    _cargarDesdeCacheYSync();
+    _cargarDatosIniciales();
     _suscribirseASupabase();
   }
 
@@ -142,59 +145,26 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
     if (mounted) setState(() {});
   }
 
-  Future<void> _cargarDesdeCacheYSync() async {
-    // 1. Cargar primero desde cache local
-    final cache = await EvaluacionCacheService().cargarTablas();
-    if (cache.values.any((m) => m.isNotEmpty)) {
-      setState(() {
-        TablasDimensionScreen.tablaDatos = cache;
-        dimensiones = dimensionInterna.keys.toList();
-      });
-      TablasDimensionScreen.dataChanged.value = !TablasDimensionScreen.dataChanged.value;
-    }
-    // 2. Sincronizar con Supabase (actualiza cache y UI si hay cambios)
+  Future<void> _cargarDatosIniciales() async {
     try {
-      final supabase = Supabase.instance.client;
-      final datos = await supabase
-          .from('calificaciones')
-          .select()
-          .eq('empresa_id', widget.empresaId)
-          .eq('evaluacion_id', widget.evaluacionId);
-      final nuevaTabla = {
-        'Dimensión 1': <String, List<Map<String, dynamic>>>{},
-        'Dimensión 2': <String, List<Map<String, dynamic>>>{},
-        'Dimensión 3': <String, List<Map<String, dynamic>>>{},
-      };
-      for (final fila in datos) {
-        final dimId = (fila['dimension_id'] ?? '').toString();
-        final dimensionKey = 'Dimensión $dimId';
-        final evalId = (fila['evaluacion_id'] ?? '').toString();
-        final sistemasRaw = fila['sistemas'];
-        final List<String> sistemasList = sistemasRaw is List
-            ? List<String>.from(sistemasRaw.whereType<String>())
-            : <String>[];
-        nuevaTabla[dimensionKey]!
-            .putIfAbsent(evalId, () => [])
-            .add({
-          'principio': fila['principio'],
-          'comportamiento': fila['comportamiento'],
-          'cargo': (fila['cargo'] ?? '').toString().trim().capitalize(),
-          'cargo_raw': (fila['cargo'] ?? '').toString(),
-          'valor': fila['valor'],
-          'sistemas': sistemasList,
-          'dimension_id': dimId,
-          'asociado_id': fila['asociado_id'],
-          'observaciones': fila['observaciones'] ?? '',
-        });
+      final cache = await EvaluacionCacheService().cargarTablas();
+      if (cache.isNotEmpty) {
+        if (mounted) {
+          setState(() => TablasDimensionScreen.tablaDatos = cache);
+        } else {
+          TablasDimensionScreen.tablaDatos = cache;
+        }
       }
-      await EvaluacionCacheService().guardarTablas(nuevaTabla);
+    } catch (_) {}
+
+    await _recargarDesdeSupabase();
+
+    if (mounted) {
       setState(() {
-        TablasDimensionScreen.tablaDatos = nuevaTabla;
         dimensiones = dimensionInterna.keys.toList();
       });
-      TablasDimensionScreen.dataChanged.value = !TablasDimensionScreen.dataChanged.value;
-    } catch (e) {
-      // Si falla Supabase, ya tienes la cache cargada
+    } else {
+      dimensiones = dimensionInterna.keys.toList();
     }
   }
 
@@ -210,8 +180,9 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
         table: 'calificaciones',
         callback: (payload) async {
           final record = payload.newRecord;
-          final empresaId = (record['empresa_id'] ?? '').toString();
-          final evalId = (record['evaluacion_id'] ?? '').toString();
+          final empresaId = (record['id_empresa'] ?? '').toString();
+          final evalId = (record['id_evaluacion'] ?? '').toString();
+
           if (empresaId == widget.empresaId && evalId == widget.evaluacionId) {
             await _recargarDesdeSupabase();
           }
@@ -222,55 +193,61 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
 
   Future<void> _recargarDesdeSupabase() async {
     final supabase = Supabase.instance.client;
-    final datos = await supabase
-        .from('calificaciones')
-        .select()
-        .eq('empresa_id', widget.empresaId)
-        .eq('evaluacion_id', widget.evaluacionId);
 
-    final nuevaTabla = {
-      'Dimensión 1': <String, List<Map<String, dynamic>>>{},
-      'Dimensión 2': <String, List<Map<String, dynamic>>>{},
-      'Dimensión 3': <String, List<Map<String, dynamic>>>{},
-    };
+    try {
+      final datos = await supabase
+          .from('calificaciones')
+          .select()
+          .eq('id_empresa', widget.empresaId)
+          .eq('id_evaluacion', widget.evaluacionId);
 
-    for (final fila in datos) {
-      final dimId = (fila['dimension_id'] ?? '').toString();
-      final dimensionKey = 'Dimensión $dimId';
-      final evalId = (fila['evaluacion_id'] ?? '').toString();
+      final nuevaTabla = {
+        'Dimensión 1': <String, List<Map<String, dynamic>>>{},
+        'Dimensión 2': <String, List<Map<String, dynamic>>>{},
+        'Dimensión 3': <String, List<Map<String, dynamic>>>{},
+      };
 
-      final sistemasRaw = fila['sistemas'];
-      final List<String> sistemasList = sistemasRaw is List
-          ? List<String>.from(sistemasRaw.whereType<String>())
-          : <String>[];
+      for (final fila in datos) {
+        final dimIdRaw = fila['id_dimension'];
+        final dimId = dimIdRaw is int ? dimIdRaw.toString() : (dimIdRaw ?? '').toString();
+        final dimensionKey = 'Dimensión $dimId';
+        final evalId = fila['id_evaluacion'].toString();
 
-      nuevaTabla[dimensionKey]!
-          .putIfAbsent(evalId, () => [])
-          .add({
-        'principio': fila['principio'],
-        'comportamiento': fila['comportamiento'],
-        'cargo': (fila['cargo'] ?? '').toString().trim().capitalize(),
-        'cargo_raw': (fila['cargo'] ?? '').toString(),
-        'valor': fila['valor'],
-        'sistemas': sistemasList,
-        'dimension_id': dimId,
-        'asociado_id': fila['asociado_id'],
-        'observaciones': fila['observaciones'] ?? '',
-      });
-    }
+        final sistemasRaw = fila['sistemas'];
+        final List<String> sistemasList =
+            (sistemasRaw is List) ? sistemasRaw.whereType<String>().toList() : <String>[];
 
-    if (mounted) {
-      setState(() {
+        final puntaje = (fila['puntaje'] ?? fila['valor'] ?? 0);
+        final intValor = (puntaje is num) ? puntaje.toInt() : int.tryParse(puntaje.toString()) ?? 0;
+
+        (nuevaTabla[dimensionKey]!).putIfAbsent(evalId, () => []).add({
+          'principio': fila['principio'],
+          'comportamiento': fila['comportamiento'],
+          'cargo': (fila['cargo'] ?? '').toString().trim().capitalize(),
+          'cargo_raw': (fila['cargo'] ?? '').toString(),
+          'valor': intValor,
+          'sistemas': sistemasList,
+          'dimension_id': dimId,
+          'asociado_id': fila['id_asociado'],
+          'observaciones': fila['observaciones'] ?? '',
+          'evidencia_url': fila['evidencia_url'],
+          'fecha_evaluacion': fila['fecha_evaluacion'],
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          TablasDimensionScreen.tablaDatos = nuevaTabla;
+        });
+      } else {
         TablasDimensionScreen.tablaDatos = nuevaTabla;
-      });
-    } else {
-      TablasDimensionScreen.tablaDatos = nuevaTabla;
-    }
+      }
 
-    await EvaluacionCacheService().guardarTablas(nuevaTabla);
-    TablasDimensionScreen.dataChanged.value =
-        !TablasDimensionScreen.dataChanged.value;
+      await EvaluacionCacheService().guardarTablas(nuevaTabla);
+      TablasDimensionScreen.dataChanged.value = !TablasDimensionScreen.dataChanged.value;
+    } catch (_) {}
   }
+
 
   String _normalizeNivel(String raw) {
     final lower = raw.toLowerCase();
@@ -381,39 +358,17 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
             ),
             border: TableBorder.all(color: const Color(0xFF003056)),
             columns: const [
-              DataColumn(
-                  label: Text('Principio',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Comportamiento',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label:
-                      Text('Ejecutivo', style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label:
-                      Text('Gerente', style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label:
-                      Text('Miembro', style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Ejecutivo Sistemas',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Gerente Sistemas',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Miembro Sistemas',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Ejecutivo observaciones',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Gerente observaciones',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Miembro observaciones',
-                      style: TextStyle(color: Colors.white))),
+              DataColumn(label: Text('Principio', style: TextStyle(color: Colors.white))),
+              DataColumn(label: Text('Comportamiento', style: TextStyle(color: Colors.white))),
+              DataColumn(label: Text('Ejecutivo', style: TextStyle(color: Colors.white))),
+              DataColumn(label: Text('Gerente', style: TextStyle(color: Colors.white))),
+              DataColumn(label: Text('Miembro', style: TextStyle(color: Colors.white))),
+              DataColumn(label: Text('Ejecutivo Sistemas', style: TextStyle(color: Colors.white))),
+              DataColumn(label: Text('Gerente Sistemas', style: TextStyle(color: Colors.white))),
+              DataColumn(label: Text('Miembro Sistemas', style: TextStyle(color: Colors.white))),
+              DataColumn(label: Text('Ejecutivo observaciones', style: TextStyle(color: Colors.white))),
+              DataColumn(label: Text('Gerente observaciones', style: TextStyle(color: Colors.white))),
+              DataColumn(label: Text('Miembro observaciones', style: TextStyle(color: Colors.white))),
             ],
             rows: _buildRowsPrincipioPromedio(filas),
           ),
@@ -430,8 +385,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
     for (final dim in dimensiones) {
       final keyInterna = dimensionInterna[dim] ?? dim;
       final evalMap = TablasDimensionScreen.tablaDatos[keyInterna];
-      final filas =
-          evalMap != null ? evalMap.values.expand((l) => l).toList() : <Map<String, dynamic>>[];
+      final filas = evalMap != null ? evalMap.values.expand((l) => l).toList() : <Map<String, dynamic>>[];
 
       final sumasNivel = {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0};
       final conteosNivel = {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0};
@@ -440,8 +394,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
       for (var f in filas) {
         final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
         final valor = (f['valor'] ?? 0).toDouble();
-        final sistemas =
-            (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
+        final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
         sumasNivel[nivel] = sumasNivel[nivel]! + valor;
         conteosNivel[nivel] = conteosNivel[nivel]! + 1;
         sistemasPromedio.agregar(nivel, sistemas);
@@ -480,18 +433,15 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
   List<DataRow> _buildRowsPrincipioPromedio(List<Map<String, dynamic>> filas) {
     final sumas = <String, Map<String, Map<String, int>>>{};
     final conteos = <String, Map<String, Map<String, int>>>{};
-    final sistemasPorNivel =
-        <String, Map<String, Map<String, Set<String>>>>{};
-    final observacionesPorNivel =
-        <String, Map<String, Map<String, List<String>>>>{};
+    final sistemasPorNivel = <String, Map<String, Map<String, Set<String>>>>{};
+    final observacionesPorNivel = <String, Map<String, Map<String, List<String>>>>{};
 
     for (var f in filas) {
       final principio = f['principio'] ?? '';
       final comportamiento = f['comportamiento'] ?? '';
       final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
       final int valor = ((f['valor'] ?? 0) as num).toInt();
-      final sistemas =
-          (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
+      final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
       final observacion = f['observaciones'] ?? '';
 
       sumas.putIfAbsent(principio, () => {});
@@ -521,8 +471,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
         sistemasPorNivel[principio]![comportamiento]![nivel]!.add(s);
       }
       if (observacion.isNotEmpty) {
-        observacionesPorNivel[principio]![comportamiento]![nivel]!
-            .add(observacion);
+        observacionesPorNivel[principio]![comportamiento]![nivel]!.add(observacion);
       }
     }
 
@@ -536,34 +485,23 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
         rows.add(
           DataRow(
             cells: [
-              DataCell(
-                Text(p, style: const TextStyle(color: Color(0xFF003056))),
-              ),
-              DataCell(
-                Text(c, style: const TextStyle(color: Color(0xFF003056))),
-              ),
+              DataCell(Text(p, style: const TextStyle(color: Color(0xFF003056)))),
+              DataCell(Text(c, style: const TextStyle(color: Color(0xFF003056)))),
               ...niveles.map((n) {
                 final suma = e.value[c]![n] ?? 0;
                 final count = conteos[p]![c]![n]!;
-                final txt =
-                    count > 0 ? (suma / count).toStringAsFixed(2) : '-';
-                return DataCell(
-                  Text(txt, style: const TextStyle(color: Color(0xFF003056))),
-                );
+                final txt = count > 0 ? (suma / count).toStringAsFixed(2) : '-';
+                return DataCell(Text(txt, style: const TextStyle(color: Color(0xFF003056))));
               }),
               ...niveles.map((n) {
                 final sistemas = sistemasPorNivel[p]![c]![n]!;
                 final txt = sistemas.isEmpty ? '-' : sistemas.join(', ');
-                return DataCell(
-                  Text(txt, style: const TextStyle(color: Color(0xFF003056))),
-                );
+                return DataCell(Text(txt, style: const TextStyle(color: Color(0xFF003056))));
               }),
               ...niveles.map((n) {
                 final obs = observacionesPorNivel[p]![c]![n]!;
                 final txt = obs.isNotEmpty ? obs.join(' | ') : '-';
-                return DataCell(
-                  Text(txt, style: const TextStyle(color: Color(0xFF003056))),
-                );
+                return DataCell(Text(txt, style: const TextStyle(color: Color(0xFF003056))));
               }),
             ],
           ),
@@ -594,9 +532,7 @@ class SistemasPromedio {
         _sistemasPorNivel.values.fold<int>(0, (sum, set) => sum + set.length);
     final nivelesConSistemas =
         _sistemasPorNivel.values.where((set) => set.isNotEmpty).length;
-    return nivelesConSistemas == 0
-        ? 0.0
-        : totalSistemas / _sistemasPorNivel.length;
+    return nivelesConSistemas == 0 ? 0.0 : totalSistemas / _sistemasPorNivel.length;
   }
 }
 
@@ -621,8 +557,7 @@ class AuxTablaService {
       final id = dimensionId[keyInterna]!;
 
       final evalMap = TablasDimensionScreen.tablaDatos[keyInterna];
-      final filas =
-          evalMap != null ? evalMap.values.expand((l) => l).toList() : <Map<String, dynamic>>[];
+      final filas = evalMap != null ? evalMap.values.expand((l) => l).toList() : <Map<String, dynamic>>[];
 
       final suma = {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0};
       final conteo = {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0};
@@ -637,12 +572,9 @@ class AuxTablaService {
       }
 
       resultado[id] = {
-        'EJECUTIVOS':
-            conteo['Ejecutivo']! > 0 ? suma['Ejecutivo']! / conteo['Ejecutivo']! : 0.0,
-        'GERENTES':
-            conteo['Gerente']! > 0 ? suma['Gerente']! / conteo['Gerente']! : 0.0,
-        'MIEMBROS DE EQUIPO':
-            conteo['Miembro']! > 0 ? suma['Miembro']! / conteo['Miembro']! : 0.0,
+        'EJECUTIVOS': conteo['Ejecutivo']! > 0 ? suma['Ejecutivo']! / conteo['Ejecutivo']! : 0.0,
+        'GERENTES': conteo['Gerente']! > 0 ? suma['Gerente']! / conteo['Gerente']! : 0.0,
+        'MIEMBROS DE EQUIPO': conteo['Miembro']! > 0 ? suma['Miembro']! / conteo['Miembro']! : 0.0,
       };
     }
 

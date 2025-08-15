@@ -36,6 +36,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
 
   void _filtrarBusqueda() {
     final query = busquedaController.text.trim().toLowerCase();
+    if (!mounted) return;
     setState(() {
       sistemasFiltrados = query.isEmpty
           ? List.from(sistemas)
@@ -44,25 +45,29 @@ class _SistemasScreenState extends State<SistemasScreen> {
   }
 
   Future<void> cargarSistemas() async {
+    if (!mounted) return;
     setState(() => isLoading = true);
     try {
       final response = await supabase.from('sistemas_asociados').select();
       final lista = List<Map<String, dynamic>>.from(response);
       lista.sort((a, b) => a['nombre'].toString().compareTo(b['nombre'].toString()));
 
-      setState(() {
+      if (!mounted) return;
+    setState(() {
         sistemas = lista;
         sistemasFiltrados = List.from(lista);
         isLoading = false;
       });
     } catch (e) {
-      setState(() => isLoading = false);
+      if (!mounted) return;
+    setState(() => isLoading = false);
       _mostrarError('Error al cargar: $e');
     }
   }
 
   Future<void> agregarSistema(String nombre) async {
     if (nombre.isEmpty) return;
+    if (!mounted) return;
     setState(() => isLoading = true);
     try {
       final nuevo = await supabase
@@ -70,7 +75,8 @@ class _SistemasScreenState extends State<SistemasScreen> {
           .insert({'nombre': nombre})
           .select()
           .single();
-      setState(() {
+      if (!mounted) return;
+    setState(() {
         sistemas.add(nuevo);
         sistemas.sort((a, b) => a['nombre'].toString().compareTo(b['nombre'].toString()));
         _filtrarBusqueda();
@@ -78,29 +84,34 @@ class _SistemasScreenState extends State<SistemasScreen> {
         isLoading = false;
       });
     } catch (e) {
-      setState(() => isLoading = false);
+      if (!mounted) return;
+    setState(() => isLoading = false);
       _mostrarError('Error al agregar: $e');
     }
   }
 
   Future<void> eliminarSistema(int id) async {
+    if (!mounted) return;
     setState(() => isLoading = true);
     try {
       await supabase.from('sistemas_asociados').delete().eq('id', id);
-      setState(() {
+      if (!mounted) return;
+    setState(() {
         sistemas.removeWhere((s) => s['id'] == id);
         seleccionados.remove(id);
         _filtrarBusqueda();
         isLoading = false;
       });
     } catch (e) {
-      setState(() => isLoading = false);
+      if (!mounted) return;
+    setState(() => isLoading = false);
       _mostrarError('Error al eliminar: $e');
     }
   }
 
   Future<void> editarSistema(int id, String nuevoNombre) async {
     if (nuevoNombre.isEmpty) return;
+    if (!mounted) return;
     setState(() => isLoading = true);
     try {
       final actualizado = await supabase
@@ -110,13 +121,15 @@ class _SistemasScreenState extends State<SistemasScreen> {
           .select()
           .single();
       final idx = sistemas.indexWhere((s) => s['id'] == id);
-      setState(() {
+      if (!mounted) return;
+    setState(() {
         sistemas[idx] = actualizado;
         _filtrarBusqueda();
         isLoading = false;
       });
     } catch (e) {
-      setState(() => isLoading = false);
+      if (!mounted) return;
+    setState(() => isLoading = false);
       _mostrarError('Error al editar: $e');
     }
   }
@@ -234,7 +247,8 @@ class _SistemasScreenState extends State<SistemasScreen> {
                                     leading: Checkbox(
                                       value: seleccionados.contains(sistema['id']),
                                       onChanged: (sel) {
-                                        setState(() {
+                                        if (!mounted) return;
+    setState(() {
                                           if (sel == true) {
                                             seleccionados.add(sistema['id']);
                                           } else {

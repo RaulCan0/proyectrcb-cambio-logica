@@ -3,22 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'evaluacion_cache_service.dart';
 
 class CalificacionesSyncService extends ChangeNotifier {
-  /// Calcula el progreso de un asociado en una dimensión y evaluación
-  double calcularProgresoAsociado({
-    required String evaluacionId,
-    required String asociadoId,
-    required String dimensionId,
-    required int totalComportamientos,
-  }) {
-    final dimensionKey = 'Dimensión $dimensionId';
-    final evalMap = tablaDatos[dimensionKey];
-    if (evalMap == null || !evalMap.containsKey(evaluacionId)) return 0.0;
-    final calificaciones = evalMap[evaluacionId]!
-      .where((c) => c['asociado_id'] == asociadoId)
-      .toList();
-    if (totalComportamientos == 0) return 0.0;
-    return calificaciones.length / totalComportamientos;
-  }
   // Estructura local: Dimensión -> evaluacionId -> lista de calificaciones
   Map<String, Map<String, List<Map<String, dynamic>>>> tablaDatos = {
     'Dimensión 1': {},
@@ -49,8 +33,8 @@ class CalificacionesSyncService extends ChangeNotifier {
     final supabase = Supabase.instance.client;
     final rows = await supabase
         .from('calificaciones')
-        .select('id_asociado, cargo, puntaje, comportamiento, id_dimension, id_empresa, id_evaluacion')
-        .eq('id_empresa', empresaId);
+        .select()
+        .eq('empresa_id', empresaId);
 
     final nuevaTabla = <String, Map<String, List<Map<String, dynamic>>>>{
       'Dimensión 1': {},
@@ -59,18 +43,13 @@ class CalificacionesSyncService extends ChangeNotifier {
     };
 
     for (final item in rows) {
-      final dimId = (item['id_dimension'] ?? '').toString();
+      final dimId = (item['dimension_id'] ?? '').toString();
       final dimensionKey = 'Dimensión $dimId';
-      final evaluacionId = (item['id_evaluacion'] ?? '').toString();
+      final evaluacionId = (item['evaluacion_id'] ?? '').toString();
 
       nuevaTabla.putIfAbsent(dimensionKey, () => {});
       nuevaTabla[dimensionKey]!.putIfAbsent(evaluacionId, () => []);
-      nuevaTabla[dimensionKey]![evaluacionId]!.add({
-        'asociado_id': item['id_asociado'],
-        'cargo': item['cargo'],
-        'valor': item['puntaje'],
-        'comportamiento': item['comportamiento'],
-      });
+      nuevaTabla[dimensionKey]![evaluacionId]!.add(item);
     }
 
     tablaDatos = nuevaTabla;

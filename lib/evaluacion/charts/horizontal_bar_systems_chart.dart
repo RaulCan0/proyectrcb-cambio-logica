@@ -58,80 +58,89 @@ class HorizontalBarSystemsChart extends StatelessWidget {
     );
   }
 
-  Widget _buildChartRow(List<String> sistemas, String label) {
-    final barGroups = sistemas.asMap().entries.map((entry) {
-      final index = entry.key;
-      final sistema = entry.value;
-      final levels = data[sistema] ?? {'E': 0.0, 'G': 0.0, 'M': 0.0};
+Widget _buildChartRow(List<String> sistemas, String label) {
+  final barGroups = sistemas.asMap().entries.map((entry) {
+    final index = entry.key;
+    final sistema = entry.value;
+    final levels = data[sistema] ?? {'E': 0.0, 'G': 0.0, 'M': 0.0};
 
-      return BarChartGroupData(
-        x: index,
-        barRods: [
-          BarChartRodData(
-            toY: levels['E'] ?? 0,
-            width: 14, // 3 veces más gruesa (era 8, ahora 24)
-            color: Colors.orange,
-            borderRadius: BorderRadius.circular(0),
-          ),
-          BarChartRodData(
-            toY: levels['G'] ?? 0,
-            width: 14, // 3 veces más gruesa (era 8, ahora 24)
-            color: Colors.green,
-            borderRadius: BorderRadius.circular(0),
-          ),
-          BarChartRodData(
-            toY: levels['M'] ?? 0,
-            width: 14, // 3 veces más gruesa (era 8, ahora 24)
-            color: Colors.blue,
-            borderRadius: BorderRadius.circular(0),
-          ),
-        ],
-      );
-    }).toList();
+    return BarChartGroupData(
+      x: index,
+      barRods: [
+        BarChartRodData(
+          toY: levels['E'] ?? 0,
+          width: 14, // 3 veces más gruesa (era 8, ahora 24)
+          color: Colors.orange,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        BarChartRodData(
+          toY: levels['G'] ?? 0,
+          width: 14, // 3 veces más gruesa (era 8, ahora 24)
+          color: Colors.green,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        BarChartRodData(
+          toY: levels['M'] ?? 0,
+          width: 14, // 3 veces más gruesa (era 8, ahora 24)
+          color: Colors.blue,
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ],
+      barsSpace: 2, // Más juntas (era 4, ahora 2)
+    );
+  }).toList();
 
-    return ScrollConfiguration(
-      behavior: const ScrollBehavior().copyWith(scrollbars: true),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: sistemas.length * 120, // Un poco más ancho para acomodar barras más gruesas
-          height: 180, // Altura reducida para cada fila
-          child: BarChart(
-            BarChartData(
-              maxY: maxY,
-              minY: minY,
-              barGroups: barGroups,
-              titlesData: FlTitlesData(
-                leftTitles: const AxisTitles(),
-                rightTitles: const AxisTitles(),
-                topTitles: const AxisTitles(),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (value, meta) {
-                      final index = value.toInt();
-                      if (index >= 0 && index < sistemas.length) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            sistemas[index],
-                            style: const TextStyle(fontSize: 10),
-                            textAlign: TextAlign.center,
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
+  return Expanded(
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final chartWidth = sistemas.length * 70.0 > constraints.maxWidth
+            ? sistemas.length * 70.0
+            : constraints.maxWidth;
+        return ScrollConfiguration(
+          behavior: const ScrollBehavior().copyWith(scrollbars: true),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: chartWidth,
+              child: BarChart(
+                BarChartData(
+                  maxY: maxY,
+                  minY: minY,
+                  barGroups: barGroups,
+                  titlesData: FlTitlesData(
+                    leftTitles: const AxisTitles(),
+                    rightTitles: const AxisTitles(),
+                    topTitles: const AxisTitles(),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index >= 0 && index < sistemas.length) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                sistemas[index],
+                                style: const TextStyle(fontSize: 10),
+                                textAlign: TextAlign.center,
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
                   ),
+                  barTouchData: const BarTouchData(enabled: true),
+                  gridData: const FlGridData(show: true),
+                  borderData: FlBorderData(show: false),
                 ),
               ),
-              barTouchData: const BarTouchData(enabled: true),
-              gridData: const FlGridData(show: true),
-              borderData: FlBorderData(show: false),
             ),
           ),
-        ),
-      ),
-    );
-  }
+        );
+      },
+    ),
+  );
+}
 }

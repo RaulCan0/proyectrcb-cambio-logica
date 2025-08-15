@@ -244,4 +244,9 @@ class _ChatWidgetDrawerState extends State<ChatWidgetDrawer> {
       ),
     );
   }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 }

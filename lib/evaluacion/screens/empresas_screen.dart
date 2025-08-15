@@ -383,4 +383,9 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
       },
     );
   }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 }

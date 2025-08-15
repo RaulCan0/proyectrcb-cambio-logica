@@ -116,6 +116,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _procesarDimensionesDesdeRaw(_dimensionesRaw);
     }
 
+    if (!mounted) return;
     setState(() {
       _isLoading = false;
     });
@@ -819,7 +820,7 @@ Future<List<ReporteComportamiento>> _prepararDatosPdf() async {
           final hallazgos = observaciones.isNotEmpty ? '- ${observaciones.join('\n- ')}' : 'Sin observaciones';
 
           nivelesData[nivel] = NivelEvaluacion(
-            valor: promedio,
+              valor: promedio,
             interpretacion: interpretacion,
             benchmarkPorCargo: benchmark,
             obs: hallazgos,
@@ -1152,5 +1153,10 @@ reporteData.add(
             ),
           ],
         ));
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 }

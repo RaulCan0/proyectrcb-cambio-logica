@@ -43,7 +43,8 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
     );
 
     if (resultado != null && resultado is ShingoResultData) {
-      setState(() {
+      if (!mounted) return;
+    setState(() {
         ShingoCategorias.tablaShingo[categoria] = resultado;
       });
     }
@@ -78,7 +79,8 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
                       ),
                     );
                     if (resultado != null && resultado is ShingoResultData) {
-                      setState(() {
+                      if (!mounted) return;
+    setState(() {
                         ShingoCategorias.tablaShingo[cat] = resultado;
                       });
                     }
@@ -195,7 +197,8 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
         ],
       ),
     );
-    if (result != null) setState(() => campos[titulo] = result);
+    if (result != null) if (!mounted) return;
+    setState(() => campos[titulo] = result!);
   }
 
   Future<void> seleccionarImagen() async {
@@ -203,7 +206,8 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
     final archivo = await picker.pickImage(source: ImageSource.gallery);
     if (archivo == null) return;
     try {
-      setState(() => imagen = File(archivo.path));
+      if (!mounted) return;
+    setState(() => imagen = File(archivo.path));
       // Aquí puedes agregar lógica para subir la imagen a la nube si lo necesitas
     } catch (e) {
   
@@ -330,7 +334,10 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
                       max: 5,
                       divisions: 5,
                       label: calificacion.toString(),
-                      onChanged: (v) => setState(() => calificacion = v.round()),
+    onChanged: (v) {
+      if (!mounted) return;
+      setState(() => calificacion = v.round());
+    },
                     ),
                   ),
                   const Text('5'),
@@ -342,5 +349,10 @@ class _ShingoResultSheetState extends State<ShingoResultSheet> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 }
