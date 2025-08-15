@@ -66,7 +66,7 @@ class ReporteExcelService {
 
         final valores = <String>[
           nivelNombre,
-          nivel.promedio.toStringAsFixed(2),
+          nivel.valor.toStringAsFixed(2),
           nivel.interpretacion,
           nivel.benchmarkPorCargo,
           nivel.sistemasSeleccionados.join(", "),

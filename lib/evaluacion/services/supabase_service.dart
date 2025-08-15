@@ -546,7 +546,7 @@ class SupabaseService {
   Future<double> obtenerProgresoAsociado({
     required String evaluacionId,
     required String asociadoId,
-    required String dimensionId,
+    required String dimensionId, required String empresaId,
   }) async {
     if (evaluacionId.isEmpty || asociadoId.isEmpty || dimensionId.isEmpty) return 0.0;
     final response = await _client

@@ -819,7 +819,7 @@ Future<List<ReporteComportamiento>> _prepararDatosPdf() async {
           final hallazgos = observaciones.isNotEmpty ? '- ${observaciones.join('\n- ')}' : 'Sin observaciones';
 
           nivelesData[nivel] = NivelEvaluacion(
-            promedio: promedio,
+            valor: promedio,
             interpretacion: interpretacion,
             benchmarkPorCargo: benchmark,
             obs: hallazgos,

@@ -52,30 +52,30 @@ class _AsociadoScreenState extends State<AsociadoScreen>
   Future<void> _cargarAsociados() async {
     setState(() => _loading = true);
     try {
-      final asociadosCargados =
-          await _supabaseService.getAsociadosPorEmpresa(widget.empresa.id);
-
-      // Progreso por asociado (en paralelo)
-      final futures = asociadosCargados
-          .map((a) => _supabaseService.obtenerProgresoAsociado(
-                evaluacionId: widget.evaluacionId, // ← CORREGIDO
-                asociadoId: a.id,
-                dimensionId: widget.dimensionId,
-              ))
-          .toList();
-
-      final progresos = await Future.wait(futures);
-      progresoAsociado
-        ..clear()
-        ..addEntries(Iterable.generate(asociadosCargados.length,
-            (i) => MapEntry(asociadosCargados[i].id, progresos[i])));
-
-      ejecutivos =
-          asociadosCargados.where((a) => a.cargo.toLowerCase() == 'ejecutivo').toList();
-      gerentes =
-          asociadosCargados.where((a) => a.cargo.toLowerCase() == 'gerente').toList();
-      miembros =
-          asociadosCargados.where((a) => a.cargo.toLowerCase() == 'miembro').toList();
+      final list = await _supabaseService.getAsociadosPorEmpresa(widget.empresa.id);
+      ejecutivos.clear();
+      gerentes.clear();
+      miembros.clear();
+      progresoAsociado.clear();
+        for (final aso in list) {
+          final prog = await _supabaseService.obtenerProgresoAsociado(
+            evaluacionId: widget.evaluacionId,
+            asociadoId: aso.id,
+            dimensionId: widget.dimensionId,
+            empresaId: widget.empresa.id,
+          );
+          progresoAsociado[aso.id] = prog;
+          switch (aso.cargo.toLowerCase()) {
+            case 'ejecutivo':
+              ejecutivos.add(aso);
+              break;
+            case 'gerente':
+              gerentes.add(aso);
+              break;
+            default:
+              miembros.add(aso);
+          }
+        }
     } catch (e) {
       _mostrarAlerta('Error', 'Error al cargar asociados: $e');
     } finally {
@@ -225,12 +225,12 @@ class _AsociadoScreenState extends State<AsociadoScreen>
   }
 
   Future<void> _mostrarDialogoEditarAsociado(Asociado asociado) async {
-    final nombreController = TextEditingController(text: asociado.nombre);
-    final puestoController = TextEditingController(text: asociado.puesto);
-    final antiguedadController = TextEditingController(text: (asociado.antiguedad).toString());
-    String cargoSeleccionado = (asociado.cargo.isNotEmpty)
-        ? asociado.cargo[0].toUpperCase() + asociado.cargo.substring(1).toLowerCase()
-        : 'Ejecutivo';
+  final nombreController = TextEditingController(text: asociado.nombre);
+  final puestoController = TextEditingController(text: asociado.puesto);
+  final antiguedadController = TextEditingController(text: (asociado.antiguedad).toString());
+  String cargoSeleccionado = (asociado.cargo.isNotEmpty)
+    ? asociado.cargo[0].toUpperCase() + asociado.cargo.substring(1).toLowerCase()
+    : 'Ejecutivo';
 
     await showDialog(
       context: context,
@@ -253,7 +253,7 @@ class _AsociadoScreenState extends State<AsociadoScreen>
               TextField(
                 controller: puestoController,
                 decoration: InputDecoration(
-                  labelText: 'Puesto',
+                  labelText: 'Puesto (puede estar vacío)',
                   labelStyle: GoogleFonts.roboto(),
                   border: const OutlineInputBorder(),
                 ),
@@ -301,7 +301,7 @@ class _AsociadoScreenState extends State<AsociadoScreen>
               final antiguedadTexto = antiguedadController.text.trim();
               final antiguedad = int.tryParse(antiguedadTexto);
 
-              if (nombre.isEmpty || puesto.isEmpty || antiguedad == null) {
+              if (nombre.isEmpty || antiguedad == null) {
                 _mostrarAlerta('Error', 'Completa todos los campos correctamente.');
                 return;
               }
@@ -318,7 +318,7 @@ class _AsociadoScreenState extends State<AsociadoScreen>
                     progresoDimensiones: asociado.progresoDimensiones,
                     comportamientosEvaluados: asociado.comportamientosEvaluados,
                     antiguedad: antiguedad,
-                    puesto: puesto,
+                    puesto: puesto.isEmpty ? '' : puesto,
                   ),
                 );
                 if (!mounted) return;
