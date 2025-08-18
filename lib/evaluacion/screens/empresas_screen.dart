@@ -34,12 +34,16 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
     _cargarEmpresas();
     _obtenerCorreoUsuario();
   }
-
-  Future<void> _verificarNuevoUsuario() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-    // Aquí podrías verificar si el usuario es nuevo y realizar alguna acción
-  }
+Future<void> _verificarNuevoUsuario() async {
+  final user = Supabase.instance.client.auth.currentUser;
+  if (user == null) return;
+  final existe = await Supabase.instance.client
+      .from('usuarios')
+      .select()
+      .eq('id', user.id)
+      .maybeSingle();
+  // Aquí podrías verificar si el usuario es nuevo y realizar alguna acción
+}
 
   Future<void> _cargarEmpresas() async {
     setState(() => isLoading = true);
@@ -59,12 +63,13 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
     }
   }
 
-  Future<void> _obtenerCorreoUsuario() async {
-    final user = Supabase.instance.client.auth.currentUser;
+   Future<void> _obtenerCorreoUsuario() async {
+    final session = Supabase.instance.client.auth.currentUser;
     setState(() {
-      correoUsuario = user?.email ?? '';
+      correoUsuario = session?.email ?? 'Usuario';
     });
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +113,7 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Bienvenido: \$correoUsuario',
+                      'Bienvenido: $correoUsuario',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -143,26 +148,6 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
                       context,
                       label: 'HISTORIAL',
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistorialScreen())),
-                    ),
-                    const Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildQuickNavButton(
-                          context: context,
-                          icon: Icons.home,
-                          label: 'Inicio',
-                          color: const Color(0xFF4CAF50),
-                          onTap: () => Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false),
-                        ),
-                        _buildQuickNavButton(
-                          context: context,
-                          icon: Icons.person,
-                          label: 'Perfil',
-                          color: const Color(0xFF2196F3),
-                          onTap: () => Navigator.pushNamed(context, '/perfil'),
-                        ),
-                      ],
                     ),
                   ],
                 ),
@@ -204,39 +189,6 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
               child: Icon(Icons.chevron_right, color: Color(0xFF003056)),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickNavButton({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-        child: ElevatedButton.icon(
-          onPressed: onTap,
-          icon: Icon(icon, size: 20),
-          label: Text(
-            label,
-            style: TextStyle(fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black),
-          ), // Color de texto del botón
-          style: ElevatedButton.styleFrom(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            elevation: 2,
-          ),
         ),
       ),
     );

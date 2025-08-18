@@ -22,7 +22,6 @@ class PrincipiosScreen extends StatefulWidget {
     required this.dimensionId,
     required this.evaluacionId,
   });
-
   @override
   State<PrincipiosScreen> createState() => _PrincipiosScreenState();
 }
@@ -132,15 +131,15 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => tablas_screen.TablasDimensionScreen(
+                    builder: (_) => tablas_screen.TablasDimensionScreen(
                     empresa: widget.empresa,
                     evaluacionId: widget.evaluacionId,
                     asociadoId: widget.asociado.id,
                     empresaId: widget.empresa.id,
                     dimension: nombreDimInt,
+                    ),
                   ),
-                ),
-              );
+                );
             },
           ),
         ],
