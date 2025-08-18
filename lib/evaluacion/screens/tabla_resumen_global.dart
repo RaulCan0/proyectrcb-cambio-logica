@@ -1,5 +1,6 @@
 import 'package:applensys/evaluacion/screens/shingo_result.dart';
 import 'package:applensys/evaluacion/widgets/tabla_puntuacion_global.dart';
+import 'package:applensys/evaluacion/widgets/tablatotales.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/tabla_shingo.dart';
@@ -16,15 +17,15 @@ class TablaResumenGlobal extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-  // Calcular puntos globales (máx 800)
-  final puntosGlobales = AuxTablaService.obtenerTotalPuntosGlobal();
+    // Calcular puntos globales (máx 800)
+    final puntosGlobales = AuxTablaService.obtenerTotalPuntosGlobal();
 
-  // Usar la instancia global de resultados Shingo de la pantalla
-  final resumenShingo = ShingoResumenService.generarResumen(ShingoCategorias.tablaShingo);
-  final puntosShingo = resumenShingo.isNotEmpty ? resumenShingo.last.puntos : 0.0;
+    // Usar la instancia global de resultados Shingo de la pantalla
+    final resumenShingo = ShingoResumenService.generarResumen(ShingoCategorias.tablaShingo);
+    final puntosShingo = resumenShingo.isNotEmpty ? resumenShingo.last.puntos : 0.0;
 
-  // Suma total (máx 1000)
-  final puntosTotales = puntosGlobales + puntosShingo;
+    // Suma total (máx 1000)
+    final puntosTotales = puntosGlobales + puntosShingo;
 
     return DefaultTabController(
       length: 2,
@@ -89,6 +90,14 @@ class TablaResumenGlobal extends ConsumerWidget {
                   const SizedBox(height: 32),
                   TermometroGlobal(
                     valorObtenido: puntosTotales,
+                  ),
+                  const SizedBox(height: 32),
+                  TablaTotales(
+                    valores: {
+                      'Puntos Globales': puntosGlobales,
+                      'Puntos Shingo': puntosShingo,
+                      'Total': puntosTotales,
+                    },
                   ),
                 ],
               ),

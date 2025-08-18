@@ -141,4 +141,34 @@ class EvaluacionCacheService {
     promedios.sort((a, b) => (b['promedio'] as double).compareTo(a['promedio'] as double));
     return promedios;
   }
+  static const _keyObservaciones = 'evaluacion_observaciones';
+
+  /// Guarda observaciones asociadas a una evaluación
+  Future<void> guardarObservaciones(Map<String, String> observaciones) async {
+    await init();
+    final encoded = jsonEncode(observaciones);
+    await _prefs!.setString(_keyObservaciones, encoded);
+  }
+
+  /// Carga observaciones asociadas a una evaluación
+  Future<Map<String, String>> cargarObservaciones() async {
+    await init();
+    final raw = _prefs!.getString(_keyObservaciones);
+    if (raw == null || raw.isEmpty) {
+      return {};
+    }
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((key, value) => MapEntry(key, value as String));
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /// Limpia las observaciones almacenadas
+  Future<void> limpiarObservaciones() async {
+    await init();
+    await _prefs!.remove(_keyObservaciones);
+  }
 }
+

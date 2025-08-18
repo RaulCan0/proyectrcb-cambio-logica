@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:applensys/evaluacion/widgets/tabla_shingo.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,8 +7,7 @@ import 'package:image_picker/image_picker.dart';
 class ShingoCategorias extends StatefulWidget {
   const ShingoCategorias({super.key});
 
-  // Tabla Shingo accesible globalmente
-  static final Map<String, ShingoResultData> tablaShingo = {
+  static Map<String, ShingoResultData> tablaShingo = {
     for (var cat in [
       'seguridad/medio/ambiente/moral',
       'satisfacción del cliente',
@@ -16,6 +16,16 @@ class ShingoCategorias extends StatefulWidget {
       'entregas',
     ]) cat: ShingoResultData()
   };
+
+  static Future<void> guardarTablaShingo() async {
+    final data = tablaShingo.map((key, value) => MapEntry(key, value.toJson()));
+    await EvaluacionCacheService().guardarObservaciones(data.cast<String, String>());
+  }
+
+  static Future<void> cargarTablaShingo() async {
+    final data = await EvaluacionCacheService().cargarObservaciones();
+    tablaShingo = data.map((key, value) => MapEntry(key, ShingoResultData.fromJson(value as Map<String, dynamic>)));
+  }
 
   @override
   State<ShingoCategorias> createState() => _ShingoCategoriasState();
@@ -155,6 +165,18 @@ class ShingoResultData {
           'Cómo se definen metas': '',
         },
         calificacion = calificacion ?? 0;
+
+  Map<String, dynamic> toJson() => {
+        'campos': campos,
+        'imagen': imagen?.path,
+        'calificacion': calificacion,
+      };
+
+  factory ShingoResultData.fromJson(Map<String, dynamic> json) => ShingoResultData(
+        campos: Map<String, String>.from(json['campos'] ?? {}),
+        imagen: json['imagen'] != null ? File(json['imagen']) : null,
+        calificacion: json['calificacion'] ?? 0,
+      );
 }
 
 class ShingoResultSheet extends StatefulWidget {

@@ -10,6 +10,7 @@ import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 import 'package:applensys/evaluacion/screens/empresas_screen.dart';
 import 'package:applensys/evaluacion/screens/perfil_screen.dart';
 import 'package:http/http.dart' as http;
+import 'package:applensys/evaluacion/widgets/actualizaciones.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -146,8 +147,7 @@ class _DashboardView extends ConsumerWidget {
                 bottomRight: Radius.circular(30),
               ),
             ),
-            
-                 child: Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
@@ -202,7 +202,17 @@ class _DashboardView extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const _WeatherWidget(),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.update, color: Colors.white),
+                      onPressed: () {
+                        ActualizacionesWidget.mostrarDialogoActualizacion(context);
+                      },
+                    ),
+                    const _WeatherWidget(),
+                  ],
+                ),
               ],
             ),
           ),

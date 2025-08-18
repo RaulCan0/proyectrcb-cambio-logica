@@ -51,6 +51,8 @@ dependencies:
   mailer: ^6.5.0
   excel: ^4.0.6
   open_filex: ^4.7.0
+  docx_template: ^0.4.0
+  hive_flutter: ^1.1.0
 
 dev_dependencies:
   flutter_test:

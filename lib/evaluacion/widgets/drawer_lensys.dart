@@ -213,19 +213,25 @@ class DrawerLensys extends ConsumerWidget {
     );
   }
 }
+// AÑADIDO: Servicio singleton que notifica cambios en tablaDatos
 class DetallesEvaluacionService extends ChangeNotifier {
   static final DetallesEvaluacionService _instance = DetallesEvaluacionService._();
   factory DetallesEvaluacionService() => _instance;
   DetallesEvaluacionService._() {
+    // inicializa con los datos actuales
     _tabla = TablasDimensionScreen.tablaDatos;
+    // se suscribe a futuros cambios
     TablasDimensionScreen.dataChanged.addListener(_onDataChanged);
   }
+
   late Map<String, Map<String, List<Map<String, dynamic>>>> _tabla;
   Map<String, Map<String, List<Map<String, dynamic>>>> get tablaDatos => _tabla;
+
   void _onDataChanged() {
     _tabla = TablasDimensionScreen.tablaDatos;
     notifyListeners();
   }
+
   @override
   void dispose() {
     TablasDimensionScreen.dataChanged.removeListener(_onDataChanged);

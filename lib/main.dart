@@ -12,6 +12,56 @@ import 'package:applensys/custom/service_locator.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 import 'package:applensys/evaluacion/providers/theme_provider.dart';
 import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:applensys/evaluacion/widgets/actualizaciones.dart';
+import 'package:applensys/evaluacion/services/local_storage_service.dart';
+import 'package:applensys/evaluacion/services/sincronizacion_service.dart';
+
+Future<void> verificarActualizacion(BuildContext context) async {
+  final response = await Supabase.instance.client
+      .from('actualizaciones')
+      .select('version, descripcion, url')
+      .order('id', ascending: false)
+      .limit(1)
+      .maybeSingle();
+
+  if (response != null) {
+    final String nuevaVersion = response['version'];
+    final String descripcion = response['descripcion'];
+    final String url = response['url'];
+
+    const String versionActual = '1.0.0'; // Cambia esto según tu versión actual
+
+    if (nuevaVersion != versionActual) {
+      showDialog(
+        // ignore: use_build_context_synchronously
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Nueva Actualización Disponible'),
+            content: Text('Versión: $nuevaVersion\n\n$descripcion'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  // Abre el enlace de descarga
+                  launchUrl(Uri.parse(url));
+                },
+                child: const Text('Actualizar'),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+}
+
+final sincronizacionServiceProvider = Provider((ref) => SincronizacionService());
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +72,32 @@ void main() async {
   setupLocator();
   await locator<EvaluacionCacheService>().init();
 
-  runApp(const ProviderScope(child: MyApp()));
+  // Inicializar Hive para persistencia local
+  final localStorageService = LocalStorageService();
+  await localStorageService.init();
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        sincronizacionServiceProvider.overrideWithValue(SincronizacionService()),
+      ],
+      child: const ActualizacionesWrapper(child: MyApp()),
+    ),
+  );
+}
+
+class ActualizacionesWrapper extends StatelessWidget {
+  final Widget child;
+
+  const ActualizacionesWrapper({required this.child, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ActualizacionesWidget.mostrarDialogoActualizacion(context);
+    });
+    return child;
+  }
 }
 
 class MyApp extends ConsumerWidget {
