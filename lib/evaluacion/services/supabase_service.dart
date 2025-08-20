@@ -173,7 +173,6 @@ class SupabaseService {
       rethrow; // Re-lanzar para manejar arriba
     }
   }
-
   Future<void> updateCalificacion(String id, int nuevoPuntaje) async {
     await _client
         .from('calificaciones')
@@ -190,6 +189,30 @@ class SupabaseService {
     return (response as List).map((e) => Calificacion.fromMap(e)).toList();
   }
 
+  Future<void> updateCalificacionFull(Calificacion calificacion) async {
+    try {
+      await _client
+          .from('calificaciones')
+          .update(calificacion.toMap()) // Asume que Calificacion.toMap() incluye todos los campos necesarios (puntaje, observaciones, sistemas, evidenciaUrl, etc.)
+          .eq('id', calificacion.id);
+      // print("✅ Calificación actualizada completamente con éxito: ${calificacion.id}");
+    } catch (e) {
+      // print("❌ Error al actualizar calificación completa: $e");
+      rethrow;
+    }
+  }
+
+  /// Obtiene todas las calificaciones de una empresa
+  Future<List<Map<String, dynamic>>> getCalificacionesPorEmpresa(String empresaId) async {
+    if (empresaId.isEmpty) return [];
+    const String selectColumns = 'id, id_asociado, id_empresa, id_dimension, comportamiento, puntaje, fecha_evaluacion, observaciones, sistemas, evidencia_url';
+    final res = await Supabase.instance.client
+      .from('calificaciones')
+      .select(selectColumns)
+      .eq('id_empresa', empresaId)
+      .order('fecha_evaluacion', ascending: true);
+    return List<Map<String, dynamic>>.from(res as List);
+  }
   // DASHBOARD
   Future<List<Map<String, dynamic>>> getResultadosDashboard({
     String? empresaId,

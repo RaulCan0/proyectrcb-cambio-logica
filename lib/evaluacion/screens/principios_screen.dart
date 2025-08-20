@@ -199,7 +199,6 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                                                 dimensionId: widget.dimensionId,
                                                 empresaId: widget.empresa.id,
                                                 asociadoId: widget.asociado.id,
-                                                dimension: '',
                                               ),
                                             ),
                                           );
