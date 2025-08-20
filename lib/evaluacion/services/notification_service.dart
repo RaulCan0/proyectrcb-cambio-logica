@@ -43,7 +43,7 @@ class NotificationService {
       _isInitialized = true;
       return true;
     } catch (e) {
-    ('Error al inicializar notificaciones: $e');
+      ('Error al inicializar notificaciones: $e');
       return false;
     }
   }
@@ -93,7 +93,8 @@ class NotificationService {
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // ✅ este reemplaza al deprecated
+      payload: payload,
     );
   }
 

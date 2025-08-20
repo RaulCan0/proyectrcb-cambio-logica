@@ -1,3 +1,5 @@
+// ignore_for_file: unrelated_type_equality_checks
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'local_storage_service.dart';
@@ -10,9 +12,7 @@ class SincronizacionService {
   Future<void> sincronizarDatos(String key, dynamic data) async {
     final connectivityResult = await _connectivity.checkConnectivity();
 
-    // ignore: unrelated_type_equality_checks
     if (connectivityResult == ConnectivityResult.wifi ||
-        // ignore: unrelated_type_equality_checks
         connectivityResult == ConnectivityResult.mobile) {
       try {
         // Intentar sincronizar con Supabase

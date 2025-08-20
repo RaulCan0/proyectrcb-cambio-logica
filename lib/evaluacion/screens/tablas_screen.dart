@@ -182,9 +182,8 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
         callback: (payload) async {
           final record = payload.newRecord;
           final empresaId = (record['id_empresa'] ?? '').toString();
-          final evalId = (record['id_evaluacion'] ?? '').toString();
 
-          if (empresaId == widget.empresaId && evalId == widget.evaluacionId) {
+          if (empresaId == widget.empresaId ) {
             await _recargarDesdeSupabase();
           }
         },
@@ -199,23 +198,20 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
       final datos = await supabase
           .from('calificaciones')
           .select()
-          .eq('id_empresa', widget.empresaId)
-          .eq('id_evaluacion', widget.evaluacionId);
+          .eq('id_empresa', widget.empresaId);
 
-      final nuevaTabla =
-          CalificacionAdapter.toTablaDatos(List<Map<String, dynamic>>.from(datos));
-
-      if (mounted) {
-        setState(() {
+      if (datos.isNotEmpty) {
+        final nuevaTabla = CalificacionAdapter.toTablaDatos(List<Map<String, dynamic>>.from(datos));
+        if (mounted) {
+          setState(() {
+            TablasDimensionScreen.tablaDatos = nuevaTabla;
+          });
+        } else {
           TablasDimensionScreen.tablaDatos = nuevaTabla;
-        });
-      } else {
-        TablasDimensionScreen.tablaDatos = nuevaTabla;
-      }
-
-      await EvaluacionCacheService().guardarTablas(nuevaTabla);
-      TablasDimensionScreen.dataChanged.value =
-          !TablasDimensionScreen.dataChanged.value;
+        }
+        await EvaluacionCacheService().guardarTablas(nuevaTabla);
+        TablasDimensionScreen.dataChanged.value = !TablasDimensionScreen.dataChanged.value;
+      } // Si no hay datos, no sobreescribas el cache local
     } catch (e) {
       debugPrint("❌ Error recargando supabase: $e");
     }
@@ -326,111 +322,98 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.all(8),
-          child: DataTable(
-            columnSpacing: 36,
-            headingRowColor: WidgetStateProperty.resolveWith(
-              (_) => const Color(0xFF003056),
-            ),
-            dataRowColor: WidgetStateProperty.all(
-              Colors.grey.shade200,
-            ),
-            border: TableBorder.all(color: const Color(0xFF003056)),
-            columns: const [
-              DataColumn(
-                  label: Text('Principio',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Comportamiento',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Ejecutivo',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Gerente',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Miembro',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Ejecutivo Sistemas',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Gerente Sistemas',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Miembro Sistemas',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Ejecutivo observaciones',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Gerente observaciones',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Miembro observaciones',
-                      style: TextStyle(color: Colors.white))),
-            ],
-            rows: _buildRowsPrincipioPromedio(filas),
-          ),
-        ),
+        child: DataTable(
+  columnSpacing: 36,
+  headingRowColor: WidgetStateProperty.resolveWith<Color?>(
+    (_) => const Color(0xFF003056),
+  ),
+  dataRowColor: WidgetStateProperty.all<Color?>(
+    Colors.grey.shade200,
+  ),
+  border: TableBorder.all(color: const Color(0xFF003056)),
+  columns: const [
+    DataColumn(label: Text('Principio', style: TextStyle(color: Colors.white))),
+    DataColumn(label: Text('Comportamiento', style: TextStyle(color: Colors.white))),
+    DataColumn(label: Text('Ejecutivo', style: TextStyle(color: Colors.white))),
+    DataColumn(label: Text('Gerente', style: TextStyle(color: Colors.white))),
+    DataColumn(label: Text('Miembro', style: TextStyle(color: Colors.white))),
+    DataColumn(label: Text('Ejecutivo Sistemas', style: TextStyle(color: Colors.white))),
+    DataColumn(label: Text('Gerente Sistemas', style: TextStyle(color: Colors.white))),
+    DataColumn(label: Text('Miembro Sistemas', style: TextStyle(color: Colors.white))),
+    DataColumn(label: Text('Ejecutivo observaciones', style: TextStyle(color: Colors.white))),
+    DataColumn(label: Text('Gerente observaciones', style: TextStyle(color: Colors.white))),
+    DataColumn(label: Text('Miembro observaciones', style: TextStyle(color: Colors.white))),
+  ],
+rows: _buildRowsPrincipioPromedio(filas),
       ),
-    );
+    ),
+  ),
+);
   }
 
   void _irADetalles(BuildContext context) {
-    final currentIndex = DefaultTabController.of(context).index;
-    final dimensionActual = dimensiones[currentIndex];
+  final controller = DefaultTabController.of(context);
+  final currentIndex = controller.index;
+  final dimensionActual = dimensiones[currentIndex];
 
-    final promediosPorDimension = <String, Map<String, double>>{};
-    for (final dim in dimensiones) {
-      final keyInterna = dimensionInterna[dim] ?? dim;
-      final evalMap = TablasDimensionScreen.tablaDatos[keyInterna];
-      final filas =
-          evalMap != null ? evalMap.values.expand((l) => l).toList() : <Map<String, dynamic>>[];
+  final promediosPorDimension = <String, Map<String, double>>{};
 
-      final sumasNivel = {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0};
-      final conteosNivel = {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0};
-      final sistemasPromedio = SistemasPromedio();
+  for (final dim in dimensiones) {
+    final keyInterna = dimensionInterna[dim] ?? dim;
+    final evalMap = TablasDimensionScreen.tablaDatos[keyInterna];
+    final filas = evalMap != null
+        ? evalMap.values.expand((l) => l).toList()
+        : <Map<String, dynamic>>[];
 
-      for (var f in filas) {
-        final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
-        final valor = (f['valor'] ?? 0).toDouble();
-        final sistemas =
-            (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
-        sumasNivel[nivel] = sumasNivel[nivel]! + valor;
-        conteosNivel[nivel] = conteosNivel[nivel]! + 1;
-        sistemasPromedio.agregar(nivel, sistemas);
-      }
+    final sumasNivel = {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0};
+    final conteosNivel = {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0};
+    final sistemasPromedio = SistemasPromedio();
 
-      final promediosNivel = <String, double>{};
-      double totalProm = 0;
-      sumasNivel.forEach((nivel, suma) {
-        final cnt = conteosNivel[nivel]!;
-        final prom = cnt > 0 ? suma / cnt : 0;
-        promediosNivel[nivel] = double.parse(prom.toStringAsFixed(2));
-        totalProm += prom;
-      });
-      promediosNivel['General'] =
-          double.parse((totalProm / sumasNivel.length).toStringAsFixed(2));
-      promediosNivel['Sistemas'] =
-          double.parse(sistemasPromedio.promedio().toStringAsFixed(2));
-      promediosPorDimension[dim] = promediosNivel;
+    for (final f in filas) {
+      final nivel = _normalizeNivel((f['cargo_raw'] ?? '') as String);
+      final valorNum = (f['valor'] ?? 0);
+      final valor = (valorNum is num) ? valorNum.toDouble() : 0.0;
+      final sistemas = (f['sistemas'] as List?)
+              ?.whereType<String>()
+              .toList() ??
+          const <String>[];
+
+      sumasNivel[nivel] = sumasNivel[nivel]! + valor;
+      conteosNivel[nivel] = conteosNivel[nivel]! + 1;
+      sistemasPromedio.agregar(nivel, sistemas);
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DetallesEvaluacionScreen(
-          dimensionesPromedios: promediosPorDimension,
-          empresa: widget.empresa,
-          evaluacionId: widget.evaluacionId,
-          promedios: promediosPorDimension[dimensionActual],
-          dimension: dimensionActual,
-          initialTabIndex: currentIndex,
-        ),
-      ),
-    );
+    final promediosNivel = <String, double>{};
+    double totalProm = 0;
+    sumasNivel.forEach((nivel, suma) {
+      final cnt = conteosNivel[nivel]!;
+      final prom = cnt > 0 ? suma / cnt : 0.0;
+      promediosNivel[nivel] = double.parse(prom.toStringAsFixed(2));
+      totalProm += prom;
+    });
+
+    promediosNivel['General'] =
+        double.parse((totalProm / sumasNivel.length).toStringAsFixed(2));
+    promediosNivel['Sistemas'] =
+        double.parse(sistemasPromedio.promedio().toStringAsFixed(2));
+
+    promediosPorDimension[dim] = promediosNivel;
   }
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => DetallesEvaluacionScreen(
+        dimensionesPromedios: promediosPorDimension,
+        empresa: widget.empresa,
+        evaluacionId: widget.evaluacionId,
+        promedios: promediosPorDimension[dimensionActual],
+        dimension: dimensionActual,
+        initialTabIndex: currentIndex,
+      ),
+    ),
+  );
+}
 
   List<DataRow> _buildRowsPrincipioPromedio(List<Map<String, dynamic>> filas) {
     final sumas = <String, Map<String, Map<String, int>>>{};

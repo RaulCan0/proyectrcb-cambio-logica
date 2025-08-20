@@ -1,8 +1,6 @@
-
 import 'dart:typed_data'; 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:http/http.dart' as http;
 
 class NivelEvaluacion {
   final double valor;
@@ -82,35 +80,20 @@ class ReportePdfService {
       tituloImpreso = true;
     }
 
-    Map<String, Uint8List> evidenciaBytes = {};
-    for (final comp in datos) {
-      for (final n in ["E", "G", "M"]) {
-        final url = comp.niveles[n]?.evidenciaUrl;
-        if (url != null && url.isNotEmpty) {
-          try {
-            final response = await http.get(Uri.parse(url));
-            if (response.statusCode == 200) {
-              evidenciaBytes[comp.nombre + n] = response.bodyBytes;
-            }
-          } catch (_) {}
-        }
-      }
-    }
-
+    // Agregar fila de recomendaciones al final
     pdf.addPage(pw.Page(
       pageFormat: PdfPageFormat.a4.landscape,
       margin: const pw.EdgeInsets.all(20),
       build: (context) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text("EVIDENCIAS POR COMPORTAMIENTO Y NIVEL", style: headerStyle),
+          pw.Text("RECOMENDACIONES", style: headerStyle),
           pw.SizedBox(height: 10),
           pw.Table(
             border: pw.TableBorder.all(color: PdfColors.grey700),
             columnWidths: {
               0: const pw.FlexColumnWidth(2),
-              1: const pw.FlexColumnWidth(2),
-              2: const pw.FlexColumnWidth(6),
+              1: const pw.FlexColumnWidth(6),
             },
             children: [
               pw.TableRow(
@@ -122,35 +105,23 @@ class ReportePdfService {
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(4),
-                    child: pw.Text('Nivel', style: headerStyle),
-                  ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(4),
-                    child: pw.Text('Evidencia', style: headerStyle),
+                    child: pw.Text('Recomendación', style: headerStyle),
                   ),
                 ],
               ),
               for (final comp in datos)
-                for (final n in const ["E", "G", "M"])
-                  if (comp.niveles[n]?.evidenciaUrl != null && comp.niveles[n]!.evidenciaUrl!.isNotEmpty)
-                    pw.TableRow(
-                      children: [
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: pw.Text(comp.nombre, style: txtNormal),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: pw.Text(n == "E" ? "Ejecutivo" : n == "G" ? "Gerente" : "Miembro", style: txtNormal),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: evidenciaBytes[comp.nombre + n] != null
-                            ? pw.Image(pw.MemoryImage(evidenciaBytes[comp.nombre + n]!), height: 40, width: 80, fit: pw.BoxFit.contain)
-                            : pw.Text('Sin imagen', style: txtSmall),
-                        ),
-                      ],
+                pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(4),
+                      child: pw.Text(comp.nombre, style: txtNormal),
                     ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(4),
+                      child: pw.Text("Se recomienda mejorar el enfoque en ${comp.nombre}", style: txtNormal),
+                    ),
+                  ],
+                ),
             ],
           ),
         ],
@@ -210,46 +181,53 @@ class ReportePdfService {
     ];
     final maxY = 5.0;
     final barColors = [PdfColors.orange, PdfColors.green, PdfColors.blue];
-    final barWidth = 16.0;
+    final barWidth = 22.0;
 
-    return pw.Container(
-      height: 140,
-      padding: const pw.EdgeInsets.only(left: 30),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.end,
-        children: [
-          pw.Column(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: List.generate(6, (i) {
-              final label = (maxY - i).toStringAsFixed(0);
-              return pw.SizedBox(
-                height: 20,
-                child: pw.Text(label, style: const pw.TextStyle(fontSize: 8)),
-              );
-            }),
-          ),
-          pw.SizedBox(width: 8),
-          pw.Expanded(
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
-              children: List.generate(3, (i) {
-                return pw.Column(
-                  mainAxisAlignment: pw.MainAxisAlignment.end,
-                  children: [
-                    pw.Container(
-                      height: (values[i] / maxY) * 100,
-                      width: barWidth,
-                      color: barColors[i],
-                    ),
-                    pw.SizedBox(height: 4),
-                    pw.Text(labels[i], style: const pw.TextStyle(fontSize: 8)),
-                  ],
+    return pw.Center(
+      child: pw.Container(
+        height: 140,
+        padding: const pw.EdgeInsets.only(left: 10),
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.end,
+          mainAxisAlignment: pw.MainAxisAlignment.center, // Centrar el gráfico
+          children: [
+            pw.Column(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: List.generate(6, (i) {
+                final label = (maxY - i).toStringAsFixed(0);
+                return pw.SizedBox(
+                  height: 20,
+                  child: pw.Text(label, style: const pw.TextStyle(fontSize: 8)),
                 );
               }),
             ),
-          ),
-        ],
+            pw.SizedBox(width: 2),
+            pw.Expanded(
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.center, // Centrar las barras
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: List.generate(3, (i) {
+                  final barHeight = (values[i] / maxY) * 100;
+                  return pw.Padding(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 2),
+                    child: pw.Column(
+                      mainAxisAlignment: pw.MainAxisAlignment.end,
+                      children: [
+                        pw.Container(
+                          height: barHeight > 0 ? barHeight : 1,
+                          width: barWidth,
+                          color: barColors[i],
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(labels[i], style: const pw.TextStyle(fontSize: 8)),
+                      ],
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -520,7 +520,7 @@ List<ScatterData> _buildScatterData() {
     }
     return data;
   }
-
+  
   Map<String, Map<String, double>> _buildHorizontalBarsData() {
     // Lista de sistemas ordenados (misma que en HorizontalBarSystemsChart)
     const List<String> sistemasOrdenados = [
@@ -851,8 +851,85 @@ reporteData.add(
 
   return reporteData;
 }
+/* /// Callback al presionar "Generar PDF"
+  Future<void> _onGenerarReportePdf() async {
+    try {
+      // Variables para almacenar las recomendaciones
+      String recomendacion1 = "";
+      String recomendacion2 = "";
+      String recomendacion3 = "";
 
+      // Mostrar el primer AlertDialog
+      await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Recomendación 1"),
+            content: TextField(
+              onChanged: (value) {
+                recomendacion1 = value;
+              },
+              decoration: const InputDecoration(hintText: "Ingrese la primera recomendación"),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Aceptar"),
+              ),
+            ],
+          );
+        },
+      );
 
+      // Mostrar el segundo AlertDialog
+      await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Recomendación 2"),
+            content: TextField(
+              onChanged: (value) {
+                recomendacion2 = value;
+              },
+              decoration: const InputDecoration(hintText: "Ingrese la segunda recomendación"),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Aceptar"),
+              ),
+            ],
+          );
+        },
+      );
+
+      // Mostrar el tercer AlertDialog
+      await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Recomendación 3"),
+            content: TextField(
+              onChanged: (value) {
+                recomendacion3 = value;
+              },
+              decoration: const InputDecoration(hintText: "Ingrese la tercera recomendación"),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Aceptar"),
+              ),
+            ],
+          );
+        },
+      );
+
+      // Generar el reporte PDF con las recomendaciones
+      final datosPdf = await _prepararDatosPdf();
+      final pdfBytes = await ReportePdfService.generarReportePdf(datosPdf);
+
+*/
  
   /// Callback al presionar "Generar PDF"
   Future<void> _onGenerarReportePdf() async {
@@ -869,7 +946,7 @@ reporteData.add(
           const SnackBar(content: Text('No hay datos suficientes para generar el reporte')),
         );
         return;
-      }
+        }
 
       // Generar PDF
       final pdfBytes = await ReportePdfService.generarReportePdf(datosPdf);
@@ -886,7 +963,7 @@ reporteData.add(
         final supabase = Supabase.instance.client;
         await supabase.storage.from('reportes').upload(fileName, file);
         debugPrint('PDF subido a Supabase Storage: $fileName');
-      } catch (e) {
+    } catch (e) {
         debugPrint('Error subiendo PDF a Supabase Storage: $e');
       }
 

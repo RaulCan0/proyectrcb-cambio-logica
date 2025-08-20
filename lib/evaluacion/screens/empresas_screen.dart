@@ -42,7 +42,6 @@ Future<void> _verificarNuevoUsuario() async {
       .select()
       .eq('id', user.id)
       .maybeSingle();
-  // Aquí podrías verificar si el usuario es nuevo y realizar alguna acción
 }
 
   Future<void> _cargarEmpresas() async {
@@ -297,33 +296,32 @@ Future<void> _verificarNuevoUsuario() async {
   }
 
   void _mostrarDialogoEmpresaPruebas() {
-    // Implementa el diálogo para seleccionar o cargar una empresa de pruebas
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Seleccionar empresa de pruebas'),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                // Aquí puedes listar las empresas de pruebas disponibles
-                // Por ejemplo, usando ListTile para cada empresa
-                ListTile(
-                  title: const Text('Empresa Prueba 1'),
-                  onTap: () {
-                    // Lógica para usar la empresa de prueba 1
-                    Navigator.pop(context);
-                  },
-                ),
-                ListTile(
-                  title: const Text('Empresa Prueba 2'),
-                  onTap: () {
-                    // Lógica para usar la empresa de prueba 2
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
-            ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: empresas.isEmpty
+                ? const Center(child: Text('No hay empresas disponibles'))
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: empresas.length,
+                    itemBuilder: (context, index) {
+                      final empresa = empresas[index];
+                      return ListTile(
+                        title: Text(empresa.nombre),
+                        subtitle: Text('Sector: ${empresa.sector}'),
+                        onTap: () {
+                          setState(() {
+                            empresaCreada = empresa;
+                          });
+                          Navigator.pop(context);
+                        },
+                      );
+                    },
+                  ),
           ),
           actions: [
             TextButton(

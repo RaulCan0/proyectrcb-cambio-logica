@@ -13,7 +13,7 @@ class TablaPuntuacionGlobal extends StatelessWidget {
 
   const TablaPuntuacionGlobal({
     super.key,
-    required this.promediosPorDimension,
+    required this.promediosPorDimension, required Map<String, double> puntuacionGlobal,
   });
 
   // Configuración (suma total = 800)

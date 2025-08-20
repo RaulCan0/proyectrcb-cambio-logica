@@ -66,6 +66,11 @@ class TablaResumenGlobal extends ConsumerWidget {
               padding: const EdgeInsets.all(16.0),
               child: TablaPuntuacionGlobal(
                 promediosPorDimension: promediosPorDimension,
+                puntuacionGlobal: {
+                  'Dimensión 1': 250.0,
+                  'Dimensión 2': 350.0,
+                  'Dimensión 3': 200.0,
+                },
               ),
             ),
             SingleChildScrollView(
@@ -79,6 +84,11 @@ class TablaResumenGlobal extends ConsumerWidget {
                       Expanded(
                         child: TablaPuntuacionGlobal(
                           promediosPorDimension: promediosPorDimension,
+                          puntuacionGlobal: {
+                            'Dimensión 1': 250.0,
+                            'Dimensión 2': 350.0,
+                            'Dimensión 3': 200.0,
+                          },
                         ),
                       ),
                       const SizedBox(width: 24),
@@ -93,11 +103,8 @@ class TablaResumenGlobal extends ConsumerWidget {
                   ),
                   const SizedBox(height: 32),
                   TablaTotales(
-                    valores: {
-                      'Puntos Globales': puntosGlobales,
-                      'Puntos Shingo': puntosShingo,
-                      'Total': puntosTotales,
-                    },
+                    promediosPorDimension: promediosPorDimension,
+                    resultadosShingo: ShingoCategorias.tablaShingo,
                   ),
                 ],
               ),
