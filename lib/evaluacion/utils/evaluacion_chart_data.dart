@@ -4,7 +4,6 @@ import 'package:applensys/evaluacion/charts/scatter_bubble_chart.dart';
 import 'package:applensys/evaluacion/models/comportamiento.dart';
 import 'package:applensys/evaluacion/models/principio.dart';
 import 'package:applensys/evaluacion/models/dimension.dart';
-import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 
 class EvaluacionChartData {
   static List<Dimension> buildDimensionesChartData(List<Map<String, dynamic>> dimensionesRaw) {
@@ -70,8 +69,9 @@ class EvaluacionChartData {
     }).toList();
   }
 
-  static Future<List<Map<String, dynamic>>> cargarPromediosSistemas() async {
-    final tabla = await EvaluacionCacheService().cargarTablas();
+  static Future<List<Map<String, dynamic>>> cargarPromediosSistemas([Map<String, Map<String, List<Map<String, dynamic>>>>? tablaData]) async {
+    // Use provided data or return empty list since cache is eliminated
+    final tabla = tablaData ?? <String, Map<String, List<Map<String, dynamic>>>>{};
     final Map<String, List<double>> acumulador = {};
 
     tabla.forEach((_, submap) {

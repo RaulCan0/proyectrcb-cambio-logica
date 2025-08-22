@@ -14,7 +14,6 @@ import 'package:applensys/evaluacion/utils/evaluacion_chart_data.dart';
 import 'package:applensys/evaluacion/models/dimension.dart';
 import 'package:applensys/evaluacion/models/principio.dart';
 import 'package:applensys/evaluacion/models/comportamiento.dart';
-import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:applensys/evaluacion/charts/scatter_bubble_chart.dart';
 import 'package:applensys/evaluacion/charts/grouped_bar_chart.dart';
 import 'package:applensys/evaluacion/charts/horizontal_bar_systems_chart.dart';
@@ -64,15 +63,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadCachedOrRemoteData() async {
-    final cacheService = EvaluacionCacheService();
-    await cacheService.init();
-
-    dynamic rawTables = await cacheService.cargarTablas();
-
-    if (rawTables != null) {
-      // Si viene un Map<String, Map<String, List<Map<String, dynamic>>>>
-      final List<Map<String, dynamic>> flattened = [];
-      if (rawTables is Map<String, dynamic>) {
+    // Load data directly from Supabase - cache is eliminated
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase.from('calificaciones').select();
+      
+      // Process the response data for charts
+      _data = List<Map<String, dynamic>>.from(response);
+      
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        // Handle error appropriately
+      });
+      debugPrint('Error loading data from Supabase: $e');
+    }
+  }
         for (final dimEntry in rawTables.entries) {
           final innerMap = dimEntry.value;
           if (innerMap is Map<String, dynamic>) {

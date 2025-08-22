@@ -1,6 +1,7 @@
-import 'package:applensys/evaluacion/services/supabase_service.dart';
+import 'package:applensys/evaluacion/providers/asociado_provider.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../models/asociado.dart';
@@ -10,7 +11,7 @@ import '../widgets/drawer_lensys.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class AsociadoScreen extends StatefulWidget {
+class AsociadoScreen extends ConsumerStatefulWidget {
   final Empresa empresa;
   final String dimensionId;
   final String evaluacionId;
@@ -23,18 +24,12 @@ class AsociadoScreen extends StatefulWidget {
   });
 
   @override
-  State<AsociadoScreen> createState() => _AsociadoScreenState();
+  ConsumerState<AsociadoScreen> createState() => _AsociadoScreenState();
 }
 
-class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProviderStateMixin {
+class _AsociadoScreenState extends ConsumerState<AsociadoScreen> with SingleTickerProviderStateMixin {
   final supabase = Supabase.instance.client;
-  final SupabaseService _supabaseService = SupabaseService();
-  final Map<String, double> progresoAsociado = {};
   final GlobalKey<ScaffoldState> _scaffoldKeyAsociado = GlobalKey<ScaffoldState>();
-
-  List<Asociado> ejecutivos = [];
-  List<Asociado> gerentes = [];
-  List<Asociado> miembros = [];
 
   TabController? _tabController;
 
@@ -42,31 +37,6 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _cargarAsociados();
-  }
-
-  Future<void> _cargarAsociados() async {
-    try {
-      final asociadosCargados = await _supabaseService.getAsociadosPorEmpresa(widget.empresa.id);
-      // Obtiene el progreso en paralelo
-      final futures = asociadosCargados.map((asociado) => _supabaseService.obtenerProgresoAsociado(
-        evaluacionId: widget.empresa.id,
-        asociadoId: asociado.id,
-        dimensionId: widget.dimensionId,
-      )).toList();
-      final progresos = await Future.wait(futures);
-      progresoAsociado.clear();
-      for (int i = 0; i < asociadosCargados.length; i++) {
-        progresoAsociado[asociadosCargados[i].id] = progresos[i];
-      }
-      ejecutivos = asociadosCargados.where((a) => a.cargo.toLowerCase() == 'ejecutivo').toList();
-      gerentes = asociadosCargados.where((a) => a.cargo.toLowerCase() == 'gerente').toList();
-      miembros = asociadosCargados.where((a) => a.cargo.toLowerCase() == 'miembro').toList();
-      if (mounted) setState(() {});
-    } catch (e) {
-      if (!mounted) return;
-      _mostrarAlerta('Error', 'Error al cargar asociados: $e');
-    }
   }
 
   void _mostrarAlerta(String titulo, String mensaje) {
@@ -182,36 +152,12 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
               );
 
               try {
-                await supabase.from('asociados').insert({
-                  'id': nuevoId,
-                  'nombre': nombre,
-                  'puesto': puesto,
-                  'cargo': cargoSeleccionado.toLowerCase(),
-                  'empresa_id': widget.empresa.id,
-                  'dimension_id': widget.dimensionId,
-                  'antiguedad': antiguedad,
-                });
+                final asociadoService = ref.read(asociadoServiceProvider);
+                await asociadoService.addAsociado(nuevo);
 
                 if (!mounted) return;
-                setState(() {
-                  switch (cargoSeleccionado.toLowerCase()) {
-                    case 'ejecutivo':
-                      ejecutivos.add(nuevo);
-                      _tabController?.index = 0;
-                      break;
-                    case 'gerente':
-                      gerentes.add(nuevo);
-                      _tabController?.index = 1;
-                      break;
-                    case 'miembro':
-                      miembros.add(nuevo);
-                      _tabController?.index = 2;
-                      break;
-                  }
-                  progresoAsociado[nuevoId] = 0.0;
-                });
-
-                if (mounted) Navigator.pop(context);
+                // No need to manually update lists, the provider will refresh
+                Navigator.pop(context);
                 _mostrarAlerta('Éxito', 'Asociado agregado exitosamente.');
               } catch (e) {
                 if (mounted) Navigator.pop(context);
@@ -238,7 +184,6 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
               itemCount: lista.length,
               itemBuilder: (context, index) {
                 final asociado = lista[index];
-                final progreso = progresoAsociado[asociado.id] ?? 0.0;
                 return Card(
                   child: ListTile(
                     leading: Icon(
@@ -255,39 +200,6 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
                             '${asociado.cargo.trim().toLowerCase() == "miembro" ? "MIEMBRO DE EQUIPO" : asociado.cargo.toUpperCase()} - ${asociado.puesto} - ${asociado.antiguedad} años',
                           style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey),
                         ),
-                       const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Progreso:',
-                              style: GoogleFonts.roboto(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white
-                                    : Colors.blueGrey[800],
-                              ),
-                            ),
-                            Text(
-                              '${(progreso * 100).toStringAsFixed(1)}% completado',
-                              style: GoogleFonts.roboto(
-                                fontWeight: FontWeight.w500,
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white
-                                    : Colors.blueGrey[700],
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 4),
-                        LinearProgressIndicator(
-                          value: progreso,
-                          backgroundColor: Colors.grey[300],
-                          color: Colors.green,
-                        ),
-                        Text('${(progreso * 100).toStringAsFixed(1)}% completado', style: GoogleFonts.roboto()),
-                      
                       ],
                     ),
                     onTap: () {
@@ -359,19 +271,49 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
       endDrawer: const DrawerLensys(),
       body: Padding( // Añadido Padding superior para el TabBarView
         padding: const EdgeInsets.only(top: 15.0),
-        child: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildLista(ejecutivos),
-            _buildLista(gerentes),
-            _buildLista(miembros),
-          ],
+        child: Consumer(
+          builder: (context, ref, child) {
+            final asociadosAsync = ref.watch(asociadosPorEmpresaProvider(widget.empresa.id));
+            
+            return asociadosAsync.when(
+              data: (asociados) {
+                final ejecutivos = asociados.where((a) => a.cargo.toLowerCase() == 'ejecutivo').toList();
+                final gerentes = asociados.where((a) => a.cargo.toLowerCase() == 'gerente').toList();
+                final miembros = asociados.where((a) => a.cargo.toLowerCase() == 'miembro').toList();
+                
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildLista(ejecutivos),
+                    _buildLista(gerentes),
+                    _buildLista(miembros),
+                  ],
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Error cargando asociados: $error'),
+                    ElevatedButton(
+                      onPressed: () => ref.refresh(asociadosPorEmpresaProvider(widget.empresa.id)),
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await _mostrarDialogoAgregarAsociado();
-          await _cargarAsociados();
+          // Refresh the provider to get updated data
+          ref.refresh(asociadosPorEmpresaProvider(widget.empresa.id));
         },
         backgroundColor: const Color(0xFF003056),
         shape: RoundedRectangleBorder(

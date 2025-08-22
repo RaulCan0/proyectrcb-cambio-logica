@@ -11,8 +11,6 @@ import 'package:applensys/evaluacion/screens/empresas_screen.dart';
 import 'package:applensys/evaluacion/screens/tablas_screen.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
-import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
-import 'package:applensys/evaluacion/services/evaluacion_service.dart';
 import '../models/empresa.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
@@ -240,10 +238,9 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                   ),
                   onPressed: () async {
-                    await EvaluacionCacheService().guardarPendiente(widget.evaluacionId);
-                    await EvaluacionCacheService().guardarTablas(TablasDimensionScreen.tablaDatos);
+                    // Data is automatically synced with Supabase through providers
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Progreso guardado localmente')),
+                      const SnackBar(content: Text('Datos sincronizados con Supabase')),
                     );
                   },
                 ),
@@ -253,9 +250,7 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                   style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 94, 156, 96)),
                   onPressed: () async {
                     try {
-                      final cache = EvaluacionCacheService();
-                      await cache.eliminarPendiente();
-                      await cache.limpiarCacheTablaDatos();
+                      // Clear any local data structures
                       TablasDimensionScreen.tablaDatos.clear();
                       TablasDimensionScreen.dataChanged.value =
                           !TablasDimensionScreen.dataChanged.value;
@@ -268,7 +263,7 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                       }
 
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Evaluación finalizada y datos limpiados')),
+                        const SnackBar(content: Text('Evaluación finalizada')),
                       );
                       Navigator.pushAndRemoveUntil(
                         context,

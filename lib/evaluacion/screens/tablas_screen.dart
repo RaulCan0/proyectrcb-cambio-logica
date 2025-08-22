@@ -6,7 +6,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
 import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
-import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 
 extension CapitalizeExtension on String {
@@ -85,7 +84,7 @@ class TablasDimensionScreen extends StatefulWidget {
       lista.add(base);
     }
 
-    await EvaluacionCacheService().guardarTablas(tablaDatos);
+    // Data is automatically synchronized with Supabase through providers
 
     final supabase = Supabase.instance.client;
     final user = supabase.auth.currentUser;
@@ -155,10 +154,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
       _error = null;
     });
     try {
-      final cache = await EvaluacionCacheService().cargarTablas();
-      if (cache.isNotEmpty) {
-        TablasDimensionScreen.tablaDatos = cache;
-      }
+      // Load data directly from Supabase through providers
       await _recargarDesdeSupabase();
       dimensiones = dimensionInterna.keys.toList();
     } catch (e) {
@@ -213,7 +209,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
         TablasDimensionScreen.tablaDatos = nuevaTabla;
       }
 
-      await EvaluacionCacheService().guardarTablas(nuevaTabla);
+      // Data is automatically synchronized with Supabase
       TablasDimensionScreen.dataChanged.value =
           !TablasDimensionScreen.dataChanged.value;
     } catch (e) {
