@@ -157,7 +157,6 @@ import 'package:applensys/auth/recovery.dart';
 import 'package:applensys/auth/register.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 import 'package:applensys/evaluacion/providers/theme_provider.dart';
-import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
 import 'package:applensys/home_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
