@@ -11,7 +11,6 @@ import 'package:applensys/custom/configurations.dart';
 import 'package:applensys/custom/service_locator.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 import 'package:applensys/evaluacion/providers/theme_provider.dart';
-import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:applensys/evaluacion/widgets/actualizaciones.dart';
 import 'package:applensys/evaluacion/services/local_storage_service.dart';
@@ -70,7 +69,6 @@ void main() async {
     anonKey: Configurations.mSupabaseKey,
   );
   setupLocator();
-  await locator<EvaluacionCacheService>().init();
 
   // Inicializar Hive para persistencia local
   final localStorageService = LocalStorageService();
@@ -159,7 +157,6 @@ import 'package:applensys/auth/recovery.dart';
 import 'package:applensys/auth/register.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 import 'package:applensys/evaluacion/providers/theme_provider.dart';
-import 'package:applensys/evaluacion/services/local/evaluacion_cache_service.dart';
 import 'package:applensys/home_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -182,7 +179,6 @@ void main() async {
   );
 
   setupLocator();
-  await locator<EvaluacionCacheService>().init();
 
   runApp(const ProviderScope(child: MyApp()));
 }

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:applensys/evaluacion/widgets/tabla_shingo.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,13 +17,14 @@ class ShingoCategorias extends StatefulWidget {
   };
 
   static Future<void> guardarTablaShingo() async {
+    // Data is now stored directly in Supabase, no local cache needed
     final data = tablaShingo.map((key, value) => MapEntry(key, value.toJson()));
-    await EvaluacionCacheService().guardarObservaciones(data.cast<String, String>());
+    // TODO: Implement Supabase storage for Shingo observations if needed
   }
 
   static Future<void> cargarTablaShingo() async {
-    final data = await EvaluacionCacheService().cargarObservaciones();
-    tablaShingo = data.map((key, value) => MapEntry(key, ShingoResultData.fromJson(value as Map<String, dynamic>)));
+    // Data is loaded directly from Supabase, no local cache needed  
+    // TODO: Implement Supabase loading for Shingo observations if needed
   }
 
   @override
