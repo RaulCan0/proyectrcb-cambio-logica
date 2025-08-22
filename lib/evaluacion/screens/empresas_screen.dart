@@ -1,37 +1,31 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:applensys/evaluacion/screens/historial_screen.dart';
-import 'package:applensys/evaluacion/services/empresa_service.dart';
+import 'package:applensys/evaluacion/providers/empresa_provider.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../models/empresa.dart';
 import 'dimensiones_screen.dart';
 
-// Servicio para empresas
-final empresaService = EmpresaService();
-
-class EmpresasScreen extends StatefulWidget {
+class EmpresasScreen extends ConsumerStatefulWidget {
   const EmpresasScreen({super.key});
 
   @override
-  State<EmpresasScreen> createState() => _EmpresasScreenState();
+  ConsumerState<EmpresasScreen> createState() => _EmpresasScreenState();
 }
 
-class _EmpresasScreenState extends State<EmpresasScreen> {
-  final List<Empresa> empresas = [];
-  bool isLoading = true;
+class _EmpresasScreenState extends ConsumerState<EmpresasScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String correoUsuario = '';
-  Empresa? empresaCreada;
 
   @override
   void initState() {
     super.initState();
     _verificarNuevoUsuario();
-    _cargarEmpresas();
     _obtenerCorreoUsuario();
   }
 Future<void> _verificarNuevoUsuario() async {
@@ -45,24 +39,6 @@ Future<void> _verificarNuevoUsuario() async {
   // Aquí podrías verificar si el usuario es nuevo y realizar alguna acción
 }
 
-  Future<void> _cargarEmpresas() async {
-    setState(() => isLoading = true);
-    try {
-      final loadedEmpresas = await empresaService.getEmpresas();
-      setState(() {
-        empresas.clear();
-        empresas.addAll(loadedEmpresas);
-        isLoading = false;
-        if (empresas.isNotEmpty) {
-          empresaCreada = empresas.first;
-        }
-      });
-    } catch (e) {
-      setState(() => isLoading = false);
-      debugPrint('Error cargando empresas: $e');
-    }
-  }
-
    Future<void> _obtenerCorreoUsuario() async {
     final session = Supabase.instance.client.auth.currentUser;
     setState(() {
@@ -70,12 +46,11 @@ Future<void> _verificarNuevoUsuario() async {
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final empresaCreada = empresas.isNotEmpty ? empresas.last : null;
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final empresasAsync = ref.watch(empresasProvider);
 
     return Scaffold(
       key: _scaffoldKey,
@@ -107,50 +82,68 @@ Future<void> _verificarNuevoUsuario() async {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
-          child: isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Bienvenido: $correoUsuario',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.black54,
-                      ),
+          child: empresasAsync.when(
+            data: (empresas) {
+              final empresaCreada = empresas.isNotEmpty ? empresas.last : null;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bienvenido: $correoUsuario',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : Colors.black54,
                     ),
-                    const SizedBox(height: 20),
-                    if (correoUsuario == 'sistemas@lensys.com.mx')
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.science),
-                        label: const Text('Modo pruebas: Usar/Cargar empresa'),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white),
-                        onPressed: () => _mostrarDialogoEmpresaPruebas(),
-                      ),
-                    const SizedBox(height: 20),
-                    if (empresaCreada != null)
-                      _buildButton(
-                        context,
-                        label: "Evaluación de ${empresaCreada.nombre}",
-                        onTap: () {
-                          final String nuevaEvaluacionId = const Uuid().v4();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => DimensionesScreen(empresa: empresaCreada, evaluacionId: nuevaEvaluacionId),
-                            ),
-                          );
-                        },
-                      ),
-                    const SizedBox(height: 20),
+                  ),
+                  const SizedBox(height: 20),
+                  if (correoUsuario == 'sistemas@lensys.com.mx')
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.science),
+                      label: const Text('Modo pruebas: Usar/Cargar empresa'),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white),
+                      onPressed: () => _mostrarDialogoEmpresaPruebas(),
+                    ),
+                  const SizedBox(height: 20),
+                  if (empresaCreada != null)
                     _buildButton(
                       context,
-                      label: 'HISTORIAL',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistorialScreen())),
+                      label: "Evaluación de ${empresaCreada!.nombre}",
+                      onTap: () {
+                        final String nuevaEvaluacionId = const Uuid().v4();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DimensionesScreen(empresa: empresaCreada, evaluacionId: nuevaEvaluacionId),
+                          ),
+                        );
+                      },
                     ),
-                  ],
-                ),
+                  const SizedBox(height: 20),
+                  _buildButton(
+                    context,
+                    label: 'HISTORIAL',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistorialScreen())),
+                  ),
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('Error cargando empresas: $error'),
+                  ElevatedButton(
+                    onPressed: () => ref.refresh(empresasProvider),
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -276,9 +269,11 @@ Future<void> _verificarNuevoUsuario() async {
                 );
 
                 try {
+                  final empresaService = ref.read(empresaServiceProvider);
                   await empresaService.addEmpresa(nuevaEmpresa);
                   if (!mounted) return;
-                  setState(() => empresas.add(nuevaEmpresa));
+                  // Refresh the provider to get updated data
+                  ref.refresh(empresasProvider);
                   Navigator.pop(context);
                 } catch (e) {
                   debugPrint('❌ Error al guardar empresa: $e');
