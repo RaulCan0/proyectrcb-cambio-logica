@@ -1,8 +1,8 @@
 // register_screen.dart
 
-import 'package:applensys/evaluacion/services/auth_service.dart';
 import 'package:flutter/material.dart';
-import '../auth/login.dart';
+import 'package:applensys/auth/login.dart';
+import 'package:applensys/auth/auth_service.dart';
 import '../custom/appcolors.dart';
 
 
@@ -16,10 +16,11 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameController = TextEditingController();
   bool _isLoading = false;
 
   Future<void> _register() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty || _usernameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Completa todos los campos')),
       );
@@ -38,8 +39,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final result = await supabaseService.register(
       _emailController.text,
       _passwordController.text,
-      // Add the required third argument here, for example a username or any required value
-      '', // Replace '' with the actual value needed
+      _usernameController.text,
     );
     setState(() => _isLoading = false);
 
@@ -104,6 +104,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _usernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre de usuario',
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

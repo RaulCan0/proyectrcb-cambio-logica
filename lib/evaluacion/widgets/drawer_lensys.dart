@@ -111,7 +111,7 @@ class DrawerLensys extends ConsumerWidget {
                         sector: 'Default Sector',
                         createdAt: DateTime.now(),
                       ),
-                      evaluacionId: '', empresaId: '', dimension: '', asociadoId: '',
+                      evaluacionId: '', 
                     ),
                   ),
                 );

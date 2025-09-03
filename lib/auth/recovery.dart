@@ -16,8 +16,7 @@ class _RecoveryState extends State<Recovery> {
   Future<void> _recover() async {
     setState(() => _isLoading = true);
     final result = await AuthService().resetPassword(_emailController.text);
-    // ignore: unrelated_type_equality_checks
-    final bool success = result == true;
+    final bool success = result['success'] == true;
     setState(() => _isLoading = false);
 
     if (!mounted) return;

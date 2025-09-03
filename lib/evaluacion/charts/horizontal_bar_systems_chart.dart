@@ -150,7 +150,7 @@ class HorizontalBarSystemsChart extends StatelessWidget {
                           getTitlesWidget: (_, _) => const SizedBox.shrink(),
                         ),
                       ),
-                      rightTitles: const AxisTitles(),
+                      rightTitles:  AxisTitles(),
                       bottomTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
@@ -162,7 +162,7 @@ class HorizontalBarSystemsChart extends StatelessWidget {
                               final formattedLabel = formatLabel(sistema);
 
                               return SideTitleWidget(
-                                meta: meta,
+                                axisSide: meta.axisSide,
                                 space: 12,
                                 child: SizedBox(
                                   width: 120,

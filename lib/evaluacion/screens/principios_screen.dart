@@ -1,94 +1,134 @@
-import '../models/asociado.dart';
-import '../models/principio_json.dart';
-import '../screens/tablas_screen.dart' as tablas_screen;
+import 'package:applensys/evaluacion/models/calificacion.dart';
+import 'package:applensys/evaluacion/models/principio_json.dart';
+import 'package:applensys/evaluacion/screens/tablas_screen.dart' as tablas_screen;
+import 'package:applensys/evaluacion/services/json_service.dart';
+import 'package:applensys/evaluacion/services/supabase_service.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
-import '../models/empresa.dart';
-import '../services/json_service.dart';
-import '../services/supabase_service.dart';
+
 import 'comportamiento_evaluacion_screen.dart';
 
 class PrincipiosScreen extends StatefulWidget {
-  final Empresa empresa;
-  final Asociado asociado;
+  final dynamic empresa;
+  final dynamic asociado;
   final String dimensionId;
+  final String evaluacionId;
 
   const PrincipiosScreen({
     super.key,
     required this.empresa,
     required this.asociado,
-    required this.dimensionId, required String evaluacionId,
+    required this.dimensionId,
+    required this.evaluacionId,
   });
 
   @override
-  State<PrincipiosScreen> createState() => _PrincipiosScreenState();
+  // ignore: library_private_types_in_public_api
+  _PrincipiosScreenState createState() => _PrincipiosScreenState();
 }
 
 class _PrincipiosScreenState extends State<PrincipiosScreen> {
   Map<String, List<PrincipioJson>> principiosUnicos = {};
   List<String> comportamientosEvaluados = [];
+  Map<String, Calificacion> calificacionesExistentes = {};
   bool cargando = true;
+
   final SupabaseService _supabaseService = SupabaseService();
+
+  String nombreDimension(String id) {
+    switch (id) {
+      case '1':
+        return 'IMPULSORES CULTURALES';
+      case '2':
+        return 'MEJORA CONTINUA';
+      case '3':
+        return 'ALINEAMIENTO EMPRESARIAL';
+      default:
+        return 'DIMENSIÓN DESCONOCIDA';
+    }
+  }
+
+  String obtenerNombreDimensionInterna(String id) {
+    switch (id) {
+      case '1':
+        return 'Dimensión 1';
+      case '2':
+        return 'Dimensión 2';
+      case '3':
+        return 'Dimensión 3';
+      default:
+        return 'Desconocida';
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    cargarPrincipios();
-    cargarComportamientosEvaluados();
+    cargarDatos();
   }
 
-  Future<void> cargarPrincipios() async {
+  Future<void> cargarDatos() async {
+    setState(() => cargando = true);
     try {
-      final List<dynamic> datos = await JsonService.cargarJson('t${widget.dimensionId}.json');
-      if (datos.isEmpty) throw Exception('El archivo JSON está vacío.');
+      final List<dynamic> datosJson = await JsonService.cargarJson('t${widget.dimensionId}.json');
+      if (datosJson.isEmpty) throw Exception('El archivo JSON de principios está vacío.');
 
-      final todos = datos.map((e) => PrincipioJson.fromJson(e)).toList();
-      final filtrados = todos.where((p) => p.nivel.toLowerCase().contains(widget.asociado.cargo.toLowerCase())).toList();
+      final todosLosPrincipios = datosJson.map((e) => PrincipioJson.fromJson(e)).toList();
+      final principiosFiltrados = todosLosPrincipios.where((p) => p.nivel.toLowerCase().contains(widget.asociado.cargo.toLowerCase())).toList();
 
       final agrupados = <String, List<PrincipioJson>>{};
-      for (var p in filtrados) {
-        agrupados.putIfAbsent(p.nombre, () => []).add(p);
+      for (var p in principiosFiltrados) {
+        agrupados.putIfAbsent(p.nombre.trim(), () => []).add(p);
+      }
+      agrupados.removeWhere((key, value) => value.isEmpty);
+
+      final todasLasCalificacionesDelAsociado = await _supabaseService.getCalificacionesPorAsociado(widget.asociado.id);
+
+      final tempComportamientosEvaluados = <String>[];
+      final tempCalificacionesExistentes = <String, Calificacion>{};
+      final int dimensionIdActual = int.tryParse(widget.dimensionId) ?? 1;
+
+      for (var cal in todasLasCalificacionesDelAsociado) {
+        if (cal.idDimension == dimensionIdActual) {
+          tempComportamientosEvaluados.add(cal.comportamiento);
+          tempCalificacionesExistentes[cal.comportamiento] = cal;
+        }
       }
 
       setState(() {
         principiosUnicos = agrupados;
+        comportamientosEvaluados = tempComportamientosEvaluados;
+        calificacionesExistentes = tempCalificacionesExistentes;
         cargando = false;
       });
     } catch (e) {
-      debugPrint('Error al cargar JSON: $e');
+      debugPrint('Error al cargar datos: $e');
+      if (mounted) {
+        setState(() => cargando = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar datos: $e')),
+        );
+      }
     }
   }
 
-  void cargarComportamientosEvaluados() async {
-    try {
-      final calificaciones = await _supabaseService.getCalificacionesPorAsociado(widget.asociado.id);
-      setState(() {
-        comportamientosEvaluados = calificaciones
-            .where((c) => c.idDimension.toString() == widget.dimensionId)
-            .map((c) => c.comportamiento)
-            .toList();
-      });
-    } catch (e) {
-      debugPrint('Error al cargar comportamientos evaluados: $e');
-    }
-  }
-
-  void agregarComportamientoEvaluado(String comportamiento) {
+  void agregarComportamientoEvaluado(String comportamiento, Calificacion calificacion) {
     if (!comportamientosEvaluados.contains(comportamiento)) {
       setState(() {
         comportamientosEvaluados.add(comportamiento);
+        calificacionesExistentes[comportamiento] = calificacion;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+
     return Scaffold(
       appBar: AppBar(
         title: Center(
           child: Text(
-            'Dimensión ${widget.dimensionId.toUpperCase()} - ASOCIADO: ${widget.asociado.nombre}',
+            nombreDimension(widget.dimensionId),
             style: const TextStyle(color: Colors.white),
           ),
         ),
@@ -96,16 +136,15 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.table_chart_outlined, color: Colors.white),
+            icon: const Icon(Icons.assessment, color: Colors.white),
             onPressed: () {
+              String nombreDimensionInternaActual = obtenerNombreDimensionInterna(widget.dimensionId);
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => tablas_screen.TablasDimensionScreen(
-                    empresaId: widget.empresa.id,
-                    dimension: '',
                     empresa: widget.empresa,
-                    evaluacionId: '', asociadoId: '',
+                    evaluacionId: widget.evaluacionId,
                   ),
                 ),
               );
@@ -127,9 +166,17 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                         margin: const EdgeInsets.symmetric(vertical: 16),
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
-                          child: Text(
-                            'Nivel: ${widget.asociado.cargo.toUpperCase()}',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          child: Center(
+                            child: Text(
+                              'EVALUANDO A: ${widget.asociado.nombre}\nNivel Organizacional: ${widget.asociado.cargo.toLowerCase() == 'miembro' ? 'MIEMBRO DE EQUIPO' : widget.asociado.cargo.toUpperCase()}',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontFamily: 'Roboto',
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         ),
                       ),
@@ -147,47 +194,57 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                                 }).length;
                                 final progreso = totalComportamientos == 0 ? 0.0 : evaluados / totalComportamientos;
 
-                                return Card(
-                                  elevation: 3,
+                                return Container(
                                   margin: const EdgeInsets.symmetric(vertical: 8.0),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: Color.lerp(const Color.fromARGB(255, 184, 179, 179), const Color.fromARGB(255, 154, 218, 156), progreso),
+                                    border: Border.all(color: const Color.fromARGB(255, 0, 0, 0), width: 2),
+                                  ),
                                   child: ExpansionTile(
+                                    tilePadding: EdgeInsets.symmetric(horizontal: screenSize.width * 0.04, vertical: screenSize.height * 0.02),
+                                    childrenPadding: const EdgeInsets.only(bottom: 10),
+                                    iconColor: Colors.black,
+                                    collapsedIconColor: Colors.black,
                                     title: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
                                         Text(
                                           entry.key,
+                                          textAlign: TextAlign.center,
                                           style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black,
                                           ),
                                         ),
-                                        const SizedBox(height: 8),
-                                        LinearProgressIndicator(
-                                          value: progreso,
-                                          backgroundColor: Colors.grey[300],
-                                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '$evaluados de $totalComportamientos comportamientos evaluados',
+                                          style: const TextStyle(fontSize: 14, color: Colors.black87),
+                                          textAlign: TextAlign.center,
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text('$evaluados de $totalComportamientos comportamientos evaluados'),
                                       ],
                                     ),
                                     children: entry.value.map((principio) {
                                       final comportamientoNombre = principio.benchmarkComportamiento.split(":").first.trim();
+                                      final calificacionActual = calificacionesExistentes[comportamientoNombre];
 
                                       return ListTile(
                                         title: Text(
                                           comportamientoNombre,
+                                          textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            color: comportamientosEvaluados.contains(comportamientoNombre)
-                                                ? const Color.fromARGB(255, 133, 190, 135)
-                                                : Colors.black,
-                                            fontWeight: comportamientosEvaluados.contains(comportamientoNombre)
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
+                                            color: comportamientosEvaluados.contains(comportamientoNombre) ? const Color.fromARGB(255, 79, 109, 80) : Colors.black,
+                                            fontWeight: comportamientosEvaluados.contains(comportamientoNombre) ? FontWeight.bold : FontWeight.normal,
                                           ),
                                         ),
-                                        subtitle: const Text('Ir a evaluación'),
-                                        trailing: const Icon(Icons.arrow_forward_ios),
+                                        subtitle: Text(
+                                          principio.benchmarkComportamiento.split(":").last.trim(),
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(color: Colors.black),
+                                        ),
+                                        trailing: const Icon(Icons.arrow_forward_ios, color: Colors.black),
                                         onTap: () async {
                                           final resultado = await Navigator.push<String>(
                                             context,
@@ -195,24 +252,17 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                                               builder: (_) => ComportamientoEvaluacionScreen(
                                                 principio: principio,
                                                 cargo: widget.asociado.cargo,
-                                                evaluacionId: const Uuid().v4(),
+                                                evaluacionId: widget.evaluacionId,
                                                 dimensionId: widget.dimensionId,
                                                 empresaId: widget.empresa.id,
                                                 asociadoId: widget.asociado.id,
+                                                dimension: widget.dimensionId,
+                                                calificacionExistente: calificacionActual,
                                               ),
                                             ),
                                           );
-                                          if (resultado != null && !comportamientosEvaluados.contains(resultado)) {
-                                            setState(() {
-                                              comportamientosEvaluados.add(resultado);
-                                            });
-                                            setStateTile(() {});
-                                            await _supabaseService.registrarComportamientoEvaluado(
-                                              empresaId: widget.empresa.id,
-                                              asociadoId: widget.asociado.id,
-                                              dimensionId: widget.dimensionId,
-                                              comportamiento: resultado,
-                                            );
+                                          if (resultado != null) {
+                                            cargarDatos();
                                           }
                                         },
                                       );
@@ -228,60 +278,5 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                   ),
                 ),
     );
-  }
-}
-
-class ProgresoAsociado {
-  static final Map<String, Set<String>> _map = {};
-  static void marcarComoEvaluado(String id, String comp) {
-    _map.putIfAbsent(id, () => {}).add(comp);
-  }
-
-  static bool estaEvaluado(String id, String comp) => _map[id]?.contains(comp) ?? false;
-}
-
-extension ProgresoSupabase on SupabaseService {
-  Future<void> registrarComportamientoEvaluado({
-    required String empresaId,
-    required String asociadoId,
-    required String dimensionId,
-    required String comportamiento,
-  }) async {
-    final response = await Supabase.instance.client
-        .from('calificaciones')
-        .select('id')
-        .eq('id_asociado', asociadoId)
-        .eq('id_empresa', empresaId)
-        .eq('id_dimension', int.tryParse(dimensionId) ?? 0)
-        .eq('comportamiento', comportamiento);
-
-    if (response.isEmpty) {
-      await Supabase.instance.client.from('calificaciones').insert({
-        'id': const Uuid().v4(),
-        'id_asociado': asociadoId,
-        'id_empresa': empresaId,
-        'id_dimension': int.tryParse(dimensionId),
-        'comportamiento': comportamiento,
-        'puntaje': 0,
-      });
-    }
-  }
-}
-
-extension EditarCalificacionSupabase on SupabaseService {
-  Future<void> actualizarPuntajeComportamiento({
-    required String empresaId,
-    required String asociadoId,
-    required String dimensionId,
-    required String comportamiento,
-    required int nuevoPuntaje,
-  }) async {
-    await Supabase.instance.client
-        .from('calificaciones')
-        .update({'puntaje': nuevoPuntaje})
-        .eq('id_asociado', asociadoId)
-        .eq('id_empresa', empresaId)
-        .eq('id_dimension', int.tryParse(dimensionId) ?? 0)
-        .eq('comportamiento', comportamiento);
   }
 }

@@ -2,6 +2,11 @@ import 'package:applensys/auth/loader.dart';
 import 'package:applensys/auth/login.dart';
 import 'package:applensys/auth/recovery.dart';
 import 'package:applensys/auth/register.dart';
+import 'package:applensys/evaluacion/providers/text_size_provider.dart';
+import 'package:applensys/evaluacion/providers/theme_provider.dart';
+import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
+import 'package:applensys/evaluacion/utils/release.dart';
+import 'package:applensys/evaluacion/widgets/actualizaciones.dart';
 import 'package:applensys/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,9 +14,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:applensys/custom/configurations.dart';
 import 'package:applensys/custom/service_locator.dart';
-import 'package:applensys/evaluacion/providers/text_size_provider.dart';
-import 'package:applensys/evaluacion/providers/theme_provider.dart';
-import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
+// Identidad de app y build actual (ajústalo desde tu CI/CD o Configurations)
+const String kAppId = 'lensys';
+const int kCurrentBuild = 45; // <-- tu buildCode actual (int)
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,18 +30,45 @@ void main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
+  @override
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  bool _checked = false;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_checked) {
+      _checked = true;
+      // Post-frame para tener contexto listo
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final state = await ref.read(
+          updateCheckerProvider((appId: kAppId, currentBuild: kCurrentBuild)).future,
+        );
+        if (state.hasUpdate && state.info != null && mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: !state.info!.obligatoria,
+            builder: (_) => ActualizacionDialog(info: state.info!),
+          );
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
     final textSize = ref.watch(textSizeProvider);
     final scaleFactor = textSize / 14.0;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'applensys',
+      title: 'LensysApp',
       themeMode: themeMode,
       builder: (context, child) {
         return MediaQuery(
@@ -71,12 +103,13 @@ class MyApp extends ConsumerWidget {
         '/login': (_) => const Login(),
         '/register': (_) => const RegisterScreen(),
         '/recovery': (_) => const Recovery(),
-        '/home': (_) => const HomeScreen(),
+        '/empresas': (_) => const HomeScreen(),
       },
       home: const LoaderScreen(),
     );
   }
 }
+
 /*
 import 'package:applensys/auth/loader.dart';
 import 'package:applensys/auth/login.dart';

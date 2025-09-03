@@ -13,6 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 class AsociadoScreen extends StatefulWidget {
   final Empresa empresa;
   final String dimensionId;
+  final String nombreDimension;
   final String evaluacionId;
 
   const AsociadoScreen({
@@ -20,6 +21,7 @@ class AsociadoScreen extends StatefulWidget {
     required this.empresa,
     required this.dimensionId,
     required this.evaluacionId,
+    required this.nombreDimension,
   });
 
   @override
@@ -332,7 +334,8 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
         ),
         title: Center(
           child: Text(
-            ' ${widget.empresa.nombre}',
+            '${widget.nombreDimension}-${widget.empresa.nombre}',
+
             style: GoogleFonts.roboto(color: Colors.white),
           ),
         ),

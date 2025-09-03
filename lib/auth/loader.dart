@@ -3,7 +3,6 @@ import 'package:applensys/auth/login.dart';
 import 'package:applensys/auth/register.dart';
 import 'package:flutter/material.dart';
 
-import '../custom/appcolors.dart';
 
 class LoaderScreen extends StatefulWidget {
   const LoaderScreen({super.key});
@@ -36,7 +35,7 @@ body: CustomPaint(
             children: [
               const SizedBox(height: 34),
               const Text(
-                'LENSYS TRAINING CENTER',
+                'LEAN TRAINING CENTER',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -45,7 +44,7 @@ body: CustomPaint(
               ),
               const SizedBox(height: 5),
               const Text(
-                'Bienvenido  \naplicación oficial',
+                'Bienvenido a la \naplicación oficial',
                 style: TextStyle(
                   fontSize: 18,
                   color: Colors.white70,
@@ -55,11 +54,8 @@ body: CustomPaint(
               Center(
                 child: SizedBox(
                   height: 140,
-                  child: Image.asset(
-                    Theme.of(context).brightness == Brightness.dark
-                        ? 'assets/logoblanco.webp'
-                        : 'assets/logo.webp',
-                  ),  ),
+                  child: Image.asset('assets/logo.webp'),
+                ),
               ),
               const Spacer(),
               Column(
@@ -108,12 +104,14 @@ body: CustomPaint(
 }
 
 class DiagonalPainter extends CustomPainter {
-  const DiagonalPainter({required Color color});
+  final Color color;
+
+  const DiagonalPainter({required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.primary // usa el color principal definido en AppColors
+      ..color = color
       ..style = PaintingStyle.fill;
 
     final path = Path()

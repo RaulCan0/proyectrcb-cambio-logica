@@ -204,12 +204,7 @@ class _DashboardView extends ConsumerWidget {
                 ),
                 Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.update, color: Colors.white),
-                      onPressed: () {
-                        ActualizacionesWidget.mostrarDialogoActualizacion(context);
-                      },
-                    ),
+                   
                     const _WeatherWidget(),
                   ],
                 ),

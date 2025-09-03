@@ -154,7 +154,7 @@ class GroupedBarChart extends StatelessWidget {
                                 final label = _wrapLabel(labels[index]);
 
                                 return SideTitleWidget(
-                                  meta: meta,
+                                  axisSide: meta.axisSide,
                                   space: 6,
                                   child: SizedBox(
                                     width: labelBoxWidths[index],
@@ -186,7 +186,7 @@ class GroupedBarChart extends StatelessWidget {
                               },
                             ),
                           ),
-                          rightTitles: const AxisTitles(
+                          rightTitles:  AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
                         ),

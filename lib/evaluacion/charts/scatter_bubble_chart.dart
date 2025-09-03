@@ -129,11 +129,8 @@ class ScatterBubbleChart extends StatelessWidget {
                 return ScatterSpot(
                   d.x, // Usar el valor real calculado
                   d.y,
-                  dotPainter: FlDotCirclePainter(
-                    radius: d.radius > 0 ? d.radius : dotRadius,
-                    color: d.color,
-                    strokeWidth: 0,
-                  ),
+                  color: d.color,
+                  radius: d.radius > 0 ? d.radius : dotRadius,
                 );
               }).toList(),
    scatterTouchData: ScatterTouchData(

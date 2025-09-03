@@ -1,19 +1,16 @@
-// ignore_for_file: use_build_context_synchronously
 
-
-import 'package:applensys/evaluacion/screens/shingo_result.dart' as shingo_screen;
-import 'package:applensys/evaluacion/services/shingoresult.dart' as shingo_service;
-import 'package:applensys/evaluacion/screens/tabla_resumen_global.dart';
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:applensys/evaluacion/screens/asociado_screen.dart';
-import 'package:applensys/evaluacion/screens/empresas_screen.dart';
-import 'package:applensys/evaluacion/screens/tablas_screen.dart';
-import 'package:applensys/evaluacion/widgets/chat_screen.dart';
-import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
+  import 'package:applensys/evaluacion/screens/shingo_result.dart' as shingo_screen;
+  import 'package:applensys/evaluacion/screens/tabla_resumen_global.dart';
 import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
-import 'package:applensys/evaluacion/services/evaluacion_service.dart';
-import '../models/empresa.dart';
+  import 'package:flutter/material.dart';
+  import 'package:shared_preferences/shared_preferences.dart';
+  import 'package:applensys/evaluacion/screens/asociado_screen.dart';
+  import 'package:applensys/evaluacion/screens/empresas_screen.dart';
+  import 'package:applensys/evaluacion/screens/tablas_screen.dart';
+  import 'package:applensys/evaluacion/widgets/chat_screen.dart';
+  import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
+  import 'package:applensys/evaluacion/services/evaluacion_service.dart';
+  import '../models/empresa.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
@@ -155,6 +152,7 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                         context,
                         MaterialPageRoute(
                           builder: (_) => AsociadoScreen(
+                            nombreDimension: dimension['nombre'],
                             empresa: widget.empresa,
                             dimensionId: dimension['id'],
                             evaluacionId: widget.evaluacionId,
@@ -170,38 +168,22 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                   cardItem = _buildCard(
                     icon: Icons.insert_chart,
                     color: const Color.fromARGB(255, 27, 31, 66),
-                    title: 'Resultados',
+                    title: 'Resultados Shingo',
                     onTap: () async {
-                      final categoriaSeleccionada = await Navigator.push<String>(
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => shingo_screen.ShingoCategorias(
-                            // Puedes agregar un callback para devolver la categoría seleccionada
-                          ),
+                          builder: (_) => shingo_screen.ShingoCategorias(),
                         ),
                       );
-                      if (categoriaSeleccionada != null) {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => shingo_screen.ShingoResultSheet(
-                              title: categoriaSeleccionada,
-                              initialData: shingo_screen.ShingoResultData(),
-                            ),
-                          ),
-                        );
-                      }
+                      if (mounted) setState(() {});
                     },
                   );
-                } // index == 4
+                }
                 else { // index == 4
-                  // Obtener promedios y resultados Shingo
                   final promediosPorDimension = AuxTablaService.obtenerPromediosPorDimensionYCargo();
-                  // Convertir los resultadosShingo al tipo correcto usando un mapeo
-                  final resultadosShingo = <String, shingo_screen.ShingoResultData>{};
-                  shingo_service.ShingoResultStore.resultados.forEach((key, value) {
-                    resultadosShingo[key] = shingo_screen.ShingoResultData(calificacion: value.calificacion);
-                  });
+                  // Usar la instancia global de resultados Shingo
+                  final resultadosShingo = shingo_screen.ShingoCategorias.tablaShingo;
                   cardItem = _buildCard(
                     icon: Icons.assignment_turned_in,
                     color: const Color.fromARGB(255, 2, 33, 58),
@@ -212,6 +194,7 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                         MaterialPageRoute(
                           builder: (_) => TablaResumenGlobal(
                             promediosPorDimension: promediosPorDimension,
+                            // Si necesitas pasar resultadosShingo, agrégalo aquí
                           ),
                         ),
                       );
@@ -242,6 +225,7 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                   onPressed: () async {
                     await EvaluacionCacheService().guardarPendiente(widget.evaluacionId);
                     await EvaluacionCacheService().guardarTablas(TablasDimensionScreen.tablaDatos);
+                    // ignore: use_build_context_synchronously
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Progreso guardado localmente')),
                     );
@@ -267,15 +251,18 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                         await prefs.setStringList('empresas_historial', hist);
                       }
 
+                      // ignore: use_build_context_synchronously
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Evaluación finalizada y datos limpiados')),
                       );
                       Navigator.pushAndRemoveUntil(
+                        // ignore: use_build_context_synchronously
                         context,
                         MaterialPageRoute(builder: (_) => const EmpresasScreen()),
                         (route) => false,
                       );
                     } catch (e) {
+                      // ignore: use_build_context_synchronously
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Error al finalizar: $e')),
                       );

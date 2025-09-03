@@ -175,27 +175,6 @@
             {
               "nombre": "Medida",
               "descripcion": "Medimos para saber dónde estamos en relación con nuestros objetivos."
-            },
-            {
-              "id": "4",
-              "nombre": "RESULTADOS ",
-              "principios": [
-                {
-                  "nombre": "Seguridad/Medio Ambiente/Moral"
-                },
-                {
-                  "nombre": "Satisfacción del Cliente"
-                },
-                {
-                  "nombre": "Calidad"
-                },
-                {
-                  "nombre": "Costo/Productividad"
-                },
-                {
-                  "nombre": "Entregas"
-                }
-              ]
             }
           ]
         }

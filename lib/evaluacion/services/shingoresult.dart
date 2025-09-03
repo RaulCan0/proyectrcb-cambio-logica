@@ -1,31 +1,54 @@
-
+import 'package:applensys/evaluacion/screens/shingo_result.dart';
 
 class ShingoResumenServiceAuto {
-  static List<ResumenCategoria> generarResumen() {
+  /// Genera el resumen de todas las categorías y subcategorías, calcula total.
+  static List<ResumenCategoria> generarResumen(Map<String, ShingoResultData> hojas) {
     final List<ResumenCategoria> resumen = [];
     double totalPts = 0;
+    int subcatCount = 0;
 
-    final hojas = ShingoResultStore.resultados;
+    // Contar total de subcategorías (si no hay, cuenta 1 por categoría principal)
+    hojas.forEach((_, cat) {
+      if (cat.subcategorias.isEmpty) {
+        subcatCount++;
+      } else {
+        subcatCount += cat.subcategorias.length;
+      }
+    });
+    final puntosPorSubcat = subcatCount > 0 ? 200 / subcatCount : 0;
 
-    for (final entry in hojas.entries) {
-      final nombre = entry.key;
-      final cal = entry.value.calificacion;
-      final puntos = cal * 8;
-      final porcentaje = puntos / 40 * 100;
-      totalPts += puntos;
+    // Llenar resumen
+    hojas.forEach((nombre, cat) {
+      if (cat.subcategorias.isEmpty) {
+        final puntos = cat.calificacion * puntosPorSubcat / 5;
+        final porcentaje = puntosPorSubcat > 0 ? puntos / puntosPorSubcat * 100 : 0;
+        totalPts += puntos;
+        resumen.add(ResumenCategoria(
+          categoria: nombre,
+          puntos: puntos,
+          porcentaje: porcentaje.toDouble(),
+          esTotal: false,
+        ));
+      } else {
+        cat.subcategorias.forEach((subnombre, subcat) {
+        final puntos = (cat.calificacion * puntosPorSubcat / 5).toDouble();
+final porcentaje = puntosPorSubcat > 0 ? (puntos / puntosPorSubcat * 100).toDouble() : 0.0;
 
-      resumen.add(ResumenCategoria(
-        categoria: nombre,
-        puntos: puntos.toDouble(),
-        porcentaje: porcentaje,
-        esTotal: false,
-      ));
-    }
+          totalPts += puntos;
+          resumen.add(ResumenCategoria(
+            categoria: '$nombre > $subnombre',
+            puntos: puntos,
+            porcentaje: porcentaje,
+            esTotal: false,
+          ));
+        });
+      }
+    });
 
     resumen.add(ResumenCategoria(
       categoria: 'TOTAL',
       puntos: totalPts,
-      porcentaje: totalPts / 200 * 100,
+      porcentaje: subcatCount > 0 ? totalPts / 200 * 100 : 0,
       esTotal: true,
     ));
 
@@ -45,19 +68,4 @@ class ResumenCategoria {
     required this.porcentaje,
     this.esTotal = false,
   });
-}
-
-class ShingoResultData {
-  final int calificacion;
-  ShingoResultData({this.calificacion = 0});
-}
-
-class ShingoResultStore {
-  static final Map<String, ShingoResultData> resultados = {
-    'seguridad/medio/ambiente/moral': ShingoResultData(),
-    'satisfacción del cliente': ShingoResultData(),
-    'calidad': ShingoResultData(),
-    'costo/productividad': ShingoResultData(),
-    'entregas': ShingoResultData(),
-  };
 }
