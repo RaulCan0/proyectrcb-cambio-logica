@@ -5,12 +5,20 @@ import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:applensys/evaluacion/models/empresa.dart';
 
+// Extensión para capitalizar cadenas
 extension CapitalizeExtension on String {
   String capitalize() {
     if (isEmpty) return this;
     return this[0].toUpperCase() + substring(1).toLowerCase();
   }
 }
+
+// Mapeo de nombre visible a clave interna
+const Map<String, String> dimensionInterna = {
+  'Dimensión 1': 'Dimensión 1',
+  'Dimensión 2': 'Dimensión 2',
+  'Dimensión 3': 'Dimensión 3',
+};
 
 class TablasDimensionScreen extends StatefulWidget {
   static Map<String, Map<String, List<Map<String, dynamic>>>> tablaDatos = {
@@ -19,32 +27,21 @@ class TablasDimensionScreen extends StatefulWidget {
     'Dimensión 3': {},
   };
 
-  /// Carga los datos persistidos desde cache al iniciar la app
-  static Future<void> cargarDatosPersistidos() async {
-    final data = await EvaluacionCacheService().cargarTablas();
-    if (data.isNotEmpty) {
-      tablaDatos = data;
-      dataChanged.value = !dataChanged.value;
-    }
-  }
-
   static final ValueNotifier<bool> dataChanged = ValueNotifier<bool>(false);
 
   final Empresa empresa;
-  final String evaluacionId; // Usado como clave en tablaDatos
-  final String asociadoId; // Nuevo: Hacerlo un campo de instancia si es necesario
-  final String empresaId;  // Nuevo: Hacerlo un campo de instancia si es necesario
-  final String dimension;  // Nuevo: Hacerlo un campo de instancia si es necesario (es el nombre interno de la dimensión)
+  final String evaluacionId;
 
   const TablasDimensionScreen({
     super.key,
     required this.empresa,
     required this.evaluacionId,
-    required this.asociadoId, // Ahora se asigna
-    required this.empresaId,  // Ahora se asigna
-    required this.dimension,  // Ahora se asigna
+    required String empresaId,
+    required String dimension,
+    required String idAsociado,
   });
 
+  /// Agrega un nuevo registro y notifica cambio
   static Future<void> actualizarDato(
     String evaluacionId, {
     required String dimension,
@@ -53,56 +50,28 @@ class TablasDimensionScreen extends StatefulWidget {
     required String cargo,
     required int valor,
     required List<String> sistemas,
-    required String dimensionId,
-    required String asociadoId,
     String? observaciones,
   }) async {
     final tablaDim = tablaDatos.putIfAbsent(dimension, () => {});
     final lista = tablaDim.putIfAbsent(evaluacionId, () => []);
-
-    final indiceExistente = lista.indexWhere((item) =>
-        item['principio'] == principio &&
-        item['comportamiento'] == comportamiento &&
-        item['cargo_raw'] == cargo &&
-        item['dimension_id'] == dimensionId &&
-        item['asociado_id'] == asociadoId);
-
-    if (indiceExistente != -1) {
-      lista[indiceExistente]['valor'] = valor;
-      lista[indiceExistente]['sistemas'] = sistemas;
-      lista[indiceExistente]['observaciones'] = observaciones ?? '';
-    } else {
-      lista.add({
-        'principio': principio,
-        'comportamiento': comportamiento,
-        'cargo': cargo.trim().capitalize(),
-        'cargo_raw': cargo,
-        'valor': valor,
-        'sistemas': sistemas,
-        'dimension_id': dimensionId,
-        'asociado_id': asociadoId,
-        'observaciones': observaciones ?? '',
-      });
-    }
-
+    lista.add({
+      'principio': principio,
+      'comportamiento': comportamiento,
+      'cargo': cargo.trim().capitalize(),
+      'valor': valor,
+      'sistemas': sistemas,
+      'observaciones': observaciones ?? '', // Siempre agrega observaciones
+    });
     await EvaluacionCacheService().guardarTablas(tablaDatos);
     dataChanged.value = !dataChanged.value;
   }
-
-  
 
   @override
   State<TablasDimensionScreen> createState() => _TablasDimensionScreenState();
 }
 
-class _TablasDimensionScreenState extends State<TablasDimensionScreen> with TickerProviderStateMixin {
-  final Map<String, String> dimensionInterna = {
-    'IMPULSORES CULTURALES': 'Dimensión 1',
-    'MEJORA CONTINUA': 'Dimensión 2',
-    'ALINEAMIENTO EMPRESARIAL': 'Dimensión 3',
-  };
-
-  List<String> dimensiones = [];
+class _TablasDimensionScreenState extends State<TablasDimensionScreen> {
+  final List<String> dimensiones = ['Dimensión 1', 'Dimensión 2', 'Dimensión 3'];
 
   @override
   void initState() {
@@ -124,11 +93,6 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
     if (data.values.any((m) => m.isNotEmpty)) {
       setState(() => TablasDimensionScreen.tablaDatos = data);
     }
-    if (mounted) {
-      setState(() {
-        dimensiones = dimensionInterna.keys.toList();
-      });
-    }
   }
 
   String _normalizeNivel(String raw) {
@@ -140,20 +104,17 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
 
   @override
   Widget build(BuildContext context) {
-    dimensiones = dimensionInterna.keys.toList();
-
     return DefaultTabController(
       length: dimensiones.length,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: const Color(0xFF003056),
-            title: const Center(
-            child: Text(
-              'Resultados en tiempo real',
-              style: TextStyle(color: Colors.white),
-            ),
-            ),
-          iconTheme: const IconThemeData(color: Colors.white),
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: const Text('Resultados en tiempo real', style: TextStyle(color: Colors.white)),
           actions: [
             IconButton(
               icon: const Icon(Icons.assessment, color: Colors.white),
@@ -178,10 +139,8 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
             ),
           ],
           bottom: TabBar(
-            indicatorColor: Colors.grey.shade300,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.grey.shade300,
-            tabs: dimensiones.map((d) => Tab(child: Text(d))).toList(),
+            indicatorColor: Colors.white,
+            tabs: dimensiones.map((d) => Tab(text: d)).toList(),
           ),
         ),
         endDrawer: const DrawerLensys(),
@@ -213,7 +172,6 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
                   if (filas.isEmpty) {
                     return const Center(child: Text('No hay datos para mostrar'));
                   }
-
                   return InteractiveViewer(
                     constrained: false,
                     scaleEnabled: false,
@@ -224,19 +182,15 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
                         padding: const EdgeInsets.all(8),
                         child: DataTable(
                           columnSpacing: 36,
-                          headingRowColor: WidgetStateProperty.resolveWith(
-                            (states) => Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey.shade800
-                                : const Color(0xFF003056),
-                          ),
+                          headingRowColor: WidgetStateProperty.all(const Color(0xFF003056)),
                           dataRowColor: WidgetStateProperty.all(Colors.grey.shade200),
                           border: TableBorder.all(color: const Color(0xFF003056)),
                           columns: const [
                             DataColumn(label: Text('Principio', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Comportamiento', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Ejecutivo', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Gerente', style: TextStyle(color: Colors.white))),
-                            DataColumn(label: Text('Miembro', style: TextStyle(color: Colors.white))),
+                            DataColumn(label: Text('Ejecutivos', style: TextStyle(color: Colors.white))),
+                            DataColumn(label: Text('Gerentes', style: TextStyle(color: Colors.white))),
+                            DataColumn(label: Text('Miembros', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Ejecutivo Sistemas', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Gerente Sistemas', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Miembro Sistemas', style: TextStyle(color: Colors.white))),
@@ -257,7 +211,6 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       ),
     );
   }
-
 
   void _irADetalles(BuildContext context) {
     final currentIndex = DefaultTabController.of(context).index;
@@ -502,5 +455,4 @@ class SistemasPromedio {
     }
 
     return total; // Máximo 800
-  }
-}
+  }}
