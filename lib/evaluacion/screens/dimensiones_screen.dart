@@ -96,10 +96,10 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
           },
         ),
         title: Text(
-          'Dimensiones - ${widget.empresa.nombre}',
+          'EVALUACION EXCELENCIA OPERACIONAL - ${widget.empresa.nombre}',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 20,
+            fontSize: 18,
             color: Colors.white,
           ),
         ),
@@ -157,6 +157,7 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                           builder: (_) => AsociadoScreen(
                             empresa: widget.empresa,
                             dimensionId: dimension['id'],
+                            nombreDimension: dimension['nombre'],
                             evaluacionId: widget.evaluacionId,
                           ),
                         ),

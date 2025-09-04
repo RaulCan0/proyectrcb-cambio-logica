@@ -88,8 +88,8 @@ Future<void> _verificarNuevoUsuario() async {
           onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false),
         ),
         title: const Text(
-          'LensysApp',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white),
+          'LENSYS ENTERPRISE SYSTEM\'S',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
         ),
         actions: [
           IconButton(

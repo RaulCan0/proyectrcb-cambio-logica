@@ -2,6 +2,7 @@
 // ignore_for_file: unused_import, use_build_context_synchronously
 
 import 'dart:convert';
+import 'package:applensys/evaluacion/services/releases.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -204,12 +205,7 @@ class _DashboardView extends ConsumerWidget {
                 ),
                 Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.update, color: Colors.white),
-                      onPressed: () {
-                        ActualizacionesWidget.mostrarDialogoActualizacion(context);
-                      },
-                    ),
+                    
                     const _WeatherWidget(),
                   ],
                 ),

@@ -29,7 +29,7 @@ class NotificationService {
       await _plugin.initialize(
         initSettings,
         onDidReceiveNotificationResponse: (response) {
-          // Aquí puedes manejar acciones al hacer clic
+          // Manejo del clic en notificación
         },
       );
 
@@ -93,8 +93,10 @@ class NotificationService {
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // ✅ este reemplaza al deprecated
-      payload: payload,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      // Los siguientes ya no son necesarios si estás usando la versión moderna del plugin.
+      // uiLocalNotificationDateInterpretation: NotificationDateInterpretation.absoluteTime,
+      // matchDateTimeComponents: DateTimeComponents.time, // <-- Solo si es necesario repetir
     );
   }
 

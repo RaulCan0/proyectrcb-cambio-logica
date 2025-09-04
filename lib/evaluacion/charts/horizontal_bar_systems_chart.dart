@@ -55,7 +55,7 @@ class HorizontalBarSystemsChart extends StatelessWidget {
     'Medición',
     'Planificación y Programación',
     'Recompensas',
-    'Reconocimientos',
+    'Reconocimiento',
     'Seguridad',
     'Sistemas de Mejora',
     'Solución de Problemas',

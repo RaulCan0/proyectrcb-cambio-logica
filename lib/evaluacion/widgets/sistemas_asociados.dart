@@ -10,7 +10,7 @@ class SistemasScreen extends StatefulWidget {
   State<SistemasScreen> createState() => _SistemasScreenState();
 }
 
-class _SistemasScreenState extends State<SistemasScreen> {
+class _SistemasScreenState extends State<SistemasScreen> with WidgetsBindingObserver {
   final TextEditingController nuevoController = TextEditingController();
   final TextEditingController busquedaController = TextEditingController();
   final supabase = Supabase.instance.client;
@@ -19,19 +19,32 @@ class _SistemasScreenState extends State<SistemasScreen> {
   List<Map<String, dynamic>> sistemasFiltrados = [];
   Set<int> seleccionados = {};
   bool isLoading = true;
+  bool tecladoVisible = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     busquedaController.addListener(_filtrarBusqueda);
     cargarSistemas();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     nuevoController.dispose();
     busquedaController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (!mounted) return;
+    // Cambiado para Flutter 3.7+: usa View.of(context)
+    final viewInsets = View.of(context).viewInsets.bottom;
+    setState(() {
+      tecladoVisible = viewInsets > 0.0;
+    });
   }
 
   void _filtrarBusqueda() {
@@ -51,16 +64,15 @@ class _SistemasScreenState extends State<SistemasScreen> {
       final response = await supabase.from('sistemas_asociados').select();
       final lista = List<Map<String, dynamic>>.from(response);
       lista.sort((a, b) => a['nombre'].toString().compareTo(b['nombre'].toString()));
-
       if (!mounted) return;
-    setState(() {
+      setState(() {
         sistemas = lista;
         sistemasFiltrados = List.from(lista);
         isLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al cargar: $e');
     }
   }
@@ -76,7 +88,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
           .select()
           .single();
       if (!mounted) return;
-    setState(() {
+      setState(() {
         sistemas.add(nuevo);
         sistemas.sort((a, b) => a['nombre'].toString().compareTo(b['nombre'].toString()));
         _filtrarBusqueda();
@@ -85,7 +97,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al agregar: $e');
     }
   }
@@ -96,7 +108,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
     try {
       await supabase.from('sistemas_asociados').delete().eq('id', id);
       if (!mounted) return;
-    setState(() {
+      setState(() {
         sistemas.removeWhere((s) => s['id'] == id);
         seleccionados.remove(id);
         _filtrarBusqueda();
@@ -104,7 +116,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al eliminar: $e');
     }
   }
@@ -122,14 +134,14 @@ class _SistemasScreenState extends State<SistemasScreen> {
           .single();
       final idx = sistemas.indexWhere((s) => s['id'] == id);
       if (!mounted) return;
-    setState(() {
+      setState(() {
         sistemas[idx] = actualizado;
         _filtrarBusqueda();
         isLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al editar: $e');
     }
   }
@@ -142,7 +154,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(sistema['nombre']), // Modificado: Se elimina "Sistema: "
+        title: Text(sistema['nombre']),
         content: const Text('¿Qué deseas hacer?'),
         actions: [
           TextButton(
@@ -150,7 +162,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
               Navigator.pop(context);
               _mostrarEditarDialogo(sistema);
             },
-            child: const Text('Editar'), // Modificado: Se quita el estilo explícito si lo tuviera, para usar el color por defecto.
+            child: const Text('Editar'),
           ),
           TextButton(
             onPressed: () {
@@ -201,10 +213,10 @@ class _SistemasScreenState extends State<SistemasScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect( // Envolver con ClipRRect
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(10.0)), // Definir el radio para las esquinas superiores
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(10.0)),
       child: SizedBox(
-        height: 380,
+        height: tecladoVisible ? 550 : 380,
         child: Scaffold(
           appBar: AppBar(
             backgroundColor: const Color(0xFF003056),
@@ -248,7 +260,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
                                       value: seleccionados.contains(sistema['id']),
                                       onChanged: (sel) {
                                         if (!mounted) return;
-    setState(() {
+                                        setState(() {
                                           if (sel == true) {
                                             seleccionados.add(sistema['id']);
                                           } else {

@@ -1,14 +1,15 @@
-
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class EvaluacionCacheService {
-  static const _keyEvaluacionPendiente      = 'evaluacion_pendiente';
-  static const _keyTablaDatos               = 'tabla_datos';
-  static const _keyEvaluacionAsociados      = 'evaluacion_asociados';
-  static const _keyEvaluacionPrincipios     = 'evaluacion_principios';
-  static const _keyEvaluacionComportamientos= 'evaluacion_comportamientos';
-  static const _keyEvaluacionDetalles       = 'evaluacion_detalles';
+  // Claves únicas para evitar conflictos y asegurar integridad
+  static const _keyEvaluacionPendiente       = 'evaluacion_pendiente';
+  static const _keyTablaDatos                = 'tabla_datos';
+  static const _keyEvaluacionAsociados       = 'evaluacion_asociados';
+  static const _keyEvaluacionPrincipios      = 'evaluacion_principios';
+  static const _keyEvaluacionComportamientos = 'evaluacion_comportamientos';
+  static const _keyEvaluacionDetalles        = 'evaluacion_detalles';
+  static const _keyObservaciones             = 'observaciones';
 
   SharedPreferences? _prefs;
 
@@ -16,31 +17,29 @@ class EvaluacionCacheService {
     _prefs ??= await SharedPreferences.getInstance();
   }
 
+  /// Guarda el ID de evaluación pendiente
   Future<void> guardarPendiente(String evaluacionId) async {
     await init();
     await _prefs!.setString(_keyEvaluacionPendiente, evaluacionId);
   }
 
+  /// Obtiene el ID de evaluación pendiente
   Future<String?> obtenerPendiente() async {
     await init();
     return _prefs!.getString(_keyEvaluacionPendiente);
   }
 
+  /// Elimina únicamente el ID de evaluación pendiente
   Future<void> eliminarPendiente() async {
     await init();
     await _prefs!.remove(_keyEvaluacionPendiente);
-    // Ya no eliminamos _keyTablaDatos aquí para que persistan los datos de la tabla
-    // await _prefs!.remove(_keyTablaDatos); 
   }
 
-  /// Guarda las tablas completas de progreso (estructura tablaDatos)
+  /// Guarda las tablas completas (estructura tablaDatos)
   Future<void> guardarTablas(
-    Map<String, Map<String, List<Map<String, dynamic>>>> data
-  ) async {
+      Map<String, Map<String, List<Map<String, dynamic>>>> data) async {
     await init();
-    final encoded = jsonEncode(data.map((dim, map) =>
-      MapEntry(dim, map.map((id, filas) => MapEntry(id, filas)))
-    ));
+    final encoded = jsonEncode(data);
     await _prefs!.setString(_keyTablaDatos, encoded);
   }
 
@@ -60,14 +59,11 @@ class EvaluacionCacheService {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       return decoded.map((dim, map) {
         final sub = (map as Map<String, dynamic>).map((id, filas) =>
-          MapEntry(id, List<Map<String, dynamic>>.from(
-            (filas as List).map((e) => Map<String, dynamic>.from(e)),
-          ))
-        );
+            MapEntry(id, List<Map<String, dynamic>>.from(
+                (filas as List).map((e) => Map<String, dynamic>.from(e)))));
         return MapEntry(dim, sub);
       });
     } catch (e) {
-      // Si hay error, retorna estructura vacía
       return {
         'Dimensión 1': {},
         'Dimensión 2': {},
@@ -76,7 +72,7 @@ class EvaluacionCacheService {
     }
   }
 
-  /// NUEVO: elimina solo los datos de tabla de cache
+  /// Limpia solo la tablaDatos cacheada
   Future<void> limpiarCacheTablaDatos() async {
     await init();
     await _prefs!.remove(_keyTablaDatos);
@@ -91,18 +87,20 @@ class EvaluacionCacheService {
     await _prefs!.remove(_keyEvaluacionPrincipios);
     await _prefs!.remove(_keyEvaluacionComportamientos);
     await _prefs!.remove(_keyEvaluacionDetalles);
+    await _prefs!.remove(_keyObservaciones);
   }
+
+  /// Calcula los promedios por sistema en base a los datos guardados
   Future<List<Map<String, dynamic>>> cargarPromediosSistemas() async {
     final tabla = await cargarTablas();
     final Map<String, List<double>> acumulador = {};
+
     tabla.forEach((_, submap) {
       submap.values.expand((rows) => rows).forEach((item) {
-        // Corregido: Leer la lista de sistemas de la clave 'sistemas' (plural)
-        // y luego iterar sobre cada sistema en esa lista.
         final List<dynamic> sistemasDelItemRaw = item['sistemas'] as List<dynamic>? ?? [];
         final List<String> sistemasDelItem = sistemasDelItemRaw.map((s) => s.toString()).toList();
 
-        final rawValor = item['valor']; // 'valor' es la clave para la calificación/puntaje
+        final rawValor = item['valor'];
         final valorNumerico = rawValor is num
             ? rawValor.toDouble()
             : double.tryParse(rawValor.toString()) ?? 0.0;
@@ -126,12 +124,10 @@ class EvaluacionCacheService {
         });
       }
     });
-    // Opcional: ordenar promedios
+
     promedios.sort((a, b) => (b['promedio'] as double).compareTo(a['promedio'] as double));
     return promedios;
   }
-  // Agrega la clave para observaciones
-  static const _keyObservaciones = 'evaluacion_observaciones';
 
   /// Guarda observaciones asociadas a una evaluación
   Future<void> guardarObservaciones(Map<String, String> observaciones) async {
@@ -144,9 +140,7 @@ class EvaluacionCacheService {
   Future<Map<String, String>> cargarObservaciones() async {
     await init();
     final raw = _prefs!.getString(_keyObservaciones);
-    if (raw == null || raw.isEmpty) {
-      return {};
-    }
+    if (raw == null || raw.isEmpty) return {};
     try {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       return decoded.map((key, value) => MapEntry(key, value as String));
@@ -161,10 +155,3 @@ class EvaluacionCacheService {
     await _prefs!.remove(_keyObservaciones);
   }
 }
-
-
-
-
-
-
-

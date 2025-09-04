@@ -14,12 +14,14 @@ class AsociadoScreen extends StatefulWidget {
   final Empresa empresa;
   final String dimensionId;
   final String evaluacionId;
+  final String nombreDimension;
 
   const AsociadoScreen({
     super.key,
     required this.empresa,
     required this.dimensionId,
     required this.evaluacionId,
+    required this.nombreDimension,
   });
 
   @override
@@ -332,8 +334,8 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
         ),
         title: Center(
           child: Text(
-            ' ${widget.empresa.nombre}',
-            style: GoogleFonts.roboto(color: Colors.white),
+            'DIMENSION ${widget.nombreDimension} - ${widget.empresa.nombre}',
+            style: GoogleFonts.roboto(color: Colors.white, fontSize: 17),
           ),
         ),
         actions: [
