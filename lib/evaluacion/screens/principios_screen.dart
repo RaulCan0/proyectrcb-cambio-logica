@@ -1,12 +1,13 @@
-import '../models/asociado.dart';
-import '../models/principio_json.dart';
-import '../screens/tablas_screen.dart' as tablas_screen;
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
-import '../models/empresa.dart';
-import '../services/json_service.dart';
-import '../services/supabase_service.dart';
+
+import 'package:applensys/evaluacion/models/asociado.dart';
+import 'package:applensys/evaluacion/models/calificacion.dart';
+import 'package:applensys/evaluacion/models/principio_json.dart';
+import 'package:applensys/evaluacion/models/empresa.dart';
+
+import 'package:applensys/evaluacion/screens/tablas_screen.dart' as tablas_screen;
+import 'package:applensys/evaluacion/services/json_service.dart';
+import 'package:applensys/evaluacion/services/supabase_service.dart';
 import 'comportamiento_evaluacion_screen.dart';
 
 class PrincipiosScreen extends StatefulWidget {
@@ -28,260 +29,251 @@ class PrincipiosScreen extends StatefulWidget {
 class _PrincipiosScreenState extends State<PrincipiosScreen> {
   Map<String, List<PrincipioJson>> principiosUnicos = {};
   List<String> comportamientosEvaluados = [];
+  Map<String, Calificacion> calificacionesExistentes = {};
   bool cargando = true;
   final SupabaseService _supabaseService = SupabaseService();
 
   @override
   void initState() {
     super.initState();
-    cargarPrincipios();
-    cargarComportamientosEvaluados();
+    cargarDatos();
   }
 
-  Future<void> cargarPrincipios() async {
-    try {
-      final List<dynamic> datos = await JsonService.cargarJson('t${widget.dimensionId}.json');
-      if (datos.isEmpty) throw Exception('El archivo JSON está vacío.');
+  String nombreDimension(String id) {
+    switch (id) {
+      case '1':
+        return 'IMPULSORES CULTURALES';
+      case '2':
+        return 'MEJORA CONTINUA';
+      case '3':
+        return 'ALINEAMIENTO EMPRESARIAL';
+      default:
+        return 'DIMENSIÓN DESCONOCIDA';
+    }
+  }
 
-      final todos = datos.map((e) => PrincipioJson.fromJson(e)).toList();
-      final filtrados = todos.where((p) => p.nivel.toLowerCase().contains(widget.asociado.cargo.toLowerCase())).toList();
+  String obtenerNombreDimensionInterna(String id) {
+    switch (id) {
+      case '1':
+        return 'Dimensión 1';
+      case '2':
+        return 'Dimensión 2';
+      case '3':
+        return 'Dimensión 3';
+      default:
+        return 'Dimensión X';
+    }
+  }
+
+  Future<void> cargarDatos() async {
+    setState(() => cargando = true);
+    try {
+      final datosJson = await JsonService.cargarJson('t${widget.dimensionId}.json');
+      final todosLosPrincipios = datosJson.map((e) => PrincipioJson.fromJson(e)).toList();
+      final principiosFiltrados = todosLosPrincipios
+          .where((p) => p.nivel.toLowerCase().contains(widget.asociado.cargo.toLowerCase()))
+          .toList();
 
       final agrupados = <String, List<PrincipioJson>>{};
-      for (var p in filtrados) {
-        agrupados.putIfAbsent(p.nombre, () => []).add(p);
+      for (var p in principiosFiltrados) {
+        agrupados.putIfAbsent(p.nombre.trim(), () => []).add(p);
+      }
+      agrupados.removeWhere((_, v) => v.isEmpty);
+
+      final calificaciones = await _supabaseService.getCalificacionesPorAsociado(widget.asociado.id);
+      final tempComps = <String>[];
+      final tempCals = <String, Calificacion>{};
+      final int dimActual = int.tryParse(widget.dimensionId) ?? 1;
+
+      for (var cal in calificaciones) {
+        if (cal.idDimension == dimActual) {
+          tempComps.add(cal.comportamiento);
+          tempCals[cal.comportamiento] = cal;
+        }
       }
 
       setState(() {
         principiosUnicos = agrupados;
+        comportamientosEvaluados = tempComps;
+        calificacionesExistentes = tempCals;
         cargando = false;
       });
     } catch (e) {
-      debugPrint('Error al cargar JSON: $e');
+      debugPrint('Error al cargar datos: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al cargar datos: $e')));
+        setState(() => cargando = false);
+      }
     }
   }
 
-  void cargarComportamientosEvaluados() async {
-    try {
-      final calificaciones = await _supabaseService.getCalificacionesPorAsociado(widget.asociado.id);
-      setState(() {
-        comportamientosEvaluados = calificaciones
-            .where((c) => c.idDimension.toString() == widget.dimensionId)
-            .map((c) => c.comportamiento)
-            .toList();
-      });
-    } catch (e) {
-      debugPrint('Error al cargar comportamientos evaluados: $e');
-    }
-  }
-
-  void agregarComportamientoEvaluado(String comportamiento) {
+  void agregarComportamientoEvaluado(String comportamiento, Calificacion calificacion) {
     if (!comportamientosEvaluados.contains(comportamiento)) {
       setState(() {
         comportamientosEvaluados.add(comportamiento);
+        calificacionesExistentes[comportamiento] = calificacion;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Center(
-          child: Text(
-            'Dimensión ${widget.dimensionId.toUpperCase()} - ASOCIADO: ${widget.asociado.nombre}',
-            style: const TextStyle(color: Colors.white),
+    final screenSize = MediaQuery.of(context).size;
+
+    return SafeArea(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Center(
+            child: Text(
+              nombreDimension(widget.dimensionId),
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
-        ),
-        backgroundColor: const Color(0xFF003056),
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.table_chart_outlined, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => tablas_screen.TablasDimensionScreen(
-                    empresaId: widget.empresa.id,
-                    dimension: '',
-                    empresa: widget.empresa,
-                    evaluacionId: '', asociadoId: '',
+          backgroundColor: const Color(0xFF003056),
+          iconTheme: const IconThemeData(color: Colors.white),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.assessment, color: Colors.white),
+              onPressed: () {
+                final nombreInterno = obtenerNombreDimensionInterna(widget.dimensionId);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => tablas_screen.TablasDimensionScreen(
+                      empresa: widget.empresa,
+                      empresaId: widget.empresa.id,
+                      dimension: nombreInterno,
+                      evaluacionId: '',
+                      asociadoId: '',
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: cargando
-          ? const Center(child: CircularProgressIndicator())
-          : principiosUnicos.isEmpty
-              ? const Center(child: Text('No hay principios para este nivel'))
-              : Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Card(
-                        elevation: 4,
-                        margin: const EdgeInsets.symmetric(vertical: 16),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Text(
-                            'Nivel: ${widget.asociado.cargo.toUpperCase()}',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                );
+              },
+            ),
+          ],
+        ),
+        body: cargando
+            ? const Center(child: CircularProgressIndicator())
+            : principiosUnicos.isEmpty
+                ? const Center(child: Text('No hay principios para este nivel'))
+                : Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        Card(
+                          elevation: 4,
+                          margin: const EdgeInsets.symmetric(vertical: 16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Center(
+                              child: Text(
+                                'EVALUANDO A: ${widget.asociado.nombre}\nNivel Organizacional: ${widget.asociado.cargo.toUpperCase()}',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.white
+                                      : Colors.black87,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: principiosUnicos.length,
-                          itemBuilder: (context, index) {
-                            final entry = principiosUnicos.entries.elementAt(index);
-                            return StatefulBuilder(
-                              builder: (context, setStateTile) {
-                                final totalComportamientos = entry.value.length;
-                                final evaluados = entry.value.where((p) {
-                                  final comportamientoNombre = p.benchmarkComportamiento.split(":").first.trim();
-                                  return comportamientosEvaluados.contains(comportamientoNombre);
-                                }).length;
-                                final progreso = totalComportamientos == 0 ? 0.0 : evaluados / totalComportamientos;
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: principiosUnicos.length,
+                            itemBuilder: (context, index) {
+                              final entry = principiosUnicos.entries.elementAt(index);
+                              final total = entry.value.length;
+                              final evaluados = entry.value.where((p) {
+                                final c = p.benchmarkComportamiento.split(":").first.trim();
+                                return comportamientosEvaluados.contains(c);
+                              }).length;
+                              final progreso = total == 0 ? 0.0 : evaluados / total;
 
-                                return Card(
-                                  elevation: 3,
-                                  margin: const EdgeInsets.symmetric(vertical: 8.0),
-                                  child: ExpansionTile(
-                                    title: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          entry.key,
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        LinearProgressIndicator(
-                                          value: progreso,
-                                          backgroundColor: Colors.grey[300],
-                                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text('$evaluados de $totalComportamientos comportamientos evaluados'),
-                                      ],
-                                    ),
-                                    children: entry.value.map((principio) {
-                                      final comportamientoNombre = principio.benchmarkComportamiento.split(":").first.trim();
-
-                                      return ListTile(
-                                        title: Text(
-                                          comportamientoNombre,
-                                          style: TextStyle(
-                                            color: comportamientosEvaluados.contains(comportamientoNombre)
-                                                ? const Color.fromARGB(255, 133, 190, 135)
-                                                : Colors.black,
-                                            fontWeight: comportamientosEvaluados.contains(comportamientoNombre)
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                          ),
-                                        ),
-                                        subtitle: const Text('Ir a evaluación'),
-                                        trailing: const Icon(Icons.arrow_forward_ios),
-                                        onTap: () async {
-                                          final resultado = await Navigator.push<String>(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => ComportamientoEvaluacionScreen(
-                                                principio: principio,
-                                                cargo: widget.asociado.cargo,
-                                                evaluacionId: const Uuid().v4(),
-                                                dimensionId: widget.dimensionId,
-                                                empresaId: widget.empresa.id,
-                                                asociadoId: widget.asociado.id,
-                                              ),
-                                            ),
-                                          );
-                                          if (resultado != null && !comportamientosEvaluados.contains(resultado)) {
-                                            setState(() {
-                                              comportamientosEvaluados.add(resultado);
-                                            });
-                                            setStateTile(() {});
-                                            await _supabaseService.registrarComportamientoEvaluado(
-                                              empresaId: widget.empresa.id,
-                                              asociadoId: widget.asociado.id,
-                                              dimensionId: widget.dimensionId,
-                                              comportamiento: resultado,
-                                            );
-                                          }
-                                        },
-                                      );
-                                    }).toList(),
+                              return Container(
+                                margin: const EdgeInsets.symmetric(vertical: 8.0),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: Color.lerp(
+                                    const Color(0xFFE4E1E1),
+                                    const Color(0xFFB8EEB9),
+                                    progreso,
                                   ),
-                                );
-                              },
-                            );
-                          },
+                                  border: Border.all(color: Colors.black, width: 2),
+                                ),
+                                child: ExpansionTile(
+                                  tilePadding: EdgeInsets.symmetric(
+                                    horizontal: screenSize.width * 0.04,
+                                    vertical: screenSize.height * 0.02,
+                                  ),
+                                  iconColor: Colors.black,
+                                  collapsedIconColor: Colors.black,
+                                  title: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        entry.key,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '$evaluados de $total comportamientos evaluados',
+                                        style: const TextStyle(fontSize: 14, color: Colors.black87),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                  children: entry.value.map((p) {
+                                    final nombre = p.benchmarkComportamiento.split(":").first.trim();
+                                    final descripcion = p.benchmarkComportamiento.split(":").last.trim();
+                                    final yaEvaluado = comportamientosEvaluados.contains(nombre);
+
+                                    return ListTile(
+                                      title: Text(
+                                        nombre,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: yaEvaluado ? Colors.green : Colors.black,
+                                          fontWeight: yaEvaluado ? FontWeight.bold : FontWeight.normal,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        descripcion,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(color: Colors.black),
+                                      ),
+                                      trailing: const Icon(Icons.arrow_forward_ios),
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => ComportamientoEvaluacionScreen(
+                                              principio: p,
+                                              empresa: widget.empresa,
+                                              asociado: widget.asociado,
+                                              onEvaluado: agregarComportamientoEvaluado, cargo: '', evaluacionId: '', dimensionId: '', empresaId: '', asociadoId: '', dimension: '',
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+      ),
     );
-  }
-}
-
-class ProgresoAsociado {
-  static final Map<String, Set<String>> _map = {};
-  static void marcarComoEvaluado(String id, String comp) {
-    _map.putIfAbsent(id, () => {}).add(comp);
-  }
-
-  static bool estaEvaluado(String id, String comp) => _map[id]?.contains(comp) ?? false;
-}
-
-extension ProgresoSupabase on SupabaseService {
-  Future<void> registrarComportamientoEvaluado({
-    required String empresaId,
-    required String asociadoId,
-    required String dimensionId,
-    required String comportamiento,
-  }) async {
-    final response = await Supabase.instance.client
-        .from('calificaciones')
-        .select('id')
-        .eq('id_asociado', asociadoId)
-        .eq('id_empresa', empresaId)
-        .eq('id_dimension', int.tryParse(dimensionId) ?? 0)
-        .eq('comportamiento', comportamiento);
-
-    if (response.isEmpty) {
-      await Supabase.instance.client.from('calificaciones').insert({
-        'id': const Uuid().v4(),
-        'id_asociado': asociadoId,
-        'id_empresa': empresaId,
-        'id_dimension': int.tryParse(dimensionId),
-        'comportamiento': comportamiento,
-        'puntaje': 0,
-      });
-    }
-  }
-}
-
-extension EditarCalificacionSupabase on SupabaseService {
-  Future<void> actualizarPuntajeComportamiento({
-    required String empresaId,
-    required String asociadoId,
-    required String dimensionId,
-    required String comportamiento,
-    required int nuevoPuntaje,
-  }) async {
-    await Supabase.instance.client
-        .from('calificaciones')
-        .update({'puntaje': nuevoPuntaje})
-        .eq('id_asociado', asociadoId)
-        .eq('id_empresa', empresaId)
-        .eq('id_dimension', int.tryParse(dimensionId) ?? 0)
-        .eq('comportamiento', comportamiento);
   }
 }
