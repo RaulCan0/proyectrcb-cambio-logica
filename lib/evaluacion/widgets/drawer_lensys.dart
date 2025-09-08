@@ -1,16 +1,17 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:applensys/auth/loader.dart';
-import 'package:applensys/evaluacion/models/empresa.dart';
-import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
+import 'package:applensys/evaluacion/providers/text_size_provider.dart';
+
 import 'package:applensys/evaluacion/screens/empresas_screen.dart';
 import 'package:applensys/evaluacion/screens/historial_screen.dart';
 import 'package:applensys/evaluacion/screens/perfil_screen.dart';
 import 'package:applensys/evaluacion/screens/tablas_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:applensys/evaluacion/providers/text_size_provider.dart';
+
 
 class DrawerLensys extends ConsumerWidget {
   const DrawerLensys({super.key});
@@ -92,42 +93,19 @@ class DrawerLensys extends ConsumerWidget {
                 );
               },
             ),
-            ListTile(
-              leading: Icon(Icons.table_chart, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
-              title: Text("Resultados", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => TablasDimensionScreen(
-                      empresa: Empresa(
-                        id: 'defaultId',
-                        nombre: 'Default Empresa',
-                        tamano: 'Default Tamano',
-                        empleadosTotal: 0,
-                        empleadosAsociados: [],
-                        unidades: 'Default Unidades',
-                        areas: 0,
-                        sector: 'Default Sector',
-                        createdAt: DateTime.now(),
-                      ),
-                      evaluacionId: '', 
-                    ),
-                  ),
-                );
-              },
-            ),
-         
+           
+           
+            
             ListTile(
               leading: Icon(Icons.history, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
               title: Text("Historial", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
               onTap: () {
                 Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                    builder: (_) => const HistorialScreen(),
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => HistorialScreen() // Proporcionar una lista vacía o los datos reales
                     ),
-                 
+                  
                 );
               },
             ),
@@ -141,41 +119,20 @@ class DrawerLensys extends ConsumerWidget {
                 );
               },
             ),
-            ListTile(
-              leading: Icon(Icons.dashboard, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
-              title: Text("Dashboard", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DashboardScreen(
-                      empresa: Empresa(
-                        id: '',
-                        nombre: '',
-                        tamano: '',
-                        empleadosTotal: 0,
-                        empleadosAsociados: [],
-                        unidades: '',
-                        areas: 0,
-                        sector: '',
-                        createdAt: DateTime.now(),
-                      ),
-                      evaluacionId: '',
-                    ),
-                  ),
-                );
-              },
-            ),
+          
             const Divider(),
             ListTile(
               leading: Icon(Icons.chat, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
               title: Text("Chat", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
               onTap: () {
                 Navigator.of(context).pop(); // Cierra el endDrawer (DrawerLensys)
+                // Intenta abrir el drawer principal del .
                 Scaffold.of(context).openDrawer();
               },
             ),
+          
             const Divider(),
+            // Selector de tamaño de letra
             ListTile(
               leading: Icon(Icons.text_fields, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
               title: Text('Letra', style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),

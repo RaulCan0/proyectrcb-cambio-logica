@@ -1,19 +1,22 @@
 // ignore_for_file: use_build_context_synchronously
+
+
 import 'dart:typed_data';
 import 'package:applensys/evaluacion/models/calificacion.dart';
 import 'package:applensys/evaluacion/services/calificacion_service.dart';
 import 'package:applensys/evaluacion/services/storage_service.dart';
 import 'package:applensys/evaluacion/widgets/sistemas_asociados.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+
 import '../models/principio_json.dart';
 import '../screens/tablas_screen.dart';
 import '../widgets/drawer_lensys.dart';
 import '../providers/text_size_provider.dart';
-
 // Mapa de sistemas recomendados por comportamiento
 const Map<String, String> sistemasRecomendadosPorComportamiento = {
   "Soporte": "Desarrollo de personas, Medición, Reconocimiento",
@@ -46,7 +49,9 @@ const Map<String, String> sistemasRecomendadosPorComportamiento = {
   "Medida": "Despliegue de Estrategia, Medición, Voz del Cliente, Recompensas, Reconocimientos",
 };
 
-/// Modificada para devolver la clave interna que TablasDimensionScreen espera.
+// Modificada para devolver la clave interna que TablasDimensionScreen espera.
+
+
 String obtenerNombreDimensionInterna(String dimensionId) {
   switch (dimensionId) {
     case '1': return 'Dimensión 1';
@@ -73,7 +78,7 @@ class ComportamientoEvaluacionScreen extends ConsumerStatefulWidget {
     required this.dimensionId,
     required this.empresaId,
     required this.asociadoId,
-    this.calificacionExistente, required String dimension, 
+    this.calificacionExistente, required String dimension, // Añadir al constructor
   });
 
   @override
@@ -104,8 +109,7 @@ class _ComportamientoEvaluacionScreenState
       sistemasSeleccionados = List<String>.from(widget.calificacionExistente!.sistemas);
       evidenciaUrl = widget.calificacionExistente!.evidenciaUrl;
     } else {
-      calificacion = 0; // Inicialización predeterminada
-      sistemasSeleccionados = []; // Asegurar que la lista esté inicializada
+      calificacion = 0;//aqui se inicia en el numero 0 siempre y cuando no haya evaluación existente
     }
   }
 
@@ -250,19 +254,18 @@ class _ComportamientoEvaluacionScreenState
         evidenciaUrl: evidenciaUrl,
       );
       await calificacionService.addCalificacion(calObj);
-     TablasDimensionScreen.actualizarDato(
-  widget.evaluacionId,
-  dimension: obtenerNombreDimensionInterna(widget.dimensionId),
-  principio: widget.principio.nombre,
-  comportamiento: nombreComp,
-  cargo: widget.cargo,
-  valor: calificacion,
-  sistemas: sistemasSeleccionados,
-  dimensionId: widget.dimensionId,
-  asociadoId: widget.asociadoId,
-  observaciones: obs, // ✅ ESTA LÍNEA AGREGA LA OBSERVACIÓN
-);
-
+      TablasDimensionScreen.actualizarDato(
+        widget.evaluacionId,
+        dimension: obtenerNombreDimensionInterna(widget.dimensionId), // Usar la nueva función
+        principio: widget.principio.nombre,
+        comportamiento: nombreComp,
+        cargo: widget.cargo,
+        valor: calificacion,
+        sistemas: sistemasSeleccionados,
+        dimensionId: widget.dimensionId, // Se mantiene por si es útil en otro lado, pero la clave principal es 'dimension'
+        asociadoId: widget.asociadoId,
+        observaciones: obs,
+      );
       if (mounted) Navigator.pop(context, nombreComp);
     } catch (e) {
       if (mounted) {
@@ -529,7 +532,7 @@ class _ComportamientoEvaluacionScreenState
               padding: EdgeInsets.symmetric(vertical: 12 * scaleFactor, horizontal: 16 * scaleFactor),
             ),
           ),
-          // Mostrar sistemas recomendados según comportamiento
+ // Mostrar sistemas recomendados según comportamiento
           if (sistemasRecomendadosPorComportamiento.containsKey(widget.principio.benchmarkComportamiento.split(':').first.trim())) ...[
             const SizedBox(height: 8),
             Text(
@@ -537,25 +540,12 @@ class _ComportamientoEvaluacionScreenState
               style: TextStyle(
                 color: const Color(0xFF003056),
                 fontSize: 13 * scaleFactor,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.bold,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ],
-
-          const SizedBox(height: 16),
-          if (sistemasSeleccionados.isNotEmpty) ...[
-  const SizedBox(height: 16),
-  Row(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-     
-      
-    ],
-  ),
-],
-
           const SizedBox(height: 16),
           Row(children: [
             Expanded(
@@ -602,4 +592,8 @@ class _ComportamientoEvaluacionScreenState
             ),
           ),
         ]),
-      ),  );}}
+      ),
+     
+    );
+  }
+}

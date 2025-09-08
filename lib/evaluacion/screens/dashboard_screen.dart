@@ -59,9 +59,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadCachedOrRemoteData();
   }
 
+  // Método para cargar datos exclusivamente desde Supabase (sin caché)
+  Future<void> _cargarDatosDesdeSupabase() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final data = await supabase
+          .from(TableNames.detallesEvaluacion)
+          .select()
+          .eq('evaluacion_id', widget.evaluacionId);
+      _dimensionesRaw = List<Map<String, dynamic>>.from(data as List<dynamic>);
+      
+      if (_dimensionesRaw.isNotEmpty) {
+        _procesarDimensionesDesdeRaw(_dimensionesRaw);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error cargando datos de Supabase: $e');
+      _dimensionesRaw = [];
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   Future<void> _loadCachedOrRemoteData() async {
     final cacheService = EvaluacionCacheService();
     await cacheService.init();
+
+    // Verificar si hay una evaluación pendiente primero
+    final pendienteId = await cacheService.obtenerPendiente();
+    if (pendienteId != null && pendienteId.isNotEmpty && pendienteId != widget.evaluacionId) {
+      // Si hay otra evaluación pendiente, no cargar datos del caché para evitar confusiones
+      _cargarDatosDesdeSupabase();
+      return;
+    }
 
     dynamic rawTables = await cacheService.cargarTablas();
 

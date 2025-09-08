@@ -97,10 +97,7 @@ Future<void> _verificarNuevoUsuario() async {
             onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false),
             tooltip: 'Ir a Inicio',
           ),
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
-          ),
+         
         ],
       ),
       body: SafeArea(

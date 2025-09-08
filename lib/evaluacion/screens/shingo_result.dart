@@ -141,7 +141,6 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
                   empresaId: 'ID_EMPRESA', // <-- Reemplaza por el ID real
                   evaluacionId: 'ID_EVALUACION', // <-- Reemplaza por el ID real
                   empresaNombre: 'Nombre Empresa', // <-- Reemplaza por el nombre real
-                  usuarioId: 'ID_USUARIO', // <-- Reemplaza por el ID real
                 );
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Reporte Shingo generado y subido correctamente.')),

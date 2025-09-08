@@ -30,6 +30,58 @@ class DimensionesScreen extends StatefulWidget {
 
 class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
   final EvaluacionService evaluacionService = EvaluacionService();
+  
+  // Método para limpiar ABSOLUTAMENTE TODOS los datos al finalizar evaluación
+  Future<void> _limpiarDatosEvaluacion() async {
+    try {
+      debugPrint('INICIANDO LIMPIEZA COMPLETA DE DATOS...');
+      
+      final cache = EvaluacionCacheService();
+      // 1. Limpiar ABSOLUTAMENTE TODA la caché relacionada con la evaluación
+      await cache.limpiarEvaluacionCompleta();
+      debugPrint('✓ Cache limpiada completamente');
+      
+      // 2. Usar el método oficial de limpieza de tablaDatos
+      await TablasDimensionScreen.limpiarDatos();
+      debugPrint('✓ TablasDimensionScreen.limpiarDatos() ejecutado');
+      
+      // 3. Reinicializar la estructura para mantener consistencia
+      TablasDimensionScreen.tablaDatos = {
+        'Dimensión 1': {},
+        'Dimensión 2': {},
+        'Dimensión 3': {},
+      };
+      debugPrint('✓ TablasDimensionScreen.tablaDatos reinicializado');
+      
+      // 4. Forzar actualización de UI a través del ValueNotifier
+      TablasDimensionScreen.dataChanged.value = !TablasDimensionScreen.dataChanged.value;
+      debugPrint('✓ UI notificada para actualización');
+      
+      // 5. Eliminar cualquier otro dato persistente en SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final keysToRemove = [
+        'current_evaluacion_id',
+        'current_empresa_id',
+        'current_asociados',
+        'comportamientos_evaluados',
+        'principios_evaluados',
+        'dashboard_data',
+        'ultima_evaluacion',
+        'evaluacion_en_progreso',
+        'datos_pendientes',
+        'ultima_sync',
+      ];
+      
+      for (final key in keysToRemove) {
+        await prefs.remove(key);
+      }
+      debugPrint('✓ Datos adicionales en SharedPreferences eliminados');
+      
+      debugPrint('✅ LIMPIEZA COMPLETA FINALIZADA: Se han eliminado todos los datos de evaluación');
+    } catch (e) {
+      debugPrint('❌ ERROR durante la limpieza de datos: $e');
+    }
+  }
 
   final List<Map<String, dynamic>> dimensiones = const [
     {
@@ -237,12 +289,7 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                   style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 94, 156, 96)),
                   onPressed: () async {
                     try {
-                      final cache = EvaluacionCacheService();
-                      await cache.eliminarPendiente();
-                      await cache.limpiarCacheTablaDatos();
-                      TablasDimensionScreen.tablaDatos.clear();
-                      TablasDimensionScreen.dataChanged.value =
-                          !TablasDimensionScreen.dataChanged.value;
+                      await _limpiarDatosEvaluacion();
 
                       final prefs = await SharedPreferences.getInstance();
                       final hist = prefs.getStringList('empresas_historial') ?? [];
@@ -253,7 +300,11 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
 
                       // ignore: use_build_context_synchronously
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Evaluación finalizada y datos limpiados')),
+                        const SnackBar(
+                          content: Text('EVALUACIÓN FINALIZADA: Todos los datos han sido eliminados'),
+                          backgroundColor: Color.fromARGB(255, 94, 156, 96),
+                          duration: Duration(seconds: 3),
+                        ),
                       );
                       Navigator.pushAndRemoveUntil(
                         // ignore: use_build_context_synchronously

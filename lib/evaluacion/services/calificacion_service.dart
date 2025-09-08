@@ -17,7 +17,7 @@ class CalificacionService {
   }
  
   Future<void> updateCalificacionFull(Calificacion calificacion) async {
-    await _remote.updateCalificacion(calificacion.id, calificacion.puntaje);
+    await _remote.updateCalificacionFull(calificacion);
   }
  
   Future<void> deleteCalificacion(String id) async {

@@ -4,33 +4,68 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// Servicio completamente corregido para generar y registrar reportes Shingo
+// Guarda datos en la tabla 'shingo_resultados', imágenes en 'shingo_report', y el PDF en 'reportes'
+
 class ReporteShingoService {
   static Future<void> generarYRegistrarShingoPdf({
     required Map<String, ShingoResultData> tabla,
     required String empresaId,
     required String evaluacionId,
     required String empresaNombre,
-    required String usuarioId,
   }) async {
     final pdfData = await _generarPdfShingoCompleto(tabla, empresaNombre);
 
-    final nombreArchivo = 'shingo_${empresaId}_${evaluacionId}_${DateTime.now().millisecondsSinceEpoch}.pdf';
-    final url = await _subirPdfShingo(pdfData, nombreArchivo);
+    for (final entry in tabla.entries) {
+      final tituloCategoria = entry.key;
+      final dataCategoria = entry.value;
 
-    await Supabase.instance.client.from('historial_reportes').insert({
-      'empresa_id': empresaId,
-      'evaluacion_id': evaluacionId,
-      'usuario_id': usuarioId,
-      'nombre_archivo': nombreArchivo,
-      'url': url,
-      'fecha': DateTime.now().toIso8601String(),
-      'tipo': 'shingo',
-    });
+      String? imagenUrl;
+      if (dataCategoria.imagen != null) {
+        final bytes = await dataCategoria.imagen!.readAsBytes();
+        final fileName = 'shingo_${empresaId}_${tituloCategoria}_${DateTime.now().millisecondsSinceEpoch}.png';
+        await Supabase.instance.client.storage
+            .from('shingo_report')
+            .uploadBinary(fileName, bytes, fileOptions: const FileOptions(upsert: true));
+        imagenUrl = Supabase.instance.client.storage.from('shingo_report').getPublicUrl(fileName);
+      }
+
+      await Supabase.instance.client.from('shingo_resultados').insert({
+        'categoria': tituloCategoria,
+        'campos': dataCategoria.campos,
+        'imagen_url': imagenUrl,
+      });
+
+      for (final subEntry in dataCategoria.subcategorias.entries) {
+        final subTitulo = subEntry.key;
+        final subData = subEntry.value;
+        String? subImgUrl;
+
+        if (subData.imagen != null) {
+          final bytes = await subData.imagen!.readAsBytes();
+          final subFileName = 'shingo_${empresaId}_${subTitulo}_${DateTime.now().millisecondsSinceEpoch}.png';
+          await Supabase.instance.client.storage
+              .from('shingo_report')
+              .uploadBinary(subFileName, bytes, fileOptions: const FileOptions(upsert: true));
+          subImgUrl = Supabase.instance.client.storage.from('shingo_report').getPublicUrl(subFileName);
+        }
+
+        await Supabase.instance.client.from('shingo_resultados').insert({
+          'categoria': subTitulo,
+          'campos': subData.campos,
+          'imagen_url': subImgUrl,
+        });
+      }
+    }
+
+    final nombreArchivo = '${empresaNombre.replaceAll(' ', '_')}-reporte_shingo.pdf';
+    await Supabase.instance.client.storage
+        .from('reportes')
+        .uploadBinary(nombreArchivo, pdfData, fileOptions: const FileOptions(upsert: true));
   }
 
   static Future<Uint8List> _generarPdfShingoCompleto(Map<String, ShingoResultData> tabla, String empresaNombre) async {
     final pdf = pw.Document();
-
     int pagina = 1;
     final totalPaginas = tabla.values.fold<int>(0, (acc, e) => acc + (e.subcategorias.isNotEmpty ? e.subcategorias.length + 1 : 1));
 
@@ -85,7 +120,6 @@ class ReporteShingoService {
     return pdf.save();
   }
 
-  /// Hoja PDF igualita a la plantilla visual, **EN ESPAÑOL**
   static pw.Widget _buildHojaShingoPdf(
     ShingoResultData data,
     String titulo,
@@ -100,7 +134,6 @@ class ReporteShingoService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
-        // Header
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
@@ -112,8 +145,6 @@ class ReporteShingoService {
         pw.SizedBox(height: 3),
         pw.Text(titulo, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
         pw.SizedBox(height: 7),
-
-        // Imagen tipo gráfico
         if (imagenBytes != null)
           pw.Container(
             alignment: pw.Alignment.center,
@@ -123,22 +154,14 @@ class ReporteShingoService {
             child: pw.Image(pw.MemoryImage(imagenBytes), fit: pw.BoxFit.contain),
           ),
         pw.SizedBox(height: 7),
-
-        // Primer bloque horizontal 2 columnas
         pw.Row(
           children: [
-            pw.Expanded(
-              child: _campoBlock('Cómo se calcula', data.campos['Cómo se calcula'] ?? '', txtStyle),
-            ),
+            pw.Expanded(child: _campoBlock('Cómo se calcula', data.campos['Cómo se calcula'] ?? '', txtStyle)),
             pw.SizedBox(width: 6),
-            pw.Expanded(
-              child: _campoBlock('Cómo se mide', data.campos['Cómo se mide'] ?? '', txtStyle),
-            ),
+            pw.Expanded(child: _campoBlock('Cómo se mide', data.campos['Cómo se mide'] ?? '', txtStyle)),
           ],
         ),
         pw.SizedBox(height: 5),
-
-        // Siguientes bloques horizontales completos
         _campoBlock('Alcance', data.campos['Alcance'] ?? '', txtStyle),
         pw.SizedBox(height: 4),
         _campoBlock('¿Por qué es importante?', data.campos['¿Por qué es importante?'] ?? '', txtStyle),
@@ -172,15 +195,5 @@ class ReporteShingoService {
         ],
       ),
     );
-  }
-
-  static Future<String> _subirPdfShingo(Uint8List pdfData, String nombreArchivo) async {
-    final storage = Supabase.instance.client.storage;
-    await storage.from('shingo_report').uploadBinary(
-      nombreArchivo,
-      pdfData,
-      fileOptions: const FileOptions(upsert: true, contentType: 'application/pdf'),
-    );
-    return storage.from('shingo_report').getPublicUrl(nombreArchivo);
   }
 }

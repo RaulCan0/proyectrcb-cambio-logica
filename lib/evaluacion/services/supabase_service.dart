@@ -191,13 +191,23 @@ class SupabaseService {
 
   Future<void> updateCalificacionFull(Calificacion calificacion) async {
     try {
+      final dataToUpdate = {
+        'puntaje': calificacion.puntaje,
+        'observaciones': calificacion.observaciones,
+        'sistemas': calificacion.sistemas,
+        'evidencia_url': calificacion.evidenciaUrl,
+        'fecha_evaluacion': calificacion.fechaEvaluacion.toIso8601String(),
+      };
+      
       await _client
           .from('calificaciones')
-          .update(calificacion.toMap()) // Asume que Calificacion.toMap() incluye todos los campos necesarios (puntaje, observaciones, sistemas, evidenciaUrl, etc.)
+          .update(dataToUpdate)
           .eq('id', calificacion.id);
-      // print("✅ Calificación actualizada completamente con éxito: ${calificacion.id}");
+      
+      ("✅ Calificación actualizada correctamente: ${calificacion.id}");
+      ("Observaciones: ${calificacion.observaciones}");
     } catch (e) {
-      // print("❌ Error al actualizar calificación completa: $e");
+      ("❌ Error al actualizar calificación completa: $e");
       rethrow;
     }
   }
