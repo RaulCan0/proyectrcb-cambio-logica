@@ -1,26 +1,28 @@
 import 'package:applensys/evaluacion/models/asociado.dart';
 import 'package:applensys/evaluacion/models/calificacion.dart';
+import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:applensys/evaluacion/models/principio_json.dart';
 import 'package:applensys/evaluacion/screens/tablas_screen.dart' as tablas_screen;
 import 'package:applensys/evaluacion/services/json_service.dart';
 import 'package:applensys/evaluacion/services/supabase_service.dart';
-
 import 'package:flutter/material.dart';
 
-import '../models/empresa.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import 'comportamiento_evaluacion_screen.dart';
 
 class PrincipiosScreen extends StatefulWidget {
   final Empresa empresa;
   final Asociado asociado;
   final String dimensionId;
+  final String evaluacionId;
 
   const PrincipiosScreen({
     super.key,
     required this.empresa,
     required this.asociado,
-    required this.dimensionId, required String evaluacionId,
+    required this.dimensionId,
+    required this.evaluacionId,
   });
 
   @override
@@ -33,31 +35,37 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
   Map<String, Calificacion> calificacionesExistentes = {}; 
   bool cargando = true;
 
+  final SupabaseService _supabaseService = SupabaseService();
+
   String nombreDimension(String id) {
     switch (id) {
-      case '1':
-        return 'IMPULSORES CULTURALES';
-      case '2':
-        return 'MEJORA CONTINUA';
-      case '3':
-        return 'ALINEAMIENTO EMPRESARIAL';
-      default:
-        return 'DIMENSIÓN DESCONOCIDA';
+      case '1': return 'IMPULSORES CULTURALES';
+      case '2': return 'MEJORA CONTINUA';
+      case '3': return 'ALINEAMIENTO EMPRESARIAL';
+      default: return 'DIMENSIÓN DESCONOCIDA';
     }
   }
 
-  final SupabaseService _supabaseService = SupabaseService();
+  String obtenerNombreDimensionInterna(String id) {
+    // Puedes adaptar esto según tus necesidades internas de nombres
+    switch (id) {
+      case '1': return 'impulsores_culturales';
+      case '2': return 'mejora_continua';
+      case '3': return 'alineamiento_empresarial';
+      default: return 'desconocida';
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    cargarDatos(); // Llama a una nueva función que carga todo
+    cargarDatos();
   }
 
   Future<void> cargarDatos() async {
     setState(() => cargando = true);
     try {
-      // Cargar principios
+      // Cargar principios desde JSON
       final List<dynamic> datosJson = await JsonService.cargarJson('t${widget.dimensionId}.json');
       if (datosJson.isEmpty) throw Exception('El archivo JSON de principios está vacío.');
 
@@ -71,7 +79,7 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
         agrupados.putIfAbsent(p.nombre, () => []).add(p);
       }
 
-      // Cargar calificaciones existentes usando el método disponible y filtrando
+      // Cargar calificaciones existentes
       final todasLasCalificacionesDelAsociado = await _supabaseService.getCalificacionesPorAsociado(widget.asociado.id);
 
       final tempComportamientosEvaluados = <String>[];
@@ -79,7 +87,7 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
       final int dimensionIdActual = int.tryParse(widget.dimensionId) ?? 1;
 
       for (var cal in todasLasCalificacionesDelAsociado) {
-        if (cal.idDimension == dimensionIdActual) { // Filtrar por la dimensión actual
+        if (cal.idDimension == dimensionIdActual) {
           tempComportamientosEvaluados.add(cal.comportamiento);
           tempCalificacionesExistentes[cal.comportamiento] = cal;
         }
@@ -94,20 +102,11 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
     } catch (e) {
       debugPrint('Error al cargar datos: $e');
       if (mounted) {
-        setState(() => cargando = false); // Asegúrate de detener la carga en caso de error
+        setState(() => cargando = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al cargar datos: $e')),
         );
       }
-    }
-  }
-
-  void agregarComportamientoEvaluado(String comportamiento, Calificacion calificacion) {
-    if (!comportamientosEvaluados.contains(comportamiento)) {
-      setState(() {
-        comportamientosEvaluados.add(comportamiento);
-        calificacionesExistentes[comportamiento] = calificacion; // Guardar la calificación completa
-      });
     }
   }
 
@@ -119,7 +118,7 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
       appBar: AppBar(
         title: Center(
           child: Text(
-            ' ${nombreDimension(widget.dimensionId)}',
+            nombreDimension(widget.dimensionId),
             style: const TextStyle(color: Colors.white),
           ),
         ),
@@ -129,20 +128,16 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
           IconButton(
             icon: const Icon(Icons.assessment, color: Colors.white),
             onPressed: () {
-              // Obtener el nombre interno de la dimensión para consistencia con TablasDimensionScreen
               String nombreDimensionInternaActual = obtenerNombreDimensionInterna(widget.dimensionId);
-
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => tablas_screen.TablasDimensionScreen(
-                    empresa: widget.empresa, // Pasando la empresa completa
-                    evaluacionId: widget.asociado.id, // REVISAR: ¿Debería ser un ID de evaluación específico o el ID del asociado como identificador único para la tabla?
-                                                      // Si tienes un ID de evaluación global para la sesión, úsalo aquí.
-                                                      // Por ahora, uso widget.asociado.id asumiendo que cada asociado tiene su propia "evaluación" en este contexto de tabla.
-                    asociadoId: widget.asociado.id, // Pasando el ID del asociado actual
-                    empresaId: widget.empresa.id, // Pasando el ID de la empresa
-                    dimension: nombreDimensionInternaActual, // Pasando el nombre interno de la dimensión actual
+                    empresa: widget.empresa,
+                    evaluacionId: widget.evaluacionId,
+                    asociadoId: widget.asociado.id,
+                    empresaId: widget.empresa.id,
+                    dimension: nombreDimensionInternaActual,
                   ),
                 ),
               );
@@ -166,13 +161,14 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                           padding: const EdgeInsets.all(16.0),
                           child: Center(
                             child: Text(
-                                'EVALUANDO A: ${widget.asociado.nombre}\nNivel Organizacional: ${widget.asociado.cargo.toLowerCase() == 'miembro' ? 'MIEMBRO DE EQUIPO' : widget.asociado.cargo.toUpperCase()}',
-                                style: TextStyle(
-                                fontSize: 15, 
-                                fontFamily: 'Roboto', 
+                              'EVALUANDO A: ${widget.asociado.nombre}\n'
+                              'Nivel Organizacional: ${widget.asociado.cargo.toLowerCase() == 'miembro' ? 'MIEMBRO DE EQUIPO' : widget.asociado.cargo.toUpperCase()}',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontFamily: 'Roboto',
                                 fontWeight: FontWeight.bold,
-                                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87, // Esto se mantiene dinámico según el tema
-                                ),
+                                color: Colors.black87,
+                              ),
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -196,22 +192,28 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                                   margin: const EdgeInsets.symmetric(vertical: 8.0),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    color: Color.lerp(const Color.fromARGB(255, 0, 0, 0), const Color.fromARGB(255, 154, 218, 156), progreso),
-                                     border: Border.all(
-    color: const Color.fromARGB(255, 0, 0, 0), // color del contorno
-    width: 2,),
+                                    color: Color.lerp(const Color(0x00000000), const Color(0xFF9ADA9C), progreso),
+                                    border: Border.all(
+                                      color: const Color(0xFF000000),
+                                      width: 2,
+                                    ),
                                     boxShadow: [
-                                      // ignore: deprecated_member_use
-                                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 3)),
+                                      BoxShadow(
+                                        // ignore: deprecated_member_use
+                                        color: const Color.fromARGB(255, 196, 199, 195).withOpacity(0.05),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 3),
+                                      ),
                                     ],
                                   ),
                                   child: ExpansionTile(
-                                    tilePadding: EdgeInsets.symmetric(horizontal: screenSize.width * 0.04, vertical: screenSize.height * 0.02),
+                                    tilePadding: EdgeInsets.symmetric(
+                                        horizontal: screenSize.width * 0.04, vertical: screenSize.height * 0.02),
                                     childrenPadding: const EdgeInsets.only(bottom: 10),
-                                    iconColor: Colors.black, 
-                                    collapsedIconColor: Colors.black, // Añade esta línea para el estado colapsado
+                                    iconColor: Colors.black,
+                                    collapsedIconColor: Colors.black,
                                     title: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.center, // Centra el contenido de la columna
+                                      crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
                                         Text(
                                           entry.key,
@@ -219,13 +221,13 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                                           style: const TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.black,  // Siempre negro
+                                            color: Colors.black,
                                           ),
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
                                           '$evaluados de $totalComportamientos comportamientos evaluados',
-                                          style: const TextStyle(fontSize: 14, color: Colors.black87), // Siempre gris oscuro
+                                          style: const TextStyle(fontSize: 14, color: Colors.black87),
                                           textAlign: TextAlign.center,
                                         ),
                                       ],
@@ -237,45 +239,43 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                                       return ListTile(
                                         title: Text(
                                           comportamientoNombre,
-                                          textAlign: TextAlign.center, // Centrar título
+                                          textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            color: comportamientosEvaluados.contains(comportamientoNombre) ? const Color.fromARGB(255, 79, 109, 80) : Colors.black,
-                                            fontWeight: comportamientosEvaluados.contains(comportamientoNombre) ? FontWeight.bold : FontWeight.normal,
+                                            color: comportamientosEvaluados.contains(comportamientoNombre)
+                                                ? const Color(0xFF4F6D50)
+                                                : Colors.black,
+                                            fontWeight: comportamientosEvaluados.contains(comportamientoNombre)
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
                                           ),
                                         ),
                                         subtitle: Text(
                                           principio.benchmarkComportamiento.split(":").last.trim(),
                                           textAlign: TextAlign.center,
                                           style: const TextStyle(color: Colors.black),
-                                        
                                         ),
                                         trailing: const Icon(
                                           Icons.arrow_forward_ios,
                                           color: Colors.black,
                                         ),
                                         onTap: () async {
-                                         
-
-                                          final String evaluacionIdGeneral = widget.asociado.id; // Placeholder, ajusta según tu lógica de ID de evaluación.
-
                                           final resultado = await Navigator.push<String>(
                                             context,
                                             MaterialPageRoute(
                                               builder: (_) => ComportamientoEvaluacionScreen(
                                                 principio: principio,
                                                 cargo: widget.asociado.cargo,
-                                                evaluacionId: evaluacionIdGeneral, // Usar el ID de evaluación general
+                                                evaluacionId: widget.evaluacionId,
                                                 dimensionId: widget.dimensionId,
                                                 empresaId: widget.empresa.id,
                                                 asociadoId: widget.asociado.id,
-                                                dimension: widget.dimensionId, // Este parámetro 'dimension' en ComportamientoEvaluacionScreen parece redundante si ya tienes dimensionId
+                                                dimension: widget.dimensionId,
                                                 calificacionExistente: calificacionActual,
                                               ),
                                             ),
                                           );
-                                          // Después de volver, recargar los datos para reflejar cualquier cambio.
                                           if (resultado != null) {
-                                            cargarDatos(); // Recargar todos los datos para asegurar consistencia
+                                            cargarDatos(); // Recarga todos los datos tras evaluación
                                           }
                                         },
                                       );
@@ -293,3 +293,40 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
     );
   }
 }
+class ProgresoAsociado {
+  static final Map<String, Set<String>> _map = {};
+  static void marcarComoEvaluado(String id, String comp) {
+    _map.putIfAbsent(id, () => {}).add(comp);
+  }
+
+  static bool estaEvaluado(String id, String comp) => _map[id]?.contains(comp) ?? false;
+}
+
+extension ProgresoSupabase on SupabaseService {
+  Future<void> registrarComportamientoEvaluado({
+    required String empresaId,
+    required String asociadoId,
+    required String dimensionId,
+    required String comportamiento,
+  }) async {
+    final response = await Supabase.instance.client
+        .from('calificaciones')
+        .select('id')
+        .eq('id_asociado', asociadoId)
+        .eq('id_empresa', empresaId)
+        .eq('id_dimension', int.tryParse(dimensionId) ?? 0)
+        .eq('comportamiento', comportamiento);
+
+    if (response.isEmpty) {
+      await Supabase.instance.client.from('calificaciones').insert({
+        'id': const Uuid().v4(),
+        'id_asociado': asociadoId,
+        'id_empresa': empresaId,
+        'id_dimension': int.tryParse(dimensionId),
+        'comportamiento': comportamiento,
+        'puntaje': 0,
+      });
+    }
+  }
+}
+

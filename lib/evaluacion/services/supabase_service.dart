@@ -11,6 +11,7 @@ import 'package:applensys/evaluacion/models/level_averages.dart';
 import 'package:applensys/evaluacion/screens/tablas_screen.dart';
 import 'package:applensys/evaluacion/services/caladap.dart';
 import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Añadir importación
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -311,107 +312,7 @@ class SupabaseService {
     return publicUrl;
   }
 
-  // NUEVO: Buscar evaluacion existente
-  Future<Evaluacion?> buscarEvaluacionExistente(String empresaId, String asociadoId) async {
-    final response = await _client
-        .from('evaluaciones')
-        .select()
-        .eq('empresa_id', empresaId)
-        .eq('asociado_id', asociadoId)
-        .maybeSingle();
-
-    if (response == null) return null;
-    return Evaluacion.fromMap(response);
-  }
-
-  // NUEVO: Crear evaluacion si no existe
-  Future<Evaluacion> crearEvaluacionSiNoExiste(String empresaId, String asociadoId) async {
-    final existente = await buscarEvaluacionExistente(empresaId, asociadoId);
-    if (existente != null) return existente;
-
-    final nuevaEvaluacion = Evaluacion(
-      id: const Uuid().v4(),
-      empresaId: empresaId,
-      asociadoId: asociadoId,
-      fecha: DateTime.now(),
-    );
-    await _client.from('evaluaciones').insert(nuevaEvaluacion.toMap());
-    return nuevaEvaluacion;
-  }
-
-  Future<void> insertar(String tabla, Map<String, dynamic> valores) async {
-    await _client.from(tabla).insert(valores);
-  }
-
-  Future<void> subirPromediosCompletos({
-    required String evaluacionId,
-    required String dimension,
-    required List<Map<String, dynamic>> filas,
-  }) async {
-    final sumas = <String, Map<String, Map<String, int>>>{};
-    final conteos = <String, Map<String, Map<String, int>>>{};
-    final sistemasPorNivel = <String, Map<String, Map<String, int>>>{};
-
-    for (var f in filas) {
-      final principio = f['principio'] as String;
-      final comportamiento = f['comportamiento'] as String;
-      final nivel = (f['cargo'] as String).trim();
-      final valor = f['valor'] as int;
-      final sistemas = (f['sistemas'] as List<dynamic>?)?.cast<String>() ?? [];
-
-      sumas.putIfAbsent(principio, () => {});
-      sumas[principio]!.putIfAbsent(comportamiento, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
-      conteos.putIfAbsent(principio, () => {});
-      conteos[principio]!.putIfAbsent(comportamiento, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
-
-      sumas[principio]![comportamiento]![nivel] =
-        sumas[principio]![comportamiento]![nivel]! + valor;
-      conteos[principio]![comportamiento]![nivel] =
-        (conteos[principio]![comportamiento]![nivel] ?? 0) + 1;
-
-      for (final sistema in sistemas) {
-        sistemasPorNivel.putIfAbsent(sistema, () => {
-          'Ejecutivo': {},
-          'Gerente': {},
-          'Miembro': {},
-        });
-        sistemasPorNivel[sistema]![nivel]![dimension] =
-          (sistemasPorNivel[sistema]![nivel]![dimension] ?? 0) + 1;
-      }
-    }
-
-    for (final p in sumas.keys) {
-      for (final c in sumas[p]!.keys) {
-        for (final nivel in ['Ejecutivo', 'Gerente', 'Miembro']) {
-          final suma = sumas[p]![c]![nivel]!;
-          final count = conteos[p]![c]![nivel]!;
-          final promedio = count == 0 ? 0 : suma / count;
-          await insertar('promedios_comportamientos', {
-            'evaluacion_id': evaluacionId,
-            'dimension': dimension,
-            'principio': p,
-            'comportamiento': c,
-            'nivel': nivel,
-            'valor': double.parse(promedio.toStringAsFixed(2)),
-          });
-        }
-      }
-    }
-
-    for (final sistema in sistemasPorNivel.keys) {
-      for (final nivel in ['Ejecutivo', 'Gerente', 'Miembro']) {
-        final conteo = sistemasPorNivel[sistema]![nivel]?[dimension] ?? 0;
-        await insertar('promedios_sistemas', {
-          'evaluacion_id': evaluacionId,
-          'dimension': dimension,
-          'sistema': sistema,
-          'nivel': nivel,
-          'conteo': conteo,
-        });
-      }
-    }
-  }
-
+ 
   Future<List<LevelAverages>> getDimensionAverages(String evaluacionId) async {
     final response = await _client
         .from('promedios_comportamientos')
@@ -793,32 +694,188 @@ class SupabaseService {
   Future<void> limpiarDatosEvaluacion() async {
     // Implementar lógica para limpiar datos de evaluaciones en Supabase
   }
+  Future<void> cargarDatosParaTablas(String empresaId, String evaluacionId) async {
+    final cacheService = EvaluacionCacheService();
+    await cacheService.init();
 
-Future<void> cargarDatosParaTablas(String empresaId, String evaluacionId) async {
-  final cacheService = EvaluacionCacheService();
-  await cacheService.init();
+    final cache = await cacheService.cargarTablas();
+    if (cache.isNotEmpty) {
+      TablasDimensionScreen.tablaDatos = cache;
+      return;
+    }
 
-  // Verificar si los datos ya están en caché
-  final cache = await cacheService.cargarTablas();
-  if (cache.isNotEmpty) {
-    TablasDimensionScreen.tablaDatos = cache;
-    return;
+    try {
+      final datos = await Supabase.instance.client
+          .from('calificaciones')
+          .select()
+          .eq('id_empresa', empresaId)
+          .eq('id_evaluacion', evaluacionId);
+      // El adaptador debe estar bien implementado
+      final nuevaTabla = CalificacionAdapter.toTablaDatos(List<Map<String, dynamic>>.from(datos));
+      await cacheService.guardarTablas(nuevaTabla);
+      TablasDimensionScreen.tablaDatos = nuevaTabla;
+    } catch (e) {
+      throw Exception('Error al cargar datos para TablasScreen: $e');
+    }
+  }
+}
+
+// Mueve la función finalizarEvaluacion dentro de SupabaseService, reemplazando la anterior si es necesario.
+
+extension SupabaseServiceFinalizar on SupabaseService {
+  Future<void> finalizarEvaluacion(String evaluacionId) async {
+    // Marcar la evaluación como finalizada
+    await _client.from('evaluaciones').update({'finalizada': true}).eq('id', evaluacionId);
+
+    // SUBE PROMS DE TODAS LAS DIMENSIONES DE TABLASCREEN
+    final Map<String, Map<String, List<Map<String, dynamic>>>> todasLasTablas = TablasDimensionScreen.tablaDatos;
+    if (todasLasTablas.isNotEmpty) {
+      for (var dimensionEntry in todasLasTablas.entries) {
+        String dimensionName = dimensionEntry.key;
+        Map<String, List<Map<String, dynamic>>> datosPorEval = dimensionEntry.value;
+        if (datosPorEval.containsKey(evaluacionId)) {
+          List<Map<String, dynamic>>? filasParaSubir = datosPorEval[evaluacionId];
+          if (filasParaSubir != null && filasParaSubir.isNotEmpty) {
+            await subirPromediosCompletos(
+              evaluacionId: evaluacionId,
+              dimension: dimensionName,
+              filas: filasParaSubir,
+            );
+          }
+        }
+      }
+    }
+
+    // LIMPIA CACHE
+    TablasDimensionScreen.tablaDatos.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('tabla_datos');
+  }
+}
+// ========== FINALIZAR EVALUACION Y SUBIR PROMS ==========
+
+// The following methods are now inside SupabaseService for access to _client.
+
+extension SupabaseServiceTablas on SupabaseService {
+  Future<void> cargarDatosParaTablas(String empresaId, String evaluacionId) async {
+    final cacheService = EvaluacionCacheService();
+    await cacheService.init();
+    final cache = await cacheService.cargarTablas();
+    if (cache.isNotEmpty) {
+      TablasDimensionScreen.tablaDatos = cache;
+      return;
+    }
+    try {
+      final datos = await Supabase.instance.client
+          .from('calificaciones')
+          .select()
+          .eq('id_empresa', empresaId)
+          .eq('id_evaluacion', evaluacionId);
+      final nuevaTabla = CalificacionAdapter.toTablaDatos(List<Map<String, dynamic>>.from(datos));
+      await cacheService.guardarTablas(nuevaTabla);
+      TablasDimensionScreen.tablaDatos = nuevaTabla;
+    } catch (e) {
+      throw Exception('Error al cargar datos para TablasScreen: $e');
+    }
   }
 
-  // Si no están en caché, cargarlos desde Supabase
-  try {
-    final datos = await _client
-        .from('calificaciones')
+  Future<Evaluacion> crearEvaluacionSiNoExiste(String empresaId, String asociadoId) async {
+    final existente = await buscarEvaluacionExistente(empresaId, asociadoId);
+    if (existente != null) return existente;
+
+    final nuevaEvaluacion = Evaluacion(
+      id: const Uuid().v4(),
+      empresaId: empresaId,
+      asociadoId: asociadoId,
+      fecha: DateTime.now(),
+    );
+    await _client.from('evaluaciones').insert(nuevaEvaluacion.toMap());
+    return nuevaEvaluacion;
+  }
+
+  Future<Evaluacion?> buscarEvaluacionExistente(String empresaId, String asociadoId) async {
+    final response = await _client
+        .from('evaluaciones')
         .select()
-        .eq('id_empresa', empresaId)
-        .eq('id_evaluacion', evaluacionId);
-
-    final nuevaTabla = CalificacionAdapter.toTablaDatos(List<Map<String, dynamic>>.from(datos));
-
-    // Guardar en caché
-    await cacheService.guardarTablas(nuevaTabla);
-    TablasDimensionScreen.tablaDatos = nuevaTabla;
-  } catch (e) {
-    throw Exception('Error al cargar datos para TablasScreen: $e');
+        .eq('empresa_id', empresaId)
+        .eq('asociado_id', asociadoId)
+        .maybeSingle();
+    if (response == null) return null;
+    return Evaluacion.fromMap(response);
   }
-}}
+
+  Future<void> insertar(String tabla, Map<String, dynamic> valores) async {
+    await _client.from(tabla).insert(valores);
+  }
+
+  Future<void> subirPromediosCompletos({
+    required String evaluacionId,
+    required String dimension,
+    required List<Map<String, dynamic>> filas,
+  }) async {
+    final sumas = <String, Map<String, Map<String, int>>>{};
+    final conteos = <String, Map<String, Map<String, int>>>{};
+    final sistemasPorNivel = <String, Map<String, Map<String, int>>>{};
+
+    for (var f in filas) {
+      final principio = f['principio'] as String;
+      final comportamiento = f['comportamiento'] as String;
+      final nivel = (f['cargo'] as String).trim();
+      final valor = f['valor'] as int;
+      final sistemas = (f['sistemas'] as List<dynamic>?)?.cast<String>() ?? [];
+
+      sumas.putIfAbsent(principio, () => {});
+      sumas[principio]!.putIfAbsent(comportamiento, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
+      conteos.putIfAbsent(principio, () => {});
+      conteos[principio]!.putIfAbsent(comportamiento, () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
+
+      sumas[principio]![comportamiento]![nivel] =
+        sumas[principio]![comportamiento]![nivel]! + valor;
+      conteos[principio]![comportamiento]![nivel] =
+        (conteos[principio]![comportamiento]![nivel] ?? 0) + 1;
+
+      for (final sistema in sistemas) {
+        sistemasPorNivel.putIfAbsent(sistema, () => {
+          'Ejecutivo': {},
+          'Gerente': {},
+          'Miembro': {},
+        });
+        sistemasPorNivel[sistema]![nivel]![dimension] =
+          (sistemasPorNivel[sistema]![nivel]![dimension] ?? 0) + 1;
+      }
+    }
+
+    // Insertar promedios de comportamientos
+    for (final p in sumas.keys) {
+      for (final c in sumas[p]!.keys) {
+        for (final nivel in ['Ejecutivo', 'Gerente', 'Miembro']) {
+          final suma = sumas[p]![c]![nivel]!;
+          final count = conteos[p]![c]![nivel]!;
+          final promedio = count == 0 ? 0 : suma / count;
+          await insertar('promedios_comportamientos', {
+            'evaluacion_id': evaluacionId,
+            'dimension': dimension,
+            'principio': p,
+            'comportamiento': c,
+            'nivel': nivel,
+            'valor': double.parse(promedio.toStringAsFixed(2)),
+          });
+        }
+      }
+    }
+
+    // Insertar conteos de sistemas
+    for (final sistema in sistemasPorNivel.keys) {
+      for (final nivel in ['Ejecutivo', 'Gerente', 'Miembro']) {
+        final conteo = sistemasPorNivel[sistema]![nivel]?[dimension] ?? 0;
+        await insertar('promedios_sistemas', {
+          'evaluacion_id': evaluacionId,
+          'dimension': dimension,
+          'sistema': sistema,
+          'nivel': nivel,
+          'conteo': conteo,
+        });
+      }
+    }
+  }
+}

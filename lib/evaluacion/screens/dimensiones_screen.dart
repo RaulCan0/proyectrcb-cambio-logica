@@ -1,18 +1,15 @@
-
-  import 'package:applensys/evaluacion/screens/shingo_result.dart' as shingo_screen;
-  import 'package:applensys/evaluacion/screens/tabla_resumen_global.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:applensys/evaluacion/models/empresa.dart';
+import 'package:applensys/evaluacion/screens/asociado_screen.dart';
+import 'package:applensys/evaluacion/screens/empresas_screen.dart';
+import 'package:applensys/evaluacion/screens/tablas_screen.dart';
+import 'package:applensys/evaluacion/screens/shingo_result.dart' as shingo_screen;
+import 'package:applensys/evaluacion/screens/tabla_resumen_global.dart';
 import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
-  import 'package:flutter/material.dart';
-  import 'package:shared_preferences/shared_preferences.dart';
-  import 'package:applensys/evaluacion/screens/asociado_screen.dart';
-  import 'package:applensys/evaluacion/screens/empresas_screen.dart';
-  import 'package:applensys/evaluacion/screens/tablas_screen.dart';
-  import 'package:applensys/evaluacion/widgets/chat_screen.dart';
-  import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
-  import 'package:applensys/evaluacion/services/evaluacion_service.dart';
-  import '../models/empresa.dart';
-
-final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+import 'package:applensys/evaluacion/services/supabase_service.dart';
+import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
+import 'package:applensys/evaluacion/widgets/chat_screen.dart';
 
 class DimensionesScreen extends StatefulWidget {
   final Empresa empresa;
@@ -28,61 +25,8 @@ class DimensionesScreen extends StatefulWidget {
   State<DimensionesScreen> createState() => _DimensionesScreenState();
 }
 
-class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
-  final EvaluacionService evaluacionService = EvaluacionService();
-  
-  // Método para limpiar ABSOLUTAMENTE TODOS los datos al finalizar evaluación
-  Future<void> _limpiarDatosEvaluacion() async {
-    try {
-      debugPrint('INICIANDO LIMPIEZA COMPLETA DE DATOS...');
-      
-      final cache = EvaluacionCacheService();
-      // 1. Limpiar ABSOLUTAMENTE TODA la caché relacionada con la evaluación
-      await cache.limpiarEvaluacionCompleta();
-      debugPrint('✓ Cache limpiada completamente');
-      
-      // 2. Usar el método oficial de limpieza de tablaDatos
-      await TablasDimensionScreen.limpiarDatos();
-      debugPrint('✓ TablasDimensionScreen.limpiarDatos() ejecutado');
-      
-      // 3. Reinicializar la estructura para mantener consistencia
-      TablasDimensionScreen.tablaDatos = {
-        'Dimensión 1': {},
-        'Dimensión 2': {},
-        'Dimensión 3': {},
-      };
-      debugPrint('✓ TablasDimensionScreen.tablaDatos reinicializado');
-      
-      // 4. Forzar actualización de UI a través del ValueNotifier
-      TablasDimensionScreen.dataChanged.value = !TablasDimensionScreen.dataChanged.value;
-      debugPrint('✓ UI notificada para actualización');
-      
-      // 5. Eliminar cualquier otro dato persistente en SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final keysToRemove = [
-        'current_evaluacion_id',
-        'current_empresa_id',
-        'current_asociados',
-        'comportamientos_evaluados',
-        'principios_evaluados',
-        'dashboard_data',
-        'ultima_evaluacion',
-        'evaluacion_en_progreso',
-        'datos_pendientes',
-        'ultima_sync',
-      ];
-      
-      for (final key in keysToRemove) {
-        await prefs.remove(key);
-      }
-      debugPrint('✓ Datos adicionales en SharedPreferences eliminados');
-      
-      debugPrint('✅ LIMPIEZA COMPLETA FINALIZADA: Se han eliminado todos los datos de evaluación');
-    } catch (e) {
-      debugPrint('❌ ERROR durante la limpieza de datos: $e');
-    }
-  }
-
+class _DimensionesScreenState extends State<DimensionesScreen> {
+  // **Cinco dimensiones:** 3 normales, 1 shingo (categorías), 1 resumen global/final
   final List<Map<String, dynamic>> dimensiones = const [
     {
       'id': '1',
@@ -102,32 +46,80 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
       'icono': Icons.business,
       'color': Color.fromARGB(255, 14, 24, 78),
     },
+    {
+      'id': 'shingo',
+      'nombre': 'Resultados Shingo',
+      'icono': Icons.insert_chart,
+      'color': Color.fromARGB(255, 27, 31, 66),
+    },
+    {
+      'id': 'final',
+      'nombre': 'Evaluación Final',
+      'icono': Icons.assignment_turned_in,
+      'color': Color.fromARGB(255, 2, 33, 58),
+    },
   ];
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
-  }
+  bool _evaluacionFinalizada = false;
 
   @override
-  void dispose() {
-    routeObserver.unsubscribe(this);
-    super.dispose();
+  void initState() {
+    super.initState();
+    _verificarEstadoEvaluacion();
   }
 
-  @override
-  void didPopNext() {
-    setState(() {});
+  Future<void> _verificarEstadoEvaluacion() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _evaluacionFinalizada = prefs.getBool('evaluacion_finalizada_${widget.evaluacionId}') ?? false;
+    });
+  }
+
+  Future<void> _guardarProgreso() async {
+    await SupabaseService().guardarEvaluacionDraft(widget.evaluacionId);
+    await EvaluacionCacheService().guardarPendiente(widget.evaluacionId);
+    await EvaluacionCacheService().guardarTablas(TablasDimensionScreen.tablaDatos);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Progreso guardado localmente')),
+    );
+  }
+
+  Future<void> _finalizarEvaluacion() async {
+    try {
+      // Marca la evaluación como finalizada en Supabase y SharedPreferences
+      await SupabaseService().finalizarEvaluacion(widget.evaluacionId);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('evaluacion_finalizada_${widget.evaluacionId}', true);
+      await EvaluacionCacheService().eliminarPendiente();
+
+      // Agrega empresa al historial
+      final historial = prefs.getStringList('empresas_historial') ?? [];
+      if (!historial.contains(widget.empresa.id)) {
+        historial.add(widget.empresa.id);
+        await prefs.setStringList('empresas_historial', historial);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Evaluación finalizada y archivada')),
+      );
+
+      await Future.delayed(const Duration(milliseconds: 500));
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const EmpresasScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al finalizar evaluación: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
     final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
-
-    // Define una altura constante para todas las cards
-    const double cardHeight = 150; // Puedes ajustar este valor
+    const double cardHeight = 150;
 
     return Scaffold(
       key: scaffoldKey,
@@ -164,100 +156,105 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
         children: [
           Expanded(
             child: ListView.builder(
-              itemCount: 5,
+              itemCount: dimensiones.length,
               itemBuilder: (context, index) {
-                Widget cardItem;
-                if (index < dimensiones.length) {
-                  final dimension = dimensiones[index];
-                  cardItem = _buildCard(
-                    icon: dimension['icono'],
-                    color: dimension['color'],
-                    title: dimension['nombre'],
-                    child: FutureBuilder<double>(
-                      future: evaluacionService.obtenerProgresoDimension(
-                        widget.empresa.id, // Asumiendo que widget.empresa.id es String
-                        dimension['id'],   // Asumiendo que dimension['id'] es String
+                final dimension = dimensiones[index];
+                // Las primeras 3 dimensiones son “normales”
+                if (index < 3) {
+                  return SizedBox(
+                    height: cardHeight,
+                    child: _buildCard(
+                      icon: dimension['icono'],
+                      color: dimension['color'],
+                      title: dimension['nombre'],
+                      child: FutureBuilder<double>(
+                        future: SupabaseService().obtenerProgresoDimension(
+                          widget.empresa.id,
+                          dimension['id'],
+                        ),
+                        builder: (context, snapshot) {
+                          final progreso = (snapshot.data ?? 0.0).clamp(0.0, 1.0);
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              LinearProgressIndicator(
+                                value: progreso,
+                                minHeight: 8,
+                                backgroundColor: const Color.fromARGB(255, 156, 156, 156),
+                                color: dimension['color'],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${(progreso * 100).toStringAsFixed(1)}% completado',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          );
+                        },
                       ),
-                      builder: (context, snapshot) {
-                        final progreso = (snapshot.data ?? 0.0).clamp(0.0, 1.0);
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min, // Para que la columna no intente expandirse innecesariamente
-                          children: [
-                            LinearProgressIndicator(
-                              value: progreso,
-                              minHeight: 8,
-                              backgroundColor: const Color.fromARGB(255, 156, 156, 156),
-                              color: dimension['color'],
+                      onTap: _evaluacionFinalizada
+                          ? null
+                          : () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AsociadoScreen(
+                                    nombreDimension: dimension['nombre'],
+                                    empresa: widget.empresa,
+                                    dimensionId: dimension['id'],
+                                    evaluacionId: widget.evaluacionId,
+                                  ),
+                                ),
+                              );
+                              if (mounted) setState(() {});
+                            },
+                    ),
+                  );
+                }
+                // Card 4: Resultados Shingo
+                else if (index == 3) {
+                  return SizedBox(
+                    height: cardHeight,
+                    child: _buildCard(
+                      icon: dimension['icono'],
+                      color: dimension['color'],
+                      title: dimension['nombre'],
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => shingo_screen.ShingoCategorias(),
+                          ),
+                        );
+                        if (mounted) setState(() {});
+                      },
+                    ),
+                  );
+                }
+                // Card 5: Evaluación Final / Global
+                else {
+                  // Asume que tienes AuxTablaService.obtenerPromediosPorDimensionYCargo()
+                  final promediosPorDimension = AuxTablaService.obtenerPromediosPorDimensionYCargo();
+                  return SizedBox(
+                    height: cardHeight,
+                    child: _buildCard(
+                      icon: dimension['icono'],
+                      color: dimension['color'],
+                      title: dimension['nombre'],
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TablaResumenGlobal(
+                              promediosPorDimension: promediosPorDimension,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${(progreso * 100).toStringAsFixed(1)}% completado',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
+                          ),
                         );
                       },
                     ),
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AsociadoScreen(
-                            nombreDimension: dimension['nombre'],
-                            empresa: widget.empresa,
-                            dimensionId: dimension['id'],
-                            evaluacionId: widget.evaluacionId,
-                          ),
-                        ),
-                      );
-                      if (mounted) { // Buena práctica verificar 'mounted' después de un await
-                        setState(() {});
-                      }
-                    },
-                  );
-                } else if (index == 3) {
-                  cardItem = _buildCard(
-                    icon: Icons.insert_chart,
-                    color: const Color.fromARGB(255, 27, 31, 66),
-                    title: 'Resultados Shingo',
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => shingo_screen.ShingoCategorias(),
-                        ),
-                      );
-                      if (mounted) setState(() {});
-                    },
                   );
                 }
-                else { // index == 4
-                  final promediosPorDimension = AuxTablaService.obtenerPromediosPorDimensionYCargo();
-                  // Usar la instancia global de resultados Shingo
-                  final resultadosShingo = shingo_screen.ShingoCategorias.tablaShingo;
-                  cardItem = _buildCard(
-                    icon: Icons.assignment_turned_in,
-                    color: const Color.fromARGB(255, 2, 33, 58),
-                    title: 'Evaluación Final',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => TablaResumenGlobal(
-                            promediosPorDimension: promediosPorDimension,
-                            // Si necesitas pasar resultadosShingo, agrégalo aquí
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                }
-        // Envolver la cardItem con SizedBox para darle una altura fija
-                return SizedBox(
-                  height: cardHeight,
-                  child: cardItem,
-                );
               },
             ),
           ),
@@ -268,57 +265,23 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
               children: [
                 ElevatedButton.icon(
                   icon: const Icon(Icons.save),
-                  label: const Text('Continuar más tarde'),
+                  label: const Text('Guardar'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF003056),
-                    foregroundColor: const Color.fromARGB(255, 212, 209, 209),
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                   ),
-                  onPressed: () async {
-                    await EvaluacionCacheService().guardarPendiente(widget.evaluacionId);
-                    await EvaluacionCacheService().guardarTablas(TablasDimensionScreen.tablaDatos);
-                    // ignore: use_build_context_synchronously
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Progreso guardado localmente')),
-                    );
-                  },
+                  onPressed: _evaluacionFinalizada ? null : _guardarProgreso,
                 ),
                 ElevatedButton.icon(
-                  icon: const Icon(Icons.check_circle, color: Colors.white),
-                    label: const Text('Finalizar evaluación', style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 94, 156, 96)),
-                  onPressed: () async {
-                    try {
-                      await _limpiarDatosEvaluacion();
-
-                      final prefs = await SharedPreferences.getInstance();
-                      final hist = prefs.getStringList('empresas_historial') ?? [];
-                      if (!hist.contains(widget.empresa.id)) {
-                        hist.add(widget.empresa.id);
-                        await prefs.setStringList('empresas_historial', hist);
-                      }
-
-                      // ignore: use_build_context_synchronously
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('EVALUACIÓN FINALIZADA: Todos los datos han sido eliminados'),
-                          backgroundColor: Color.fromARGB(255, 94, 156, 96),
-                          duration: Duration(seconds: 3),
-                        ),
-                      );
-                      Navigator.pushAndRemoveUntil(
-                        // ignore: use_build_context_synchronously
-                        context,
-                        MaterialPageRoute(builder: (_) => const EmpresasScreen()),
-                        (route) => false,
-                      );
-                    } catch (e) {
-                      // ignore: use_build_context_synchronously
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error al finalizar: $e')),
-                      );
-                    }
-                  },
+                  icon: const Icon(Icons.check_circle),
+                  label: const Text('Finalizar evaluación'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  ),
+                  onPressed: _evaluacionFinalizada ? null : _finalizarEvaluacion,
                 ),
               ],
             ),
@@ -333,11 +296,10 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
     required Color color,
     required String title,
     Widget? child,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
   }) {
-    // final screenSize = MediaQuery.of(context).size; // No se usa aquí
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Reducido el padding vertical para mejor ajuste con altura fija
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Card(
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -348,9 +310,6 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              // Asegurar que la columna se centre o se expanda si es necesario dentro de la Card
-              // dependiendo del diseño deseado. Por ahora, se deja como está.
-              // mainAxisAlignment: MainAxisAlignment.center, // Podrías usar esto para centrar verticalmente el contenido
               children: [
                 Row(
                   children: [
@@ -366,9 +325,6 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
                 ),
                 if (child != null) ...[
                   const SizedBox(height: 10),
-                  // Si el child puede crecer, y quieres que la card se expanda,
-                  // considera envolver el child con Expanded si la Column está dentro de otra Column/Row flexible.
-                  // Aquí, como la Card tiene altura fija por el SizedBox externo, el child se adaptará o cortará.
                   child,
                 ],
               ],
@@ -379,4 +335,3 @@ class _DimensionesScreenState extends State<DimensionesScreen> with RouteAware {
     );
   }
 }
-

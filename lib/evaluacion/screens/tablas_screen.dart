@@ -6,6 +6,8 @@ import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 
+final ScrollController _verticalController = ScrollController();
+final ScrollController _horizontalController = ScrollController();
 
 extension CapitalizeExtension on String {
   String capitalize() {
@@ -24,19 +26,21 @@ class TablasDimensionScreen extends StatefulWidget {
   static final ValueNotifier<bool> dataChanged = ValueNotifier<bool>(false);
 
   final Empresa empresa;
-  final String evaluacionId; // Usado como clave en tablaDatos
-  final String asociadoId; // Nuevo: Hacerlo un campo de instancia si es necesario
-  final String empresaId;  // Nuevo: Hacerlo un campo de instancia si es necesario
-  final String dimension;  // Nuevo: Hacerlo un campo de instancia si es necesario (es el nombre interno de la dimensión)
+  final String evaluacionId;
+  final String asociadoId;
+  final String empresaId;
+  final String dimension;
 
   const TablasDimensionScreen({
     super.key,
     required this.empresa,
     required this.evaluacionId,
-    required this.asociadoId, // Ahora se asigna
-    required this.empresaId,  // Ahora se asigna
-    required this.dimension,  // Ahora se asigna
+    required this.asociadoId,
+    required this.empresaId,
+    required this.dimension,
   });
+
+  /// API pública: agrega o actualiza fila por combinación única (principio, comportamiento, cargo, dim, asociado)
   static Future<void> actualizarDato(
     String evaluacionId, {
     required String dimension,
@@ -52,63 +56,73 @@ class TablasDimensionScreen extends StatefulWidget {
     final tablaDim = tablaDatos.putIfAbsent(dimension, () => {});
     final lista = tablaDim.putIfAbsent(evaluacionId, () => []);
 
-    final indiceExistente = lista.indexWhere((item) =>
+    // Si ya existe fila (por clave única), la reemplaza; si no, la agrega.
+    final idx = lista.indexWhere((item) =>
         item['principio'] == principio &&
         item['comportamiento'] == comportamiento &&
         item['cargo_raw'] == cargo &&
         item['dimension_id'] == dimensionId &&
         item['asociado_id'] == asociadoId);
 
-    if (indiceExistente != -1) {
-      lista[indiceExistente]['valor'] = valor;
-      lista[indiceExistente]['sistemas'] = sistemas;
-      lista[indiceExistente]['observaciones'] = observaciones;
+    final row = {
+      'principio': principio,
+      'comportamiento': comportamiento,
+      'cargo': cargo.trim().capitalize(),
+      'cargo_raw': cargo,
+      'valor': valor,
+      'sistemas': sistemas,
+      'dimension_id': dimensionId,
+      'asociado_id': asociadoId,
+      'observaciones': observaciones,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+
+    if (idx >= 0) {
+      lista[idx] = row;
     } else {
-      lista.add({
-        'principio': principio,
-        'comportamiento': comportamiento,
-        'cargo': cargo.trim().capitalize(),
-        'cargo_raw': cargo,
-        'valor': valor,
-        'sistemas': sistemas,
-        'dimension_id': dimensionId,
-        'asociado_id': asociadoId,
-        'observaciones': observaciones,
-      });
+      lista.add(row);
     }
-  
 
     await EvaluacionCacheService().guardarTablas(tablaDatos);
     dataChanged.value = !dataChanged.value;
   }
 
   static Future<void> limpiarDatos() async {
-    tablaDatos.clear();
-    dataChanged.value = false;
+    tablaDatos = {
+      'Dimensión 1': {},
+      'Dimensión 2': {},
+      'Dimensión 3': {},
+    };
+    await EvaluacionCacheService().guardarTablas(tablaDatos);
+    dataChanged.value = !dataChanged.value;
   }
 
   @override
   State<TablasDimensionScreen> createState() => _TablasDimensionScreenState();
 }
 
-class _TablasDimensionScreenState extends State<TablasDimensionScreen> with TickerProviderStateMixin {
-  final Map<String, String> dimensionInterna = {
+class _TablasDimensionScreenState extends State<TablasDimensionScreen>
+    with TickerProviderStateMixin {
+  final Map<String, String> dimensionInterna = const {
     'IMPULSORES CULTURALES': 'Dimensión 1',
     'MEJORA CONTINUA': 'Dimensión 2',
     'ALINEAMIENTO EMPRESARIAL': 'Dimensión 3',
   };
 
-  List<String> dimensiones = [];
+  late List<String> dimensiones;
 
   @override
   void initState() {
     super.initState();
+    dimensiones = dimensionInterna.keys.toList();
     TablasDimensionScreen.dataChanged.addListener(_onDataChanged);
     _cargarDesdeCache();
   }
 
   @override
   void dispose() {
+    _verticalController.dispose();
+    _horizontalController.dispose();
     TablasDimensionScreen.dataChanged.removeListener(_onDataChanged);
     super.dispose();
   }
@@ -119,11 +133,6 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
     final data = await EvaluacionCacheService().cargarTablas();
     if (data.values.any((m) => m.isNotEmpty)) {
       setState(() => TablasDimensionScreen.tablaDatos = data);
-    }
-    if (mounted) {
-      setState(() {
-        dimensiones = dimensionInterna.keys.toList();
-      });
     }
   }
 
@@ -136,20 +145,17 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    dimensiones = dimensionInterna.keys.toList();
-
     return DefaultTabController(
       length: dimensiones.length,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: const Color(0xFF003056),
-            title: const Center(
+          title: const Center(
             child: Text(
               'Resultados en tiempo real',
               style: TextStyle(color: Colors.white),
             ),
-            ),
+          ),
           iconTheme: const IconThemeData(color: Colors.white),
           actions: [
             IconButton(
@@ -200,28 +206,27 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
               ),
             ),
             Expanded(
-               child: TabBarView(
-                            children: dimensiones.map((dimension) {
-                              final keyInterna = dimensionInterna[dimension]!;
-                              final evalMap =
-                                  TablasDimensionScreen.tablaDatos[keyInterna];
-                              final filas = evalMap != null
-                                  ? evalMap.values.expand((l) => l).toList()
-                                  : <Map<String, dynamic>>[];
-                              if (filas.isEmpty) {
-                                return const Center(
-                                    child: Text('No hay datos para mostrar'));
-                              }
-                              return _buildDataTable(filas);
-                            }).toList(),
-                          ),
-                        ),
-                      ],
-                    ),
-        ),);
+              child: TabBarView(
+                children: dimensiones.map((dimension) {
+                  final keyInterna = dimensionInterna[dimension]!;
+                  final evalMap = TablasDimensionScreen.tablaDatos[keyInterna];
+                  final filas = evalMap != null
+                      ? evalMap.values.expand((l) => l).toList()
+                      : <Map<String, dynamic>>[];
+                  if (filas.isEmpty) {
+                    return const Center(child: Text('No hay datos para mostrar'));
+                  }
+                  return _buildDataTable(filas);
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-    Widget _buildDataTable(List<Map<String, dynamic>> filas) {
+  Widget _buildDataTable(List<Map<String, dynamic>> filas) {
     return ScrollConfiguration(
       behavior: const ScrollBehavior().copyWith(
         scrollbars: true,
@@ -234,14 +239,16 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       ),
       child: Scrollbar(
         thumbVisibility: true,
-        controller: ScrollController(),
+        controller: _verticalController,
         child: SingleChildScrollView(
+          controller: _verticalController,
           scrollDirection: Axis.vertical,
           child: Scrollbar(
             thumbVisibility: true,
-            controller: ScrollController(),
+            controller: _horizontalController,
             notificationPredicate: (_) => true,
             child: SingleChildScrollView(
+              controller: _horizontalController,
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.all(8),
               child: DataTable(
@@ -315,8 +322,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       for (var f in filas) {
         final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
         final valor = (f['valor'] ?? 0).toDouble();
-        final sistemas =
-            (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
+        final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
         sumasNivel[nivel] = sumasNivel[nivel]! + valor;
         conteosNivel[nivel] = conteosNivel[nivel]! + 1;
         sistemasPromedio.agregar(nivel, sistemas);
@@ -364,16 +370,21 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       final comportamiento = f['comportamiento'] ?? '';
       final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
       final int valor = ((f['valor'] ?? 0) as num).toInt();
-      final sistemas =
-          (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
+      final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
       final observacion = f['observaciones'] ?? '';
 
       sumas.putIfAbsent(principio, () => {});
-      sumas[principio]!.putIfAbsent(comportamiento,
-          () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
+      sumas[principio]!.putIfAbsent(comportamiento, () => {
+            'Ejecutivo': 0,
+            'Gerente': 0,
+            'Miembro': 0,
+          });
       conteos.putIfAbsent(principio, () => {});
-      conteos[principio]!.putIfAbsent(comportamiento,
-          () => {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0});
+      conteos[principio]!.putIfAbsent(comportamiento, () => {
+            'Ejecutivo': 0,
+            'Gerente': 0,
+            'Miembro': 0,
+          });
       sistemasPorNivel.putIfAbsent(principio, () => {});
       sistemasPorNivel[principio]!.putIfAbsent(comportamiento, () => {
             'Ejecutivo': <String>{},
@@ -391,10 +402,11 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
           sumas[principio]![comportamiento]![nivel]! + valor;
       conteos[principio]![comportamiento]![nivel] =
           conteos[principio]![comportamiento]![nivel]! + 1;
+
       for (var s in sistemas) {
         sistemasPorNivel[principio]![comportamiento]![nivel]!.add(s);
       }
-      if (observacion.isNotEmpty) {
+      if (observacion.toString().trim().isNotEmpty) {
         observacionesPorNivel[principio]![comportamiento]![nivel]!.add(observacion);
       }
     }
@@ -409,28 +421,23 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
         rows.add(
           DataRow(
             cells: [
-              DataCell(
-                  Text(p, style: const TextStyle(color: Color(0xFF003056)))),
-              DataCell(
-                  Text(c, style: const TextStyle(color: Color(0xFF003056)))),
+              DataCell(Text(p, style: const TextStyle(color: Color(0xFF003056)))),
+              DataCell(Text(c, style: const TextStyle(color: Color(0xFF003056)))),
               ...niveles.map((n) {
                 final suma = e.value[c]![n] ?? 0;
                 final count = conteos[p]![c]![n]!;
                 final txt = count > 0 ? (suma / count).toStringAsFixed(2) : '-';
-                return DataCell(
-                    Text(txt, style: const TextStyle(color: Color(0xFF003056))));
+                return DataCell(Text(txt, style: const TextStyle(color: Color(0xFF003056))));
               }),
               ...niveles.map((n) {
                 final sistemas = sistemasPorNivel[p]![c]![n]!;
                 final txt = sistemas.isEmpty ? '-' : sistemas.join(', ');
-                return DataCell(
-                    Text(txt, style: const TextStyle(color: Color(0xFF003056))));
+                return DataCell(Text(txt, style: const TextStyle(color: Color(0xFF003056))));
               }),
               ...niveles.map((n) {
                 final obs = observacionesPorNivel[p]![c]![n]!;
                 final txt = obs.isNotEmpty ? obs.join(' | ') : '-';
-                return DataCell(
-                    Text(txt, style: const TextStyle(color: Color(0xFF003056))));
+                return DataCell(Text(txt, style: const TextStyle(color: Color(0xFF003056))));
               }),
             ],
           ),
@@ -442,6 +449,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
   }
 }
 
+/// Utilidad para promedio de “sistemas” por nivel (visual en detalles)
 class SistemasPromedio {
   final Map<String, Set<String>> _sistemasPorNivel = {
     'Ejecutivo': <String>{},
@@ -467,6 +475,7 @@ class SistemasPromedio {
   }
 }
 
+/// Servicio auxiliar de agregación para otros widgets
 class AuxTablaService {
   static const Map<String, String> dimensionInterna = {
     'IMPULSORES CULTURALES': 'Dimensión 1',
@@ -478,7 +487,15 @@ class AuxTablaService {
     'Dimensión 1': '1',
     'Dimensión 2': '2',
     'Dimensión 3': '3',
+
   };
+
+  static String _normalizarNivel(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('miembro')) return 'Miembro';
+    if (lower.contains('gerente')) return 'Gerente';
+    return 'Ejecutivo';
+  }
 
   static Map<String, Map<String, double>> obtenerPromediosPorDimensionYCargo() {
     final Map<String, Map<String, double>> resultado = {};
@@ -504,28 +521,19 @@ class AuxTablaService {
       }
 
       resultado[id] = {
-        'EJECUTIVOS': conteo['Ejecutivo']! > 0
-            ? suma['Ejecutivo']! / conteo['Ejecutivo']!
-            : 0.0,
-        'GERENTES': conteo['Gerente']! > 0
-            ? suma['Gerente']! / conteo['Gerente']!
-            : 0.0,
-        'MIEMBROS DE EQUIPO': conteo['Miembro']! > 0
-            ? suma['Miembro']! / conteo['Miembro']!
-            : 0.0,
+        'EJECUTIVOS':
+            conteo['Ejecutivo']! > 0 ? suma['Ejecutivo']! / conteo['Ejecutivo']! : 0.0,
+        'GERENTES':
+            conteo['Gerente']! > 0 ? suma['Gerente']! / conteo['Gerente']! : 0.0,
+        'MIEMBROS DE EQUIPO':
+            conteo['Miembro']! > 0 ? suma['Miembro']! / conteo['Miembro']! : 0.0,
       };
     }
 
     return resultado;
   }
 
-  static String _normalizarNivel(String raw) {
-    final lower = raw.toLowerCase();
-    if (lower.contains('miembro')) return 'Miembro';
-    if (lower.contains('gerente')) return 'Gerente';
-    return 'Ejecutivo';
-  }
-
+  /// Puntos globales (máximo 800) con tus pesos por dimensión/cargo
   static double obtenerTotalPuntosGlobal() {
     final promedios = obtenerPromediosPorDimensionYCargo();
     final config = {
@@ -542,6 +550,6 @@ class AuxTablaService {
         total += (prom / 5.0) * pesos[cargo]!;
       });
     }
-    return total; // Máximo 800
+    return total;
   }
 }

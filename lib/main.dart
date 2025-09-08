@@ -110,6 +110,8 @@ class _MyAppState extends ConsumerState<MyApp> {
 }*/
 
 
+import 'dart:async';
+
 import 'package:applensys/auth/loader.dart';
 import 'package:applensys/auth/login.dart';
 import 'package:applensys/auth/recovery.dart';
@@ -117,6 +119,7 @@ import 'package:applensys/auth/register.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 import 'package:applensys/evaluacion/providers/theme_provider.dart';
 import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
+import 'package:applensys/evaluacion/services/notification_service.dart';
 import 'package:applensys/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -129,16 +132,25 @@ import 'package:applensys/custom/service_locator.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-  };
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+      Zone.current.handleUncaughtError(
+        details.exception,
+        details.stack ?? StackTrace.empty,
+      );
+    };
 
-  await Supabase.initialize(
-    url: Configurations.mSupabaseUrl,
-    anonKey: Configurations.mSupabaseKey,
-  );
+    await Supabase.initialize(
+      url: Configurations.mSupabaseUrl,
+      anonKey: Configurations.mSupabaseKey,
+    );
 
-  setupLocator();
+    bool notificationsInitialized = await NotificationService.init();
+    if (!notificationsInitialized) {
+      debugPrint("ALERTA: El servicio de notificaciones no pudo ser inicializado.");
+    }
+
+    setupLocator();
   await locator<EvaluacionCacheService>().init();
 
   runApp(const ProviderScope(child: MyApp()));

@@ -4,18 +4,18 @@ class Asociado {
   final String id;
   final String nombre;
   final String cargo;
-  final String puesto;
+  final String puesto; // <<<<<<<<<<<<<<<<<<< 🔥 AGREGADO
   final String empresaId;
   final List<String> empleadosAsociados;
   final Map<String, double> progresoDimensiones;
   final Map<String, dynamic> comportamientosEvaluados;
-  final int antiguedad; 
+  final int antiguedad;
 
   Asociado({
     required this.id,
     required this.nombre,
     required this.cargo,
-    required this.puesto,
+    required this.puesto, // <<<<<<<<<<<<<<<<<<< 🔥 AGREGADO
     required this.empresaId,
     required this.empleadosAsociados,
     required this.progresoDimensiones,
@@ -28,6 +28,7 @@ class Asociado {
       id: map['id'],
       nombre: map['nombre'],
       cargo: map['cargo'],
+      puesto: map['puesto'] ?? '', // <<<<<<<<<<<<<<<<<<< 🔥 AGREGADO
       empresaId: map['empresa_id'],
       empleadosAsociados: map['empleados_asociados'] is String
           ? List<String>.from(jsonDecode(map['empleados_asociados']))
@@ -39,7 +40,6 @@ class Asociado {
           ? Map<String, dynamic>.from(jsonDecode(map['comportamientos_evaluados']))
           : Map<String, dynamic>.from(map['comportamientos_evaluados'] ?? {}),
       antiguedad: map['antiguedad'] ?? 0,
-      puesto: map['puesto'] ?? '',
     );
   }
 
@@ -48,16 +48,12 @@ class Asociado {
       'id': id,
       'nombre': nombre,
       'cargo': cargo,
+      'puesto': puesto, // <<<<<<<<<<<<<<<<<<< 🔥 AGREGADO
       'empresa_id': empresaId,
       'empleados_asociados': empleadosAsociados,
       'progreso_dimensiones': progresoDimensiones,
       'comportamientos_evaluados': comportamientosEvaluados,
       'antiguedad': antiguedad,
     };
-  }
-
-  void limpiarProgreso() {
-    progresoDimensiones.clear();
-    comportamientosEvaluados.clear();
   }
 }

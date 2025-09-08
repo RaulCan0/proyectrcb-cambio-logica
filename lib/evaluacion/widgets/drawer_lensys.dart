@@ -1,7 +1,9 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:applensys/auth/loader.dart';
+import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
+import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
 
 import 'package:applensys/evaluacion/screens/empresas_screen.dart';
 import 'package:applensys/evaluacion/screens/historial_screen.dart';
@@ -79,6 +81,58 @@ class DrawerLensys extends ConsumerWidget {
                             color: const Color(0xFF003056), 
                           ),
                         ),
+                );
+              },
+            ),
+             ListTile(
+              leading: Icon(Icons.table_chart, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
+              title: Text("", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TablasDimensionScreen(
+                      empresa: Empresa(
+                        id: 'defaultId',
+                        nombre: 'Default Empresa',
+                        tamano: 'Default Tamano',
+                        empleadosTotal: 0,
+                        empleadosAsociados: [],
+                        unidades: 'Default Unidades',
+                        areas: 0,
+                        sector: 'Default Sector',
+                        createdAt: DateTime.now(),
+                      ),
+                      evaluacionId: '', empresaId: '', dimension: '', asociadoId: '',
+                    ),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.insert_chart, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
+              title: Text("", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DetallesEvaluacionScreen(
+                      dimensionesPromedios: const {},
+                      promedios: const {},
+                      empresa: Empresa(
+                        id: '',
+                        nombre: '',
+                        tamano: '',
+                        empleadosTotal: 0,
+                        empleadosAsociados: [],
+                        unidades: '',
+                        areas: 0,
+                        sector: '',
+                        createdAt: DateTime.now(),
+                      ),
+                      evaluacionId: '', dimension: '',
+                    ),
+                  ),
                 );
               },
             ),

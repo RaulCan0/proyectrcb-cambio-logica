@@ -9,6 +9,7 @@ class EvaluacionCacheService {
   static const _keyEvaluacionPrincipios     = 'evaluacion_principios';
   static const _keyEvaluacionComportamientos= 'evaluacion_comportamientos';
   static const _keyEvaluacionDetalles       = 'evaluacion_detalles';
+  static const _keyObservaciones            = 'evaluacion_observaciones';
 
   SharedPreferences? _prefs;
 
@@ -17,36 +18,32 @@ class EvaluacionCacheService {
   }
 
   Future<void> guardarPendiente(String evaluacionId) async {
-    await init();
+  await init();
     await _prefs!.setString(_keyEvaluacionPendiente, evaluacionId);
   }
 
   Future<String?> obtenerPendiente() async {
-    await init();
+  await init();
     return _prefs!.getString(_keyEvaluacionPendiente);
   }
 
   Future<void> eliminarPendiente() async {
-    await init();
+  await init();
     await _prefs!.remove(_keyEvaluacionPendiente);
-    // Ya no eliminamos _keyTablaDatos aquí para que persistan los datos de la tabla
-    // await _prefs!.remove(_keyTablaDatos); 
+    // Si quieres eliminar también la tabla, descomenta la siguiente línea:
+    // await _prefs!.remove(_keyTablaDatos);
   }
 
-  /// Guarda las tablas completas de progreso (estructura tablaDatos)
-  Future<void> guardarTablas(
-    Map<String, Map<String, List<Map<String, dynamic>>>> data
-  ) async {
-    await init();
+  Future<void> guardarTablas(Map<String, Map<String, List<Map<String, dynamic>>>> data) async {
+  await init();
     final encoded = jsonEncode(data.map((dim, map) =>
       MapEntry(dim, map.map((id, filas) => MapEntry(id, filas)))
     ));
     await _prefs!.setString(_keyTablaDatos, encoded);
   }
 
-  /// Carga las tablas completas desde cache
   Future<Map<String, Map<String, List<Map<String, dynamic>>>>> cargarTablas() async {
-    await init();
+  await init();
     final raw = _prefs!.getString(_keyTablaDatos);
     if (raw == null || raw.isEmpty) {
       return {
@@ -55,7 +52,6 @@ class EvaluacionCacheService {
         'Dimensión 3': {},
       };
     }
-
     try {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       return decoded.map((dim, map) {
@@ -67,7 +63,6 @@ class EvaluacionCacheService {
         return MapEntry(dim, sub);
       });
     } catch (e) {
-      // Si hay error, retorna estructura vacía
       return {
         'Dimensión 1': {},
         'Dimensión 2': {},
@@ -76,15 +71,13 @@ class EvaluacionCacheService {
     }
   }
 
-  /// NUEVO: elimina solo los datos de tabla de cache
   Future<void> limpiarCacheTablaDatos() async {
-    await init();
+  await init();
     await _prefs!.remove(_keyTablaDatos);
   }
 
-  /// Limpia todo lo relacionado con una evaluación en progreso
   Future<void> limpiarEvaluacionCompleta() async {
-    await init();
+  await init();
     await _prefs!.remove(_keyEvaluacionPendiente);
     await _prefs!.remove(_keyTablaDatos);
     await _prefs!.remove(_keyEvaluacionAsociados);
@@ -92,21 +85,18 @@ class EvaluacionCacheService {
     await _prefs!.remove(_keyEvaluacionComportamientos);
     await _prefs!.remove(_keyEvaluacionDetalles);
   }
+
   Future<List<Map<String, dynamic>>> cargarPromediosSistemas() async {
     final tabla = await cargarTablas();
     final Map<String, List<double>> acumulador = {};
     tabla.forEach((_, submap) {
       submap.values.expand((rows) => rows).forEach((item) {
-        // Corregido: Leer la lista de sistemas de la clave 'sistemas' (plural)
-        // y luego iterar sobre cada sistema en esa lista.
         final List<dynamic> sistemasDelItemRaw = item['sistemas'] as List<dynamic>? ?? [];
         final List<String> sistemasDelItem = sistemasDelItemRaw.map((s) => s.toString()).toList();
-
-        final rawValor = item['valor']; // 'valor' es la clave para la calificación/puntaje
+        final rawValor = item['valor'];
         final valorNumerico = rawValor is num
             ? rawValor.toDouble()
             : double.tryParse(rawValor.toString()) ?? 0.0;
-
         for (final nombreSistema in sistemasDelItem) {
           if (nombreSistema.isNotEmpty) {
             acumulador.putIfAbsent(nombreSistema, () => []).add(valorNumerico);
@@ -114,7 +104,6 @@ class EvaluacionCacheService {
         }
       });
     });
-
     final List<Map<String, dynamic>> promedios = [];
     acumulador.forEach((sistema, valores) {
       if (valores.isNotEmpty) {
@@ -126,23 +115,18 @@ class EvaluacionCacheService {
         });
       }
     });
-    // Opcional: ordenar promedios
     promedios.sort((a, b) => (b['promedio'] as double).compareTo(a['promedio'] as double));
     return promedios;
   }
-  // Agrega la clave para observaciones
-  static const _keyObservaciones = 'evaluacion_observaciones';
 
-  /// Guarda observaciones asociadas a una evaluación
   Future<void> guardarObservaciones(Map<String, String> observaciones) async {
-    await init();
+  await init();
     final encoded = jsonEncode(observaciones);
     await _prefs!.setString(_keyObservaciones, encoded);
   }
 
-  /// Carga observaciones asociadas a una evaluación
   Future<Map<String, String>> cargarObservaciones() async {
-    await init();
+  await init();
     final raw = _prefs!.getString(_keyObservaciones);
     if (raw == null || raw.isEmpty) {
       return {};
@@ -155,9 +139,8 @@ class EvaluacionCacheService {
     }
   }
 
-  /// Limpia las observaciones almacenadas
   Future<void> limpiarObservaciones() async {
-    await init();
+  await init();
     await _prefs!.remove(_keyObservaciones);
   }
 }

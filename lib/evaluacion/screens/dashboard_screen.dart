@@ -60,8 +60,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadCachedOrRemoteData() async {
-    final cacheService = EvaluacionCacheService();
-    await cacheService.init();
+  final cacheService = EvaluacionCacheService();
+  await cacheService.init();
 
     dynamic rawTables = await cacheService.cargarTablas();
 
