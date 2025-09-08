@@ -53,14 +53,14 @@ class _SistemasScreenState extends State<SistemasScreen> {
       lista.sort((a, b) => a['nombre'].toString().compareTo(b['nombre'].toString()));
 
       if (!mounted) return;
-    setState(() {
+      setState(() {
         sistemas = lista;
         sistemasFiltrados = List.from(lista);
         isLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al cargar: $e');
     }
   }
@@ -76,7 +76,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
           .select()
           .single();
       if (!mounted) return;
-    setState(() {
+      setState(() {
         sistemas.add(nuevo);
         sistemas.sort((a, b) => a['nombre'].toString().compareTo(b['nombre'].toString()));
         _filtrarBusqueda();
@@ -85,7 +85,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al agregar: $e');
     }
   }
@@ -96,7 +96,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
     try {
       await supabase.from('sistemas_asociados').delete().eq('id', id);
       if (!mounted) return;
-    setState(() {
+      setState(() {
         sistemas.removeWhere((s) => s['id'] == id);
         seleccionados.remove(id);
         _filtrarBusqueda();
@@ -104,7 +104,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al eliminar: $e');
     }
   }
@@ -122,14 +122,14 @@ class _SistemasScreenState extends State<SistemasScreen> {
           .single();
       final idx = sistemas.indexWhere((s) => s['id'] == id);
       if (!mounted) return;
-    setState(() {
+      setState(() {
         sistemas[idx] = actualizado;
         _filtrarBusqueda();
         isLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
       _mostrarError('Error al editar: $e');
     }
   }
@@ -142,7 +142,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(sistema['nombre']), // Modificado: Se elimina "Sistema: "
+        title: Text(sistema['nombre']),
         content: const Text('¿Qué deseas hacer?'),
         actions: [
           TextButton(
@@ -150,7 +150,7 @@ class _SistemasScreenState extends State<SistemasScreen> {
               Navigator.pop(context);
               _mostrarEditarDialogo(sistema);
             },
-            child: const Text('Editar'), // Modificado: Se quita el estilo explícito si lo tuviera, para usar el color por defecto.
+            child: const Text('Editar'),
           ),
           TextButton(
             onPressed: () {
@@ -201,11 +201,15 @@ class _SistemasScreenState extends State<SistemasScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect( // Envolver con ClipRRect
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(10.0)), // Definir el radio para las esquinas superiores
-      child: SizedBox(
-        height: 380,
+    final viewInsets = MediaQuery.of(context).viewInsets;
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(10.0)),
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 300),
+        padding: EdgeInsets.only(bottom: viewInsets.bottom),
         child: Scaffold(
+          resizeToAvoidBottomInset: false,
           appBar: AppBar(
             backgroundColor: const Color(0xFF003056),
             automaticallyImplyLeading: false,
@@ -240,15 +244,16 @@ class _SistemasScreenState extends State<SistemasScreen> {
                               itemBuilder: (_, i) {
                                 final sistema = sistemasFiltrados[i];
                                 return Card(
-                                  color: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                   elevation: 3,
                                   child: ListTile(
                                     leading: Checkbox(
                                       value: seleccionados.contains(sistema['id']),
                                       onChanged: (sel) {
                                         if (!mounted) return;
-    setState(() {
+                                        setState(() {
                                           if (sel == true) {
                                             seleccionados.add(sistema['id']);
                                           } else {
@@ -289,14 +294,12 @@ class _SistemasScreenState extends State<SistemasScreen> {
                           child: const Text('Añadir', style: TextStyle(color: Colors.white)),
                         ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),
               if (isLoading)
-                const Center(
-                  child: CircularProgressIndicator(),
-                )
+                const Center(child: CircularProgressIndicator()),
             ],
           ),
         ),

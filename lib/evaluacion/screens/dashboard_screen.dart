@@ -19,7 +19,6 @@ import 'package:applensys/evaluacion/charts/horizontal_bar_systems_chart.dart';
 import 'package:applensys/evaluacion/services/reporte_service.dart';
 import 'package:applensys/custom/table_names.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 class DashboardScreen extends StatefulWidget {
   final String evaluacionId;
   final Empresa empresa;
@@ -46,6 +45,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Flag para saber si aún estamos cargando
   bool _isLoading = true;
 
+  // Getters públicos para acceder a los datos desde otras screens
   List<Dimension> get dimensiones => _dimensiones;
   Map<String, Map<String, double>> get promediosPorDimensionCargo => _calcularPromediosPorDimensionCargo();
 
@@ -59,45 +59,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadCachedOrRemoteData();
   }
 
-  // Método para cargar datos exclusivamente desde Supabase (sin caché)
-  Future<void> _cargarDatosDesdeSupabase() async {
-    try {
-      final supabase = Supabase.instance.client;
-      final data = await supabase
-          .from(TableNames.detallesEvaluacion)
-          .select()
-          .eq('evaluacion_id', widget.evaluacionId);
-      _dimensionesRaw = List<Map<String, dynamic>>.from(data as List<dynamic>);
-      
-      if (_dimensionesRaw.isNotEmpty) {
-        _procesarDimensionesDesdeRaw(_dimensionesRaw);
-      }
-
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error cargando datos de Supabase: $e');
-      _dimensionesRaw = [];
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
   Future<void> _loadCachedOrRemoteData() async {
     final cacheService = EvaluacionCacheService();
     await cacheService.init();
-
-    // Verificar si hay una evaluación pendiente primero
-    final pendienteId = await cacheService.obtenerPendiente();
-    if (pendienteId != null && pendienteId.isNotEmpty && pendienteId != widget.evaluacionId) {
-      // Si hay otra evaluación pendiente, no cargar datos del caché para evitar confusiones
-      _cargarDatosDesdeSupabase();
-      return;
-    }
 
     dynamic rawTables = await cacheService.cargarTablas();
 
@@ -192,7 +156,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         final List<Comportamiento> compsModel = [];
-
         porComportamiento.forEach((compNombre, filasComp) {
           double sumaEj = 0, sumaGe = 0, sumaMi = 0;
           int countEj = 0, countGe = 0, countMi = 0;

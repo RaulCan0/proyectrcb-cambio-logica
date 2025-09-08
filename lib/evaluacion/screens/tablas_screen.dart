@@ -4,6 +4,7 @@ import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
 import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 
 
 extension CapitalizeExtension on String {
@@ -220,60 +221,76 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
         ),);
   }
 
-  Widget _buildDataTable(List<Map<String, dynamic>> filas) {
-    return InteractiveViewer(
-      constrained: false,
-      scaleEnabled: false,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
+    Widget _buildDataTable(List<Map<String, dynamic>> filas) {
+    return ScrollConfiguration(
+      behavior: const ScrollBehavior().copyWith(
+        scrollbars: true,
+        dragDevices: {
+          PointerDeviceKind.touch,
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.stylus,
+          PointerDeviceKind.unknown,
+        },
+      ),
+      child: Scrollbar(
+        thumbVisibility: true,
+        controller: ScrollController(),
         child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.all(8),
-          child: DataTable(
-            columnSpacing: 36,
-            headingRowColor: WidgetStateProperty.resolveWith(
-              (_) => const Color(0xFF003056),
+          scrollDirection: Axis.vertical,
+          child: Scrollbar(
+            thumbVisibility: true,
+            controller: ScrollController(),
+            notificationPredicate: (_) => true,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.all(8),
+              child: DataTable(
+                columnSpacing: 36,
+                headingRowColor: WidgetStateProperty.resolveWith(
+                  (_) => const Color(0xFF003056),
+                ),
+                dataRowColor: WidgetStateProperty.all(
+                  Colors.grey.shade200,
+                ),
+                border: TableBorder.all(color: const Color(0xFF003056)),
+                columns: const [
+                  DataColumn(
+                      label: Text('Principio',
+                          style: TextStyle(color: Colors.white))),
+                  DataColumn(
+                      label: Text('Comportamiento',
+                          style: TextStyle(color: Colors.white))),
+                  DataColumn(
+                      label: Text('Ejecutivo',
+                          style: TextStyle(color: Colors.white))),
+                  DataColumn(
+                      label: Text('Gerente',
+                          style: TextStyle(color: Colors.white))),
+                  DataColumn(
+                      label: Text('Miembro',
+                          style: TextStyle(color: Colors.white))),
+                  DataColumn(
+                      label: Text('Ejecutivo Sistemas',
+                          style: TextStyle(color: Colors.white))),
+                  DataColumn(
+                      label: Text('Gerente Sistemas',
+                          style: TextStyle(color: Colors.white))),
+                  DataColumn(
+                      label: Text('Miembro Sistemas',
+                          style: TextStyle(color: Colors.white))),
+                  DataColumn(
+                      label: Text('Ejecutivo observaciones',
+                          style: TextStyle(color: Colors.white))),
+                  DataColumn(
+                      label: Text('Gerente observaciones',
+                          style: TextStyle(color: Colors.white))),
+                  DataColumn(
+                      label: Text('Miembro observaciones',
+                          style: TextStyle(color: Colors.white))),
+                ],
+                rows: _buildRowsPrincipioPromedio(filas),
+              ),
             ),
-            dataRowColor: WidgetStateProperty.all(
-              Colors.grey.shade200,
-            ),
-            border: TableBorder.all(color: const Color(0xFF003056)),
-            columns: const [
-              DataColumn(
-                  label: Text('Principio',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Comportamiento',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Ejecutivo',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Gerente',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Miembro',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Ejecutivo Sistemas',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Gerente Sistemas',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Miembro Sistemas',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Ejecutivo observaciones',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Gerente observaciones',
-                      style: TextStyle(color: Colors.white))),
-              DataColumn(
-                  label: Text('Miembro observaciones',
-                      style: TextStyle(color: Colors.white))),
-            ],
-            rows: _buildRowsPrincipioPromedio(filas),
           ),
         ),
       ),
