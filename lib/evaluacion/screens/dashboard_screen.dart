@@ -1,9 +1,7 @@
 // ignore_for_file: use_build_context_synchronously, curly_braces_in_flow_control_structures
 
-import 'dart:io';
 import 'dart:convert';
 import 'package:applensys/evaluacion/services/pdf.dart';
-import 'package:applensys/evaluacion/services/excel.dart';
 import 'package:flutter/services.dart';
 import 'package:applensys/evaluacion/charts/multiring.dart';
 import 'package:flutter/material.dart';
@@ -18,11 +16,9 @@ import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:applensys/evaluacion/charts/scatter_bubble_chart.dart';
 import 'package:applensys/evaluacion/charts/grouped_bar_chart.dart';
 import 'package:applensys/evaluacion/charts/horizontal_bar_systems_chart.dart';
-import 'package:open_file/open_file.dart';
+import 'package:applensys/evaluacion/services/ashingo_service.dart';
 import 'package:applensys/custom/table_names.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:path_provider/path_provider.dart';
-
 class DashboardScreen extends StatefulWidget {
   final String evaluacionId;
   final Empresa empresa;
@@ -116,6 +112,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _procesarDimensionesDesdeRaw(_dimensionesRaw);
     }
 
+    if (!mounted) return;
     setState(() {
       _isLoading = false;
     });
@@ -159,7 +156,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         final List<Comportamiento> compsModel = [];
-
         porComportamiento.forEach((compNombre, filasComp) {
           double sumaEj = 0, sumaGe = 0, sumaMi = 0;
           int countEj = 0, countGe = 0, countMi = 0;
@@ -519,7 +515,7 @@ List<ScatterData> _buildScatterData() {
     }
     return data;
   }
-
+  
   Map<String, Map<String, double>> _buildHorizontalBarsData() {
     // Lista de sistemas ordenados (misma que en HorizontalBarSystemsChart)
     const List<String> sistemasOrdenados = [
@@ -819,7 +815,7 @@ Future<List<ReporteComportamiento>> _prepararDatosPdf() async {
           final hallazgos = observaciones.isNotEmpty ? '- ${observaciones.join('\n- ')}' : 'Sin observaciones';
 
           nivelesData[nivel] = NivelEvaluacion(
-            promedio: promedio,
+              valor: promedio,
             interpretacion: interpretacion,
             benchmarkPorCargo: benchmark,
             obs: hallazgos,
@@ -850,111 +846,138 @@ reporteData.add(
 
   return reporteData;
 }
-
-
- 
-  /// Callback al presionar "Generar PDF"
+/* /// Callback al presionar "Generar PDF"
   Future<void> _onGenerarReportePdf() async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Generando reporte PDF...')),
+      // Variables para almacenar las recomendaciones
+      String recomendacion1 = "";
+      String recomendacion2 = "";
+      String recomendacion3 = "";
+
+      // Mostrar el primer AlertDialog
+      await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Recomendación 1"),
+            content: TextField(
+              onChanged: (value) {
+                recomendacion1 = value;
+              },
+              decoration: const InputDecoration(hintText: "Ingrese la primera recomendación"),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Aceptar"),
+              ),
+            ],
+          );
+        },
       );
 
-      // Preparar datos para el PDF (ahora es asíncrono)
+      // Mostrar el segundo AlertDialog
+      await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Recomendación 2"),
+            content: TextField(
+              onChanged: (value) {
+                recomendacion2 = value;
+              },
+              decoration: const InputDecoration(hintText: "Ingrese la segunda recomendación"),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Aceptar"),
+              ),
+            ],
+          );
+        },
+      );
+
+      // Mostrar el tercer AlertDialog
+      await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Recomendación 3"),
+            content: TextField(
+              onChanged: (value) {
+                recomendacion3 = value;
+              },
+              decoration: const InputDecoration(hintText: "Ingrese la tercera recomendación"),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Aceptar"),
+              ),
+            ],
+          );
+        },
+      );
+
+      // Generar el reporte PDF con las recomendaciones
       final datosPdf = await _prepararDatosPdf();
-
-      if (datosPdf.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No hay datos suficientes para generar el reporte')),
-        );
-        return;
-      }
-
-      // Generar PDF
       final pdfBytes = await ReportePdfService.generarReportePdf(datosPdf);
 
-      // Guardar archivo local
-      final directory = await getApplicationDocumentsDirectory();
-      final nombreEmpresa = widget.empresa.nombre.replaceAll(' ', '_');
-      final fileName = 'Reporte_$nombreEmpresa.pdf';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsBytes(pdfBytes);
+*/
+ 
+  /// Callback al presionar "Generar Word"
+  Future<void> _onGenerarReporteWord(List<String> recomendaciones) async {
+    final datos = await _prepararDatosPdf();
+    final nombreEmpresa = widget.empresa.nombre;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Generando reporte Word...')),
+    );
+    await ReporteService.generarYSubirReporte(
+      formato: 'WORD',
+      datos: datos,
+      nombreEmpresa: nombreEmpresa,
+      recomendaciones: recomendaciones,
+      onStatus: (msg) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      },
+    );
+  }
 
-      // Subir a Supabase Storage (bucket: reportes)
-      try {
-        final supabase = Supabase.instance.client;
-        await supabase.storage.from('reportes').upload(fileName, file);
-        debugPrint('PDF subido a Supabase Storage: $fileName');
-      } catch (e) {
-        debugPrint('Error subiendo PDF a Supabase Storage: $e');
-      }
-
-      // Mostrar mensaje de éxito
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reporte PDF generado y subido exitosamente')),
-      );
-
-      // Abrir archivo local
-      await OpenFile.open(file.path);
-
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al generar reporte PDF: ${e.toString()}')),
-      );
-      debugPrint('Error generando PDF: $e');
-    }
+  /// Callback al presionar "Generar PDF"
+  Future<void> _onGenerarReportePdf(List<String> recomendaciones) async {
+    final datos = await _prepararDatosPdf();
+    final nombreEmpresa = widget.empresa.nombre;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Generando reporte PDF...')),
+    );
+    await ReporteService.generarYSubirReporte(
+      formato: 'PDF',
+      datos: datos,
+      nombreEmpresa: nombreEmpresa,
+      recomendaciones: recomendaciones,
+      onStatus: (msg) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      },
+    );
   }
 
   /// Callback al presionar "Generar Excel"
-  Future<void> _onGenerarReporteExcel() async {
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Generando reporte Excel...')),
-      );
-
-      // Preparar datos para el Excel usando la misma función que el PDF
-      final datosExcel = await _prepararDatosPdf();
-
-      if (datosExcel.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No hay datos suficientes para generar el reporte')),
-        );
-        return;
-      }
-
-      // Generar Excel
-      final excelBytes = ReporteExcelService.generarReporteExcel(datosExcel);
-
-      // Guardar archivo local
-      final directory = await getApplicationDocumentsDirectory();
-      final nombreEmpresa = widget.empresa.nombre.replaceAll(' ', '_');
-      final fileName = 'Reporte_$nombreEmpresa.xlsx';
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsBytes(excelBytes);
-
-      // Subir a Supabase Storage (bucket: reportes)
-      try {
-        final supabase = Supabase.instance.client;
-        await supabase.storage.from('reportes').upload(fileName, file);
-        debugPrint('Excel subido a Supabase Storage: $fileName');
-      } catch (e) {
-        debugPrint('Error subiendo Excel a Supabase Storage: $e');
-      }
-
-      // Mostrar mensaje de éxito
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reporte Excel generado y subido exitosamente')),
-      );
-
-      // Abrir archivo local
-      await OpenFile.open(file.path);
-
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al generar reporte Excel: ${e.toString()}')),
-      );
-      debugPrint('Error generando Excel: $e');
-    }
+  Future<void> _onGenerarReporteExcel(List<String> recomendaciones) async {
+    final datos = await _prepararDatosPdf();
+    final nombreEmpresa = widget.empresa.nombre;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Generando reporte Excel...')),
+    );
+    await ReporteService.generarYSubirReporte(
+      formato: 'EXCEL',
+      datos: datos,
+      nombreEmpresa: nombreEmpresa,
+      recomendaciones: recomendaciones,
+      onStatus: (msg) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      },
+    );
   }
 
   @override
@@ -1023,7 +1046,7 @@ reporteData.add(
                   ),
 
                   _buildChartContainer(
-                    color: const Color.fromARGB(255, 231, 220, 187),
+                    color: const Color.fromARGB(255, 225, 226, 226),
                     title: 'EVALUACION COMPORTAMIENTO-ROL',
                     child: GroupedBarChart(
                       data: _buildGroupedBarData(),
@@ -1035,7 +1058,7 @@ reporteData.add(
 
                
                   _buildChartContainer(
-                    color: const Color.fromARGB(255, 202, 208, 219),
+                    color: const Color.fromARGB(255, 225, 226, 226),
                     title: 'EVALUACION SISTEMAS-ROL',
                     child: HorizontalBarSystemsChart(
                       data: horizontalData, 
@@ -1055,51 +1078,143 @@ reporteData.add(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(width: 16),
+                const SizedBox(height: 18),
                 Tooltip(
                   message: 'Ejecutivo',
-                  child: Icon(
-                    Icons.help_outline,
-                    color: Colors.orange,
-                    size: 32,
+                  child: Column(
+                    children: [
+                      Icon(Icons.help_outline, color: Colors.orange, size: 32),
+                      const SizedBox(height: 4),
+                      Text('Ejecutivo', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 11)),
+                    ],
                   ),
                 ),
-                        const SizedBox(width: 26),
-                        Tooltip(
-                          message: 'Gerente',
-                          child: Icon(
-                            Icons.help_outline,
-                            color: Colors.green,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(width: 26),
-                        Tooltip(
-                          message: 'Miembro de equipo',
-                          child: Icon(
-                            Icons.help_outline,
-                            color: Colors.blue,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(height: 26),
+                const SizedBox(height: 18),
+                Tooltip(
+                  message: 'Gerente',
+                  child: Column(
+                    children: [
+                      Icon(Icons.help_outline, color: Colors.green, size: 32),
+                      const SizedBox(height: 4),
+                      Text('Gerente', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Tooltip(
+                  message: 'Miembro de equipo',
+                  child: Column(
+                    children: [
+                      Icon(Icons.help_outline, color: Colors.blue, size: 32),
+                      const SizedBox(height: 4),
+                      Text('Miembro de equipo', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 26),
                         // Chat interno
                         IconButton(
                           icon: const Icon(Icons.chat, color: Colors.white),
                           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                           tooltip: 'Chat Interno',
                         ),
-                        // Generar PDF
-                        IconButton(
-                          icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                          onPressed: _onGenerarReportePdf,
-                          tooltip: 'Generar Reporte PDF',
-                        ),
-                        // Generar Excel
-                        IconButton(
-                          icon: const Icon(Icons.table_chart, color: Colors.green),
-                          onPressed: _onGenerarReporteExcel,
-                          tooltip: 'Generar Reporte Excel',
+                        // Menú de reportes (PDF, Excel)
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.file_present, color: Colors.amber),
+                          tooltip: 'Generar Reporte',
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: 'word',
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.description, color: Colors.blue),
+                                  SizedBox(width: 8),
+                                  Text('Reporte Word'),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'pdf',
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.picture_as_pdf, color: Colors.red),
+                                  SizedBox(width: 8),
+                                  Text('Reporte PDF'),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'excel',
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.table_chart, color: Colors.green),
+                                  SizedBox(width: 8),
+                                  Text('Reporte Excel'),
+                                ],
+                              ),
+                            ),
+                          ],
+                          onSelected: (formato) async {
+                            final recomendaciones = await showDialog<List<String>>(
+                              context: context,
+                              builder: (context) {
+                                final TextEditingController rec1 = TextEditingController();
+                                final TextEditingController rec2 = TextEditingController();
+                                final TextEditingController rec3 = TextEditingController();
+                                return AlertDialog(
+                                  title: Text('Ingresa 3 recomendaciones'),
+                                  content: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        TextField(
+                                          controller: rec1,
+                                          decoration: InputDecoration(labelText: 'Recomendación 1'),
+                                        ),
+                                        TextField(
+                                          controller: rec2,
+                                          decoration: InputDecoration(labelText: 'Recomendación 2'),
+                                        ),
+                                        TextField(
+                                          controller: rec3,
+                                          decoration: InputDecoration(labelText: 'Recomendación 3'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(null),
+                                      child: Text('Cancelar'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop([
+                                          rec1.text,
+                                          rec2.text,
+                                          rec3.text,
+                                        ]);
+                                      },
+                                      child: Text('Aceptar'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                            if (recomendaciones == null || recomendaciones.any((r) => r.trim().isEmpty)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Debes ingresar las 3 recomendaciones.')),
+                              );
+                              return;
+                            }
+                            if (formato == 'word') {
+                              await _onGenerarReporteWord(recomendaciones);
+                            } else if (formato == 'pdf') {
+                              await _onGenerarReportePdf(recomendaciones);
+                            } else if (formato == 'excel') {
+                              await _onGenerarReporteExcel(recomendaciones);
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -1130,7 +1245,7 @@ reporteData.add(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 14),
               child: Text(
                 title,
                 textAlign: TextAlign.center,
@@ -1152,5 +1267,10 @@ reporteData.add(
             ),
           ],
         ));
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 }

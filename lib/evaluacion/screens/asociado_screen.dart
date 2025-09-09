@@ -19,7 +19,7 @@ class AsociadoScreen extends StatefulWidget {
     super.key,
     required this.empresa,
     required this.dimensionId,
-    required this.evaluacionId,
+    required this.evaluacionId, required nombreDimension,
   });
 
   @override

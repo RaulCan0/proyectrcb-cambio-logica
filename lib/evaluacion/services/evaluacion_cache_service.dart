@@ -9,6 +9,7 @@ class EvaluacionCacheService {
   static const _keyEvaluacionComportamientos = 'evaluacion_comportamientos';
   static const _keyEvaluacionDetalles = 'evaluacion_detalles';
   static const _keyPromediosDimensiones = 'evaluacion_promedios';
+  static const _keyObservaciones = 'evaluacion_observaciones';
 
   SharedPreferences? _prefs;
 
@@ -140,5 +141,34 @@ class EvaluacionCacheService {
 
     promedios.sort((a, b) => (b['promedio'] as double).compareTo(a['promedio'] as double));
     return promedios;
+}
+
+  /// Guarda observaciones (clave-valor)
+  Future<void> guardarObservaciones(Map<String, String> observaciones) async {
+    await init();
+    final encoded = jsonEncode(observaciones);
+    await _prefs!.setString(_keyObservaciones, encoded);
   }
+
+  /// Carga observaciones
+  Future<Map<String, String>> cargarObservaciones() async {
+    await init();
+    final raw = _prefs!.getString(_keyObservaciones);
+    if (raw == null || raw.isEmpty) {
+      return {};
+    }
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((key, value) => MapEntry(key, value as String));
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /// Limpia observaciones
+  Future<void> limpiarObservaciones() async {
+    await init();
+    await _prefs!.remove(_keyObservaciones);
+  }
+
 }

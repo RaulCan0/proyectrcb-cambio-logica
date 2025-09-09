@@ -1,20 +1,23 @@
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:http/http.dart' as http;
 
 class NivelEvaluacion {
-  final double promedio;
+  final double valor;
   final String interpretacion;
   final String benchmarkPorCargo;
   final String obs;
   final List<String> sistemasSeleccionados;
+  final String? evidenciaUrl;
 
   NivelEvaluacion({
-    required this.promedio,
+    required this.valor,
     required this.interpretacion,
     required this.benchmarkPorCargo,
     required this.obs,
     required this.sistemasSeleccionados,
+    this.evidenciaUrl,
   });
 }
 
@@ -31,164 +34,231 @@ class ReporteComportamiento {
 }
 
 class ReportePdfService {
-  static Future<Uint8List> generarReportePdf(List<ReporteComportamiento> datos) async {
+  static Future<Uint8List> generarReportePdf(
+    List<ReporteComportamiento> datos,
+    List<String> recomendaciones,
+  ) async {
     final pdf = pw.Document();
-
-    // Estilos (mismas fuentes; no aumentamos tamaño, solo redistribuimos ancho de columnas)
     final txtSmall = pw.TextStyle(fontSize: 9);
     final txtNormal = pw.TextStyle(fontSize: 10);
     final headerStyle = pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold);
+    final evidenciaBytes = <String, Uint8List>{};
 
-    // Hoja 1 vacía horizontal
-    pdf.addPage(
-      pw.Page(
+    for (int i = 0; i < datos.length; i++) {
+      final comp = datos[i];
+
+      pdf.addPage(pw.MultiPage(
         pageFormat: PdfPageFormat.a4.landscape,
-        build: (_) => pw.Container(),
-      ),
-    );
-
-    bool tituloImpreso = false; // Mostrar el título global solo una vez
-
-    for (final comp in datos) {
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4.landscape,
-          margin: const pw.EdgeInsets.all(20),
-          build: (context) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              if (!tituloImpreso) ...[
-                pw.Text("BENCHMARK DE COMPORTAMIENTOS", style: headerStyle),
-                pw.SizedBox(height: 6),
-              ],
-
-              // Benchmark general del comportamiento (mantener por comportamiento)
-              pw.Container(
-                width: double.infinity,
-                padding: const pw.EdgeInsets.all(8),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.grey700),
-                  color: PdfColors.grey200,
-                ),
-                child: pw.Text(comp.benchmarkGeneral, style: txtNormal),
-              ),
-
-              pw.SizedBox(height: 10),
-
-              // Encabezado
-              _fila(
-                nivel: "Nivel",
-                promedio: "Promedio",
-                interp: "Interpretación",
-                benchmark: "Benchmark por Cargo",
-                sistemas: "Sistemas",
-                hallazgos: "Hallazgos",
-                isHeader: true,
-                txtSmall: txtSmall,
-              ),
-
-              // Filas por nivel
-              for (final n in const ["E", "G", "M"])
-                if (comp.niveles[n] != null)
-                  _fila(
-                    nivel: n == "E" ? "Ejecutivo" : n == "G" ? "Gerente" : "Miembro",
-                    promedio: comp.niveles[n]!.promedio.toStringAsFixed(2),
-                    interp: comp.niveles[n]!.interpretacion,
-                    benchmark: comp.niveles[n]!.benchmarkPorCargo,
-                    sistemas: comp.niveles[n]!.sistemasSeleccionados.join(", "),
-                    hallazgos: comp.niveles[n]!.obs,
-                    txtSmall: txtSmall,
-                  ),
-
-              pw.SizedBox(height: 14),
-
-              // Gráfico de barras compacto
-              pw.Center(child: pw.Text("Resumen Gráfico", style: headerStyle)),
-              pw.SizedBox(height: 6),
-              _buildVerticalBarChart(comp),
-            ],
+        margin: const pw.EdgeInsets.all(20),
+        build: (context) => [
+          pw.Text("BENCHMARK DE COMPORTAMIENTOS", style: headerStyle),
+          pw.SizedBox(height: 6),
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(8),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey700),
+              color: PdfColors.grey200,
+            ),
+            child: pw.Text(comp.benchmarkGeneral, style: txtNormal),
           ),
-        ),
-      );
+          pw.SizedBox(height: 10),
+          _tablaNiveles(comp, headerStyle, txtSmall),
+          pw.SizedBox(height: 20),
+          pw.Divider(),
+          pw.SizedBox(height: 10),
+          pw.Center(child: pw.Text("Resumen Gráfico", style: headerStyle)),
+          pw.SizedBox(height: 8),
+          _buildVerticalBarChartConEscala(comp),
+          pw.SizedBox(height: 20),
+          if (recomendaciones.length > i)
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey100,
+                border: pw.Border.all(color: PdfColors.blueGrey),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Recomendación ${i + 1}: ${comp.nombre}',
+                    style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Text(recomendaciones[i], style: txtNormal),
+                ],
+              ),
+            ),
+        ],
+      ));
 
-      tituloImpreso = true;
+      for (final nivel in ['E', 'G', 'M']) {
+        final url = comp.niveles[nivel]?.evidenciaUrl;
+        if (url != null && url.isNotEmpty) {
+          try {
+            final response = await http.get(Uri.parse(url));
+            if (response.statusCode == 200) {
+              evidenciaBytes["${comp.nombre}-$nivel"] = response.bodyBytes;
+            }
+          } catch (_) {}
+        }
+      }
     }
+
+    pdf.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4.landscape,
+      margin: const pw.EdgeInsets.all(20),
+      build: (context) => [
+        pw.Text("EVIDENCIAS POR COMPORTAMIENTO Y NIVEL", style: headerStyle),
+        pw.SizedBox(height: 10),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey700),
+          columnWidths: {
+            0: const pw.FlexColumnWidth(2),
+            1: const pw.FlexColumnWidth(2),
+            2: const pw.FlexColumnWidth(6),
+          },
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+              children: [
+                pw.Padding(padding: const pw.EdgeInsets.all(4), child: pw.Text('Comportamiento', style: headerStyle)),
+                pw.Padding(padding: const pw.EdgeInsets.all(4), child: pw.Text('Nivel', style: headerStyle)),
+                pw.Padding(padding: const pw.EdgeInsets.all(4), child: pw.Text('Evidencia', style: headerStyle)),
+              ],
+            ),
+            for (final comp in datos)
+              for (final nivel in ['E', 'G', 'M'])
+                if (comp.niveles[nivel]?.evidenciaUrl != null)
+                  pw.TableRow(
+                    children: [
+                      pw.Padding(padding: const pw.EdgeInsets.all(4), child: pw.Text(comp.nombre, style: txtNormal)),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(4),
+                        child: pw.Text(
+                          nivel == 'E' ? 'Ejecutivo' : nivel == 'G' ? 'Gerente' : 'Miembro de Equipo',
+                          style: txtNormal,
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(4),
+                        child: evidenciaBytes["${comp.nombre}-$nivel"] != null
+                            ? pw.Image(pw.MemoryImage(evidenciaBytes["${comp.nombre}-$nivel"]!), height: 60)
+                            : pw.Text("Sin imagen", style: txtSmall),
+                      ),
+                    ],
+                  ),
+          ],
+        ),
+      ],
+    ));
 
     return pdf.save();
   }
 
-  /// Distribución de anchos (solo ancho, misma fuente):
-  /// Nivel(1) | Promedio(1) | Interpretación(8) | Benchmark(8) | Sistemas(1) | Hallazgos(1)
-  static pw.Widget _fila({
-    required String nivel,
-    required String promedio,
-    required String interp,
-    required String benchmark,
-    required String sistemas,
-    required String hallazgos,
-    bool isHeader = false,
-    required pw.TextStyle txtSmall,
-  }) {
-    final style = pw.TextStyle(
-      fontSize: isHeader ? 10 : 9,
-      fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
-    );
+  static pw.Widget _tablaNiveles(
+    ReporteComportamiento comp,
+    pw.TextStyle headerStyle,
+    pw.TextStyle cellStyle,
+  ) {
+    const nivelesOrdenados = ['E', 'G', 'M'];
 
-    pw.Widget plano(String texto) {
-      final items = texto.contains('\n')
-          ? texto.split('\n')
-          : texto.split(',').map((e) => e.trim()).toList();
-      final contenido = items.where((t) => t.isNotEmpty).join(', ');
-      return pw.Text(contenido.isEmpty ? 'Sin datos' : contenido, style: style);
+    String getNivelNombre(String key) {
+      switch (key) {
+        case 'E': return 'Ejecutivo';
+        case 'G': return 'Gerente';
+        case 'M': return 'Miembro de Equipo';
+        default: return key;
+      }
     }
 
-    return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(vertical: 3),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Expanded(flex: 1, child: pw.Text(nivel, style: style, textAlign: pw.TextAlign.center)),
-          pw.Expanded(flex: 1, child: pw.Text(promedio, style: style, textAlign: pw.TextAlign.center)),
-          pw.Expanded(flex: 5, child: pw.Text(interp, style: style)),
-          pw.Expanded(flex: 5, child: pw.Text(benchmark, style: style)),
-          pw.Expanded(flex: 2, child: plano(sistemas)),
-          pw.Expanded(flex: 1, child: plano(hallazgos)),
-        ],
-      ),
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey700, width: 0.5),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(2),
+        1: const pw.FlexColumnWidth(1),
+        2: const pw.FlexColumnWidth(5),
+        3: const pw.FlexColumnWidth(5),
+        4: const pw.FlexColumnWidth(3),
+        5: const pw.FlexColumnWidth(3),
+      },
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+          children: [
+            for (final title in ["Nivel", "Valor", "Interpretación", "Benchmark por Cargo", "Sistemas", "Hallazgos"])
+              pw.Padding(padding: const pw.EdgeInsets.all(4), child: pw.Text(title, style: headerStyle)),
+          ],
+        ),
+        for (final key in nivelesOrdenados)
+          if (comp.niveles[key] != null)
+            pw.TableRow(
+              children: [
+                pw.Padding(padding: const pw.EdgeInsets.all(4), child: pw.Text(getNivelNombre(key), style: cellStyle)),
+                pw.Padding(padding: const pw.EdgeInsets.all(4), child: pw.Text(comp.niveles[key]!.valor.toStringAsFixed(2), style: cellStyle)),
+                pw.Padding(padding: const pw.EdgeInsets.all(4), child: pw.Text(comp.niveles[key]!.interpretacion, style: cellStyle)),
+                pw.Padding(padding: const pw.EdgeInsets.all(4), child: pw.Text(comp.niveles[key]!.benchmarkPorCargo, style: cellStyle)),
+                pw.Padding(padding: const pw.EdgeInsets.all(4), child: pw.Text(comp.niveles[key]!.sistemasSeleccionados.join(", "), style: cellStyle)),
+                pw.Padding(padding: const pw.EdgeInsets.all(4), child: pw.Text(comp.niveles[key]!.obs, style: cellStyle)),
+              ],
+            ),
+      ],
     );
   }
 
-  /// Barras más juntas (menos padding, ancho reducido)
-  static pw.Widget _buildVerticalBarChart(ReporteComportamiento comp) {
+  static pw.Widget _buildVerticalBarChartConEscala(ReporteComportamiento comp) {
     final labels = ['Ejecutivo', 'Gerente', 'Miembro'];
     final values = [
-      comp.niveles['E']?.promedio ?? 0,
-      comp.niveles['G']?.promedio ?? 0,
-      comp.niveles['M']?.promedio ?? 0,
+      comp.niveles['E']?.valor ?? 0,
+      comp.niveles['G']?.valor ?? 0,
+      comp.niveles['M']?.valor ?? 0,
     ];
-    final colors = [PdfColors.orange, PdfColors.green, PdfColors.blue];
 
-    return pw.Center(
+    const maxY = 5.0;
+    const barColors = [PdfColors.orange, PdfColors.green, PdfColors.blue];
+    const barWidth = 20.0;
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.only(left: 20, top: 10),
       child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.center,
         crossAxisAlignment: pw.CrossAxisAlignment.end,
-        children: List.generate(3, (i) {
-          return pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(horizontal: 1), // juntas
-            child: pw.Column(
-              mainAxisAlignment: pw.MainAxisAlignment.end,
-              children: [
-                pw.Container(
-                  height: values[i] * 20, // escala vertical
-                  width: 14,              // barra un poco más angosta para pegarlas
-                  color: colors[i],
-                ),
-                pw.SizedBox(height: 2),
-                pw.Text(labels[i], style: const pw.TextStyle(fontSize: 9)),
-              ],
+        children: [
+          pw.Column(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: List.generate(6, (i) {
+              final label = (maxY - i).toStringAsFixed(0);
+              return pw.SizedBox(
+                height: 20,
+                child: pw.Text(label, style: const pw.TextStyle(fontSize: 8)),
+              );
+            }),
+          ),
+          pw.SizedBox(width: 8),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: List.generate(3, (i) {
+              final barHeight = (values[i] / maxY) * 100;
+              return pw.Container(
+                width: barWidth,
+                height: barHeight,
+                margin: const pw.EdgeInsets.symmetric(horizontal: 2),
+                color: barColors[i],
+              );
+            }),
+          ),
+          pw.SizedBox(width: 16),
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: List.generate(3, (i) =>
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(top: 4),
+                child: pw.Text(labels[i], style: const pw.TextStyle(fontSize: 8)),
+              ),
             ),
-          );
-        }),
+          ),
+        ],
       ),
     );
   }

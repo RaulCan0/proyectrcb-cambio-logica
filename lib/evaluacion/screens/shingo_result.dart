@@ -1,13 +1,15 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
-import 'package:applensys/evaluacion/widgets/tabla_shingo.dart';
+import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
+import 'package:applensys/evaluacion/widgets/shingo_hojas.dart';
+import 'package:applensys/evaluacion/services/shingoservice.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 class ShingoCategorias extends StatefulWidget {
   const ShingoCategorias({super.key});
 
-  // Tabla Shingo accesible globalmente
-  static final Map<String, ShingoResultData> tablaShingo = {
+  static Map<String, ShingoResultData> tablaShingo = {
     for (var cat in [
       'seguridad/medio/ambiente/moral',
       'satisfacción del cliente',
@@ -17,12 +19,22 @@ class ShingoCategorias extends StatefulWidget {
     ]) cat: ShingoResultData()
   };
 
+  static Future<void> guardarTablaShingo() async {
+    final data = tablaShingo.map((key, value) => MapEntry(key, value.toJson()));
+    await EvaluacionCacheService().guardarObservaciones(data.cast<String, String>());
+  }
+
+  static Future<void> cargarTablaShingo() async {
+    final data = await EvaluacionCacheService().cargarObservaciones();
+    tablaShingo = data.map((key, value) => MapEntry(key, ShingoResultData.fromJson(value as Map<String, dynamic>)));
+  }
+
   @override
   State<ShingoCategorias> createState() => _ShingoCategoriasState();
 }
 
 class _ShingoCategoriasState extends State<ShingoCategorias> {
-  final List<String> categorias = [
+  List<String> categorias = [
     'seguridad/medio/ambiente/moral',
     'satisfacción del cliente',
     'calidad',
@@ -30,102 +42,217 @@ class _ShingoCategoriasState extends State<ShingoCategorias> {
     'entregas',
   ];
 
-
-  void abrirHoja(String categoria) async {
-    final resultado = await Navigator.push(
+  void abrirHoja(String categoria, {String? subcategoria}) async {
+    final data = subcategoria == null
+        ? ShingoCategorias.tablaShingo[categoria]!
+        : ShingoCategorias.tablaShingo[categoria]!.subcategorias[subcategoria]!;
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ShingoResultSheet(
-          title: categoria,
-          initialData: ShingoCategorias.tablaShingo[categoria]!,
+        builder: (_) => HojaShingoWidget(
+          titulo: subcategoria ?? categoria,
+          data: data,
         ),
       ),
     );
+    if (!mounted) return;
+    setState(() {}); // Refresca la UI y la tabla tras editar
+  }
 
-    if (resultado != null && resultado is ShingoResultData) {
+  void agregarCategoria() async {
+    final controller = TextEditingController();
+    final nombre = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Nueva categoría'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Nombre de la categoría'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Agregar')),
+        ],
+      ),
+    );
+    if (nombre != null && nombre.trim().isNotEmpty) {
       setState(() {
-        ShingoCategorias.tablaShingo[categoria] = resultado;
+        categorias.add(nombre.trim());
+        ShingoCategorias.tablaShingo[nombre.trim()] = ShingoResultData();
       });
     }
+  }
+
+  void eliminarCategoria(String categoria) {
+    setState(() {
+      categorias.remove(categoria);
+      ShingoCategorias.tablaShingo.remove(categoria);
+    });
+  }
+
+  void agregarSubcategoria(String categoria) async {
+    final controller = TextEditingController();
+    final nombre = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Nueva subcategoría'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Nombre de la subcategoría'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Agregar')),
+        ],
+      ),
+    );
+    if (nombre != null && nombre.trim().isNotEmpty) {
+      setState(() {
+        ShingoCategorias.tablaShingo[categoria]!.subcategorias[nombre.trim()] = ShingoResultData();
+      });
+    }
+  }
+
+  void eliminarSubcategoria(String categoria, String subcategoria) {
+    setState(() {
+      ShingoCategorias.tablaShingo[categoria]!.subcategorias.remove(subcategoria);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Evaluación por Categorías')),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(20),
-              itemCount: categorias.length,
-              itemBuilder: (context, index) {
-                final cat = categorias[index];
-                final hoja = ShingoCategorias.tablaShingo[cat]!;
-                return GestureDetector(
-                  onTap: () async {
-                    final resultado = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ShingoResultSheet(
-                          title: cat,
-                          initialData: hoja,
-                        ),
-                      ),
-                    );
-                    if (resultado != null && resultado is ShingoResultData) {
-                      setState(() {
-                        ShingoCategorias.tablaShingo[cat] = resultado;
-                      });
-                    }
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 10),
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.lightBlue.shade100,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(cat.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text('Calificación: ${hoja.calificacion}', style: const TextStyle(fontSize: 14)),
-                        ),
-                      ],
-                    ),
-                  ),
+      appBar: AppBar(
+        title: const Text('EVALUACION DE RESULTADOS'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'Generar reporte Shingo',
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Generando reporte Shingo...')),
+              );
+              // Ejecuta el servicio directamente (ajusta los parámetros según tu lógica de negocio)
+              try {
+                await ReporteShingoService.generarYRegistrarShingoPdf(
+                  tabla: ShingoCategorias.tablaShingo,
+                  empresaId: 'ID_EMPRESA', // <-- Reemplaza por el ID real
+                  evaluacionId: 'ID_EVALUACION', // <-- Reemplaza por el ID real
+                  empresaNombre: 'Nombre Empresa', // <-- Reemplaza por el nombre real
                 );
-              },
-            ),
-            const SizedBox(height: 30),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text('Tabla Resultados Shingo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TablaResultadosShingo(resultados: ShingoCategorias.tablaShingo),
-            ),
-          ],
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Reporte Shingo generado y subido correctamente.')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error al generar el reporte: $e')),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: agregarCategoria,
+        tooltip: 'Agregar categoría',
+        child: const Icon(Icons.add),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                itemCount: categorias.length,
+                itemBuilder: (context, index) {
+                  final cat = categorias[index];
+                  final hoja = ShingoCategorias.tablaShingo[cat]!;
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(cat.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              ),
+                              Text('Calificación: ${hoja.calificacion}', style: const TextStyle(fontSize: 14)),
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blue),
+                                tooltip: 'Editar categoría',
+                                onPressed: () => abrirHoja(cat),
+                              ),
+                            ],
+                          ),
+                          if (hoja.subcategorias.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            ...hoja.subcategorias.entries.map((entry) => Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const SizedBox(width: 24),
+                                    Expanded(
+                                      child: Text(entry.key, style: const TextStyle(fontSize: 15)),
+                                    ),
+                                    Text('Calificación: ${entry.value.calificacion}', style: const TextStyle(fontSize: 14)),
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, color: Colors.blue),
+                                      tooltip: 'Editar subcategoría',
+                                      onPressed: () => abrirHoja(cat, subcategoria: entry.key),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      tooltip: 'Eliminar subcategoría',
+                                      onPressed: () => eliminarSubcategoria(cat, entry.key),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                              ],
+                            )),
+                          ],
+                          Row(
+                            children: [
+                              Icon(Icons.add, color: Colors.green),
+                              TextButton(
+                                onPressed: () => agregarSubcategoria(cat),
+                                child: const Text('Agregar subcategoría'),
+                              ),
+                              const Spacer(),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                tooltip: 'Eliminar categoría',
+                                onPressed: () => eliminarCategoria(cat),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // Tabla de resultados Shingo OCULTA de la UI
+              // const SizedBox(height: 30),
+              // Padding(
+              //   padding: const EdgeInsets.symmetric(horizontal: 20),
+              //   child: Text('Tabla Resultados Shingo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              // ),
+              // Padding(
+              //   padding: const EdgeInsets.all(8.0),
+              //   child: TablaResultadosShingo(resultados: ShingoCategorias.tablaShingo),
+              // ),
+            ],
+          ),
         ),
       ),
     );
@@ -136,11 +263,13 @@ class ShingoResultData {
   Map<String, String> campos;
   File? imagen;
   int calificacion;
+  Map<String, ShingoResultData> subcategorias;
 
   ShingoResultData({
     Map<String, String>? campos,
     this.imagen,
     int? calificacion,
+    Map<String, ShingoResultData>? subcategorias,
   })  : campos = campos ?? {
           'Cómo se calcula': '',
           'Cómo se mide': '',
@@ -150,193 +279,25 @@ class ShingoResultData {
           'Cambios en 3 años': '',
           'Cómo se definen metas': '',
         },
-        calificacion = calificacion ?? 0;
-}
+        calificacion = calificacion ?? 0,
+        subcategorias = subcategorias ?? {};
 
-class ShingoResultSheet extends StatefulWidget {
-  final String title;
-  final ShingoResultData initialData;
+  Map<String, dynamic> toJson() => {
+        'campos': campos,
+        'imagen': imagen?.path,
+        'calificacion': calificacion,
+        'subcategorias': subcategorias.map((k, v) => MapEntry(k, v.toJson())),
+      };
 
-  const ShingoResultSheet({
-    super.key,
-    required this.title,
-    required this.initialData,
-  });
-
-  @override
-  State<ShingoResultSheet> createState() => _ShingoResultSheetState();
-}
-
-class _ShingoResultSheetState extends State<ShingoResultSheet> {
-  late Map<String, String> campos;
-  File? imagen;
-  int calificacion = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    campos = Map.from(widget.initialData.campos);
-    imagen = widget.initialData.imagen;
-    calificacion = widget.initialData.calificacion;
-  }
-
-  Future<void> editarCampo(String titulo) async {
-    final controller = TextEditingController(text: campos[titulo] ?? '');
-    final result = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(titulo),
-        content: TextField(controller: controller, maxLines: 4),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Guardar')),
-        ],
-      ),
-    );
-    if (result != null) setState(() => campos[titulo] = result);
-  }
-
-  Future<void> seleccionarImagen() async {
-    final picker = ImagePicker();
-    final archivo = await picker.pickImage(source: ImageSource.gallery);
-    if (archivo == null) return;
-    try {
-      setState(() => imagen = File(archivo.path));
-      // Aquí puedes agregar lógica para subir la imagen a la nube si lo necesitas
-    } catch (e) {
-      // Puedes mostrar un mensaje de error si ocurre algún problema
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cargar imagen: $e')),
+  factory ShingoResultData.fromJson(Map<String, dynamic> json) => ShingoResultData(
+        campos: Map<String, String>.from(json['campos'] ?? {}),
+        imagen: json['imagen'] != null ? File(json['imagen']) : null,
+        calificacion: json['calificacion'] ?? 0,
+        subcategorias: (json['subcategorias'] != null)
+            ? Map<String, ShingoResultData>.from(
+                (json['subcategorias'] as Map).map((k, v) => MapEntry(k, ShingoResultData.fromJson(v as Map<String, dynamic>))))
+            : {},
       );
-    }
-  }
-
-  String _tooltipForField(String campo) {
-    switch (campo) {
-      case 'Cómo se calcula':
-        return 'Explica claramente cómo se mide y calcula este resultado.';
-      case 'Cómo se mide':
-        return 'Describe la fuente de datos y la frecuencia de medición.';
-      case '¿Por qué es importante?':
-        return 'Explica el impacto que tiene este resultado en la organización.';
-      case 'Sistemas usados para mejorar':
-        return 'Describe qué sistemas se usan para mejorar este resultado.';
-      case 'Explicación de desviaciones':
-        return 'Expón las razones de cualquier desviación significativa.';
-      case 'Cambios en 3 años':
-        return 'Describe si ha habido cambios en la medición durante los últimos 3 años.';
-      case 'Cómo se definen metas':
-        return 'Explica cómo se establecen los objetivos y metas para este resultado.';
-      default:
-        return 'Campo informativo';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: () {
-              Navigator.pop(
-                context,
-                ShingoResultData(
-                  campos: campos,
-                  imagen: imagen,
-                  calificacion: calificacion,
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Container(
-          margin: const EdgeInsets.all(20),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.black87),
-            color: Colors.white,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Text(
-                  widget.title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: seleccionarImagen,
-                child: Container(
-                  height: 180,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black),
-                    color: Colors.grey.shade200,
-                    image: imagen != null
-                        ? DecorationImage(image: FileImage(imagen!), fit: BoxFit.cover)
-                        : null,
-                  ),
-                  child: imagen == null
-                      ? const Center(child: Text('Tocar para agregar imagen del gráfico'))
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ...campos.keys.map((campo) => Tooltip(
-                    message: _tooltipForField(campo),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 12),
-                        Text(campo, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        GestureDetector(
-                          onTap: () => editarCampo(campo),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey),
-                              color: Colors.grey.shade100,
-                            ),
-                            child: Text(
-                              campos[campo]?.isEmpty ?? true ? 'Tocar para escribir...' : campos[campo]!,
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
-              const SizedBox(height: 20),
-              const Text('Calificación (0 a 5)', style: TextStyle(fontWeight: FontWeight.bold)),
-              Row(
-                children: [
-                  const Text('0'),
-                  Expanded(
-                    child: Slider(
-                      value: calificacion.toDouble(),
-                      min: 0,
-                      max: 5,
-                      divisions: 5,
-                      label: calificacion.toString(),
-                      onChanged: (v) => setState(() => calificacion = v.round()),
-                    ),
-                  ),
-                  const Text('5'),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
+
+// Eliminada la clase ShingoResultSheet. Ahora se usa HojaShingoWidget para editar hojas.
