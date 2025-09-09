@@ -167,6 +167,7 @@ class _ComportamientoEvaluacionScreenState
     }
   }
 
+
   Future<void> _guardarEvaluacion() async {
     final obs = observacionController.text.trim();
     if (obs.isEmpty) {
@@ -177,49 +178,82 @@ class _ComportamientoEvaluacionScreenState
       _showAlert('Validación', 'Selecciona al menos un sistema.');
       return;
     }
-
     setState(() => isSaving = true);
     try {
       final nombreComp =
           widget.principio.benchmarkComportamiento.split(':').first.trim();
-      final dimIdNum = _dimensionNumero(widget.dimensionId);
+      final dimId = int.tryParse(widget.dimensionId) ?? 1;
 
-      // Buscar calificación existente si no vino por parámetro
-      final existente = widget.calificacionExistente ??
+      // Usar la calificación existente si se pasó al widget, de lo contrario, buscarla.
+      final Calificacion? calificacionParaActualizar = widget.calificacionExistente ??
           await calificacionService.getCalificacionExistente(
             idAsociado: widget.asociadoId,
             idEmpresa: widget.empresaId,
-            idDimension: dimIdNum,
+            idDimension: dimId,
             comportamiento: nombreComp,
           );
 
-      // Si existe y no se venía desde "editar", pedir confirmación
-      bool editar = existente != null;
-      if (existente != null && widget.calificacionExistente == null) {
-        final resp = await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Modificar calificación'),
-            content: const Text(
-                'Ya existe una calificación para este comportamiento. ¿Deseas modificarla?'),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('No')),
-              ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Sí')),
-            ],
-          ),
-        );
-        editar = resp ?? false;
+      if (calificacionParaActualizar != null) {
+        bool debeEditar = true;
+        // Solo mostrar el diálogo de confirmación si la calificación no se pasó directamente (es decir, el usuario no hizo clic explícitamente para editar)
+        if (widget.calificacionExistente == null) {
+          final editar = await showDialog<bool>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('Modificar calificación'),
+              content: const Text(
+                  'Ya existe una calificación para este comportamiento. ¿Deseas modificarla?'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('No')),
+                ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Sí')),
+              ],
+            ),
+          );
+          debeEditar = editar ?? false;
+        }
+
+        if (debeEditar) {
+          final calObj = Calificacion(
+            id: calificacionParaActualizar.id, // Usar el ID existente
+            idAsociado: widget.asociadoId,
+            idEmpresa: widget.empresaId,
+            idDimension: dimId,
+            comportamiento: nombreComp,
+            puntaje: calificacion,
+            fechaEvaluacion: DateTime.now(), // Considera si quieres actualizar la fecha o mantener la original
+            observaciones: obs,
+            sistemas: sistemasSeleccionados,
+            evidenciaUrl: evidenciaUrl,
+          );
+         await TablasDimensionScreen.actualizarDato(
+  widget.evaluacionId,
+  dimension: obtenerNombreDimensionInterna(widget.dimensionId),
+  principio: widget.principio.nombre,
+  comportamiento: nombreComp,
+  cargo: widget.cargo,
+  valor: calificacion,
+  sistemas: sistemasSeleccionados,
+  dimensionId: widget.dimensionId,
+  asociadoId: widget.asociadoId,
+);
+          if (mounted) Navigator.pop(context, nombreComp); // Devolver el nombre del comportamiento para actualizar la pantalla anterior
+        } else {
+           if (mounted) setState(() => isSaving = false); // Si el usuario decide no editar, detener el indicador de carga
+           return; // Salir si el usuario elige no editar
+        }
+        return; // Salir después de intentar la edición
       }
 
+      // Crear nueva calificación si no existe una para actualizar
       final calObj = Calificacion(
-        id: existente?.id ?? const Uuid().v4(),
+        id: const Uuid().v4(),
         idAsociado: widget.asociadoId,
         idEmpresa: widget.empresaId,
-        idDimension: dimIdNum,
+        idDimension: dimId,
         comportamiento: nombreComp,
         puntaje: calificacion,
         fechaEvaluacion: DateTime.now(),
@@ -227,37 +261,23 @@ class _ComportamientoEvaluacionScreenState
         sistemas: sistemasSeleccionados,
         evidenciaUrl: evidenciaUrl,
       );
-
-      if (existente != null) {
-        if (!editar) {
-          setState(() => isSaving = false);
-          return;
-        }
-        await calificacionService.updateCalificacionFull(calObj);
-      } else {
-        await calificacionService.addCalificacion(calObj);
-      }
-
-      // Actualiza tabla en memoria y cache (esto ya togglea dataChanged)
-      await TablasDimensionScreen.actualizarDato(
-        widget.evaluacionId,
-        dimension: obtenerNombreDimensionInterna(widget.dimensionId), // "Dimensión N"
-        principio: widget.principio.nombre,
-        comportamiento: nombreComp,
-        cargo: widget.cargo,
-        valor: calificacion,
-        sistemas: sistemasSeleccionados,
-        dimensionId: widget.dimensionId, // guarda el crudo ("d1"/"1")
-        asociadoId: widget.asociadoId,
-        observaciones: obs,
-      );
-
+     await TablasDimensionScreen.actualizarDato(
+  widget.evaluacionId,
+  dimension: obtenerNombreDimensionInterna(widget.dimensionId),
+  principio: widget.principio.nombre,
+  comportamiento: nombreComp,
+  cargo: widget.cargo,
+  valor: calificacion,
+  sistemas: sistemasSeleccionados,
+  dimensionId: widget.dimensionId,
+  asociadoId: widget.asociadoId,
+);
       if (mounted) Navigator.pop(context, nombreComp);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al guardar: $e'), backgroundColor: Colors.red),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error al guardar: $e'),
+            backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => isSaving = false);

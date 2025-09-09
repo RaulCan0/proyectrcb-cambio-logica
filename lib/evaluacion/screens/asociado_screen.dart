@@ -386,3 +386,20 @@ class _AsociadoScreenState extends State<AsociadoScreen> with SingleTickerProvid
     );
   }
 }
+extension AsociadoScreenHelper on SupabaseService {
+  Future<double> obtenerProgresoAsociado({
+    required String evaluacionId,
+    required String asociadoId,
+    required String dimensionId,
+  }) async {
+    final response = await Supabase.instance.client
+        .from('calificaciones')
+        .select('comportamiento')
+        .eq('id_asociado', asociadoId)
+        .eq('id_empresa', evaluacionId)
+        .eq('id_dimension', int.tryParse(dimensionId) ?? -1);
+
+    final total = response.length;
+    return total / 28;
+  }
+}

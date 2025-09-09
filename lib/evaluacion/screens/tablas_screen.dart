@@ -4,10 +4,10 @@ import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
 import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:flutter/material.dart';
+
+import 'package:applensys/evaluacion/services/controller.dart';
 import 'package:flutter/gestures.dart';
 
-final ScrollController _verticalController = ScrollController();
-final ScrollController _horizontalController = ScrollController();
 
 extension CapitalizeExtension on String {
   String capitalize() {
@@ -31,16 +31,15 @@ class TablasDimensionScreen extends StatefulWidget {
   final String empresaId;
   final String dimension;
 
-  const TablasDimensionScreen({
+   const TablasDimensionScreen({
     super.key,
     required this.empresa,
     required this.evaluacionId,
-    required this.asociadoId,
-    required this.empresaId,
-    required this.dimension,
+    required this.asociadoId, // Ahora se asigna
+    required this.empresaId,  // Ahora se asigna
+    required this.dimension,  // Ahora se asigna
   });
 
-  /// API pública: agrega o actualiza fila por combinación única (principio, comportamiento, cargo, dim, asociado)
   static Future<void> actualizarDato(
     String evaluacionId, {
     required String dimension,
@@ -51,48 +50,36 @@ class TablasDimensionScreen extends StatefulWidget {
     required List<String> sistemas,
     required String dimensionId,
     required String asociadoId,
-    required String observaciones,
+    String? observaciones,
   }) async {
     final tablaDim = tablaDatos.putIfAbsent(dimension, () => {});
     final lista = tablaDim.putIfAbsent(evaluacionId, () => []);
 
-    // Si ya existe fila (por clave única), la reemplaza; si no, la agrega.
-    final idx = lista.indexWhere((item) =>
+    final indiceExistente = lista.indexWhere((item) =>
         item['principio'] == principio &&
         item['comportamiento'] == comportamiento &&
         item['cargo_raw'] == cargo &&
         item['dimension_id'] == dimensionId &&
         item['asociado_id'] == asociadoId);
 
-    final row = {
-      'principio': principio,
-      'comportamiento': comportamiento,
-      'cargo': cargo.trim().capitalize(),
-      'cargo_raw': cargo,
-      'valor': valor,
-      'sistemas': sistemas,
-      'dimension_id': dimensionId,
-      'asociado_id': asociadoId,
-      'observaciones': observaciones,
-      'updatedAt': DateTime.now().toIso8601String(),
-    };
-
-    if (idx >= 0) {
-      lista[idx] = row;
+    if (indiceExistente != -1) {
+      lista[indiceExistente]['valor'] = valor;
+      lista[indiceExistente]['sistemas'] = sistemas;
+      lista[indiceExistente]['observaciones'] = observaciones ?? '';
     } else {
-      lista.add(row);
+      lista.add({
+        'principio': principio,
+        'comportamiento': comportamiento,
+        'cargo': cargo.trim().capitalize(),
+        'cargo_raw': cargo,
+        'valor': valor,
+        'sistemas': sistemas,
+        'dimension_id': dimensionId,
+        'asociado_id': asociadoId,
+        'observaciones': observaciones ?? '',
+      });
     }
 
-    await EvaluacionCacheService().guardarTablas(tablaDatos);
-    dataChanged.value = !dataChanged.value;
-  }
-
-  static Future<void> limpiarDatos() async {
-    tablaDatos = {
-      'Dimensión 1': {},
-      'Dimensión 2': {},
-      'Dimensión 3': {},
-    };
     await EvaluacionCacheService().guardarTablas(tablaDatos);
     dataChanged.value = !dataChanged.value;
   }
@@ -101,30 +88,29 @@ class TablasDimensionScreen extends StatefulWidget {
   State<TablasDimensionScreen> createState() => _TablasDimensionScreenState();
 }
 
-class _TablasDimensionScreenState extends State<TablasDimensionScreen>
-    with TickerProviderStateMixin {
-  final Map<String, String> dimensionInterna = const {
+class _TablasDimensionScreenState extends State<TablasDimensionScreen> with TickerProviderStateMixin {
+  final Map<String, String> dimensionInterna = {
     'IMPULSORES CULTURALES': 'Dimensión 1',
     'MEJORA CONTINUA': 'Dimensión 2',
     'ALINEAMIENTO EMPRESARIAL': 'Dimensión 3',
   };
 
-  late List<String> dimensiones;
+  List<String> dimensiones = [];
+  late final TableScrollControllers _tableControllers;
 
   @override
   void initState() {
-    super.initState();
-    dimensiones = dimensionInterna.keys.toList();
-    TablasDimensionScreen.dataChanged.addListener(_onDataChanged);
-    _cargarDesdeCache();
+  super.initState();
+  _tableControllers = TableScrollControllers();
+  TablasDimensionScreen.dataChanged.addListener(_onDataChanged);
+  _cargarDesdeCache();
   }
 
   @override
   void dispose() {
-    _verticalController.dispose();
-    _horizontalController.dispose();
-    TablasDimensionScreen.dataChanged.removeListener(_onDataChanged);
-    super.dispose();
+  _tableControllers.dispose();
+  TablasDimensionScreen.dataChanged.removeListener(_onDataChanged);
+  super.dispose();
   }
 
   void _onDataChanged() => setState(() {});
@@ -133,6 +119,11 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
     final data = await EvaluacionCacheService().cargarTablas();
     if (data.values.any((m) => m.isNotEmpty)) {
       setState(() => TablasDimensionScreen.tablaDatos = data);
+    }
+    if (mounted) {
+      setState(() {
+        dimensiones = dimensionInterna.keys.toList();
+      });
     }
   }
 
@@ -239,16 +230,16 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
       ),
       child: Scrollbar(
         thumbVisibility: true,
-        controller: _verticalController,
+        controller: _tableControllers.verticalController,
         child: SingleChildScrollView(
-          controller: _verticalController,
+          controller: _tableControllers.verticalController,
           scrollDirection: Axis.vertical,
           child: Scrollbar(
             thumbVisibility: true,
-            controller: _horizontalController,
+            controller: _tableControllers.horizontalController,
             notificationPredicate: (_) => true,
             child: SingleChildScrollView(
-              controller: _horizontalController,
+              controller: _tableControllers.horizontalController,
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.all(8),
               child: DataTable(

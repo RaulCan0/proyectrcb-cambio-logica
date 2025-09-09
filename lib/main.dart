@@ -110,7 +110,6 @@ class _MyAppState extends ConsumerState<MyApp> {
 }*/
 
 
-import 'dart:async';
 
 import 'package:applensys/auth/loader.dart';
 import 'package:applensys/auth/login.dart';
@@ -119,7 +118,6 @@ import 'package:applensys/auth/register.dart';
 import 'package:applensys/evaluacion/providers/text_size_provider.dart';
 import 'package:applensys/evaluacion/providers/theme_provider.dart';
 import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
-import 'package:applensys/evaluacion/services/notification_service.dart';
 import 'package:applensys/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -131,32 +129,15 @@ import 'package:applensys/custom/service_locator.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-    FlutterError.onError = (FlutterErrorDetails details) {
-      FlutterError.presentError(details);
-      Zone.current.handleUncaughtError(
-        details.exception,
-        details.stack ?? StackTrace.empty,
-      );
-    };
-
-    await Supabase.initialize(
-      url: Configurations.mSupabaseUrl,
-      anonKey: Configurations.mSupabaseKey,
-    );
-
-    bool notificationsInitialized = await NotificationService.init();
-    if (!notificationsInitialized) {
-      debugPrint("ALERTA: El servicio de notificaciones no pudo ser inicializado.");
-    }
-
-    setupLocator();
+  await Supabase.initialize(
+    url: Configurations.mSupabaseUrl,
+    anonKey: Configurations.mSupabaseKey,
+  );
+  setupLocator();
   await locator<EvaluacionCacheService>().init();
 
   runApp(const ProviderScope(child: MyApp()));
 }
-
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
@@ -165,12 +146,11 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final textSize = ref.watch(textSizeProvider);
-    final scaleFactor = (textSize / 14.0).clamp(0.8, 2.0);
+    final scaleFactor = textSize / 14.0;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'applensys',
-      navigatorKey: navigatorKey,
+      title: 'LensysApp',
       themeMode: themeMode,
       builder: (context, child) {
         return MediaQuery(
@@ -188,17 +168,17 @@ class MyApp extends ConsumerWidget {
           backgroundColor: Color(0xFF003056),
           foregroundColor: Colors.white,
         ),
-        textTheme: GoogleFonts.robotoTextTheme(),
+        textTheme: GoogleFonts.robotoTextTheme(ThemeData.light().textTheme),
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        primaryColor: Colors.black,
+        primaryColor: const Color(0xFF000000),
         scaffoldBackgroundColor: const Color.fromARGB(75, 206, 206, 206),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color.fromARGB(75, 206, 206, 206),
           foregroundColor: Colors.black,
         ),
-        textTheme: GoogleFonts.robotoTextTheme(),
+        textTheme: GoogleFonts.robotoTextTheme(ThemeData.dark().textTheme),
       ),
       routes: {
         '/loaderScreen': (_) => const LoaderScreen(),
@@ -209,5 +189,4 @@ class MyApp extends ConsumerWidget {
       },
       home: const LoaderScreen(),
     );
-  }
-}
+  }}
