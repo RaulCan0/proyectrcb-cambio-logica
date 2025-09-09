@@ -217,7 +217,7 @@ class _ComportamientoEvaluacionScreenState
             evidenciaUrl: evidenciaUrl,
           );
           await calificacionService.updateCalificacionFull(calObj);
-          TablasDimensionScreen.actualizarDato(
+        await TablasDimensionScreen.actualizarDato(
             widget.evaluacionId,
             dimension: obtenerNombreDimensionInterna(widget.dimensionId),
             principio: widget.principio.nombre,
@@ -251,8 +251,7 @@ class _ComportamientoEvaluacionScreenState
         evidenciaUrl: evidenciaUrl,
       );
       await calificacionService.addCalificacion(calObj);
-      TablasDimensionScreen.actualizarDato(
-        widget.evaluacionId,
+await TablasDimensionScreen.actualizarDato(        widget.evaluacionId,
         dimension: obtenerNombreDimensionInterna(widget.dimensionId), // Usar la nueva función
         principio: widget.principio.nombre,
         comportamiento: nombreComp,
