@@ -9,8 +9,6 @@ import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:applensys/evaluacion/models/evaluacion.dart';
 import 'package:applensys/evaluacion/models/level_averages.dart';
 import 'package:applensys/evaluacion/screens/tablas_screen.dart';
-import 'package:applensys/evaluacion/services/caladap.dart';
-import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Añadir importación
@@ -693,33 +691,7 @@ class SupabaseService {
   
   Future<void> limpiarDatosEvaluacion() async {
     // Implementar lógica para limpiar datos de evaluaciones en Supabase
-  }
-  Future<void> cargarDatosParaTablas(String empresaId, String evaluacionId) async {
-    final cacheService = EvaluacionCacheService();
-    await cacheService.init();
-
-    final cache = await cacheService.cargarTablas();
-    if (cache.isNotEmpty) {
-      TablasDimensionScreen.tablaDatos = cache;
-      return;
-    }
-
-    try {
-      final datos = await Supabase.instance.client
-          .from('calificaciones')
-          .select()
-          .eq('id_empresa', empresaId)
-          .eq('id_evaluacion', evaluacionId);
-      // El adaptador debe estar bien implementado
-      final nuevaTabla = CalificacionAdapter.toTablaDatos(List<Map<String, dynamic>>.from(datos));
-      await cacheService.guardarTablas(nuevaTabla);
-      TablasDimensionScreen.tablaDatos = nuevaTabla;
-    } catch (e) {
-      throw Exception('Error al cargar datos para TablasScreen: $e');
-    }
-  }
-}
-
+  }}
 // Mueve la función finalizarEvaluacion dentro de SupabaseService, reemplazando la anterior si es necesario.
 
 extension SupabaseServiceFinalizar on SupabaseService {
@@ -751,33 +723,10 @@ extension SupabaseServiceFinalizar on SupabaseService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('tabla_datos');
   }
-}
+
 // ========== FINALIZAR EVALUACION Y SUBIR PROMS ==========
 
 // The following methods are now inside SupabaseService for access to _client.
-
-extension SupabaseServiceTablas on SupabaseService {
-  Future<void> cargarDatosParaTablas(String empresaId, String evaluacionId) async {
-    final cacheService = EvaluacionCacheService();
-    await cacheService.init();
-    final cache = await cacheService.cargarTablas();
-    if (cache.isNotEmpty) {
-      TablasDimensionScreen.tablaDatos = cache;
-      return;
-    }
-    try {
-      final datos = await Supabase.instance.client
-          .from('calificaciones')
-          .select()
-          .eq('id_empresa', empresaId)
-          .eq('id_evaluacion', evaluacionId);
-      final nuevaTabla = CalificacionAdapter.toTablaDatos(List<Map<String, dynamic>>.from(datos));
-      await cacheService.guardarTablas(nuevaTabla);
-      TablasDimensionScreen.tablaDatos = nuevaTabla;
-    } catch (e) {
-      throw Exception('Error al cargar datos para TablasScreen: $e');
-    }
-  }
 
   Future<Evaluacion> crearEvaluacionSiNoExiste(String empresaId, String asociadoId) async {
     final existente = await buscarEvaluacionExistente(empresaId, asociadoId);

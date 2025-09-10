@@ -1,13 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:applensys/evaluacion/services/chat_service.dart';
-import 'package:applensys/evaluacion/services/notification_service.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/message.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:intl/intl.dart';
 
 class ChatWidgetDrawer extends StatefulWidget {
   const ChatWidgetDrawer({super.key});
@@ -19,23 +18,16 @@ class ChatWidgetDrawer extends StatefulWidget {
 class _ChatWidgetDrawerState extends State<ChatWidgetDrawer> {
   final _chatService = ChatService();
   final _textController = TextEditingController();
-  final _scrollController = ScrollController();
   late final String _myUserId;
-  List<Message> _previousMessages = [];
 
   final Color chatColor = Colors.teal;
-  final Color receivedColor = Colors.grey.shade200;
+  final Color receivedColor = Colors.grey.shade300;
 
   @override
   void initState() {
     super.initState();
-    _myUserId = Supabase.instance.client.auth.currentUser!.id;
-    // Escuchar cambios en el stream y hacer scroll solo cuando hay nuevos mensajes
-    _chatService.messageStream().listen((messages) {
-      if (mounted && messages.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-      }
-    });
+    final session = Supabase.instance.client.auth.currentSession;
+    _myUserId = session!.user.id;
   }
 
   Future<void> _tomarYSubirFoto() async {
@@ -44,23 +36,16 @@ class _ChatWidgetDrawerState extends State<ChatWidgetDrawer> {
     if (foto != null) {
       final file = File(foto.path);
       final fileName = 'chat_${DateTime.now().millisecondsSinceEpoch}_$_myUserId.jpg';
-      // Mostrar feedback de carga
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
-      final res = await Supabase.instance.client.storage
+      final storageResponse = await Supabase.instance.client.storage
           .from('chats')
           .upload(fileName, file);
-      Navigator.of(context).pop(); // Cerrar el dialogo de carga
-      if (res.isNotEmpty) {
+
+      if (storageResponse.isNotEmpty) {
         final url = Supabase.instance.client.storage
             .from('chats')
             .getPublicUrl(fileName);
         await _chatService.sendMessage(_myUserId, url);
       } else {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No se pudo subir la foto')),
         );
@@ -68,185 +53,185 @@ class _ChatWidgetDrawerState extends State<ChatWidgetDrawer> {
     }
   }
 
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final drawerWidth = MediaQuery.of(context).size.width.clamp(280, 380).toDouble();
-
     return Drawer(
-      width: drawerWidth,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            color: chatColor,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                ),
-                const Text(
-                  'Chat',
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.65,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: chatColor,
+              child: const Center(
+                child: Text(
+                  'Chat General',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
                     color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Spacer(),
-                const Icon(Icons.chat_bubble_outline, color: Colors.white),
-              ],
+              ),
             ),
-          ),
-          Expanded(
-            child: StreamBuilder<List<Message>>(
-              stream: _chatService.messageStream() as Stream<List<Message>>?,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) return Center(child: Text('Error: [${snapshot.error}'));
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            Expanded(
+              child: StreamBuilder<List<Message>>(
+                stream: _chatService.messageStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final messages = snapshot.data!;
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(8),
+                    reverse: true,
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final currentMessage = messages[messages.length - 1 - index];
+                      final previousMessage = index < messages.length - 1
+                          ? messages[messages.length - 2 - index]
+                          : null;
 
-                final messages = snapshot.data!;
-                final latestMessage = messages.isNotEmpty ? messages.last : null;
+                      final currentDate = DateTime.parse(currentMessage.createdAt as String);
+                      final previousDate = previousMessage != null
+                          ? DateTime.parse(previousMessage.createdAt as String)
+                          : null;
 
-                // Notificación solo si el último mensaje es de otro usuario y es nuevo
-                if (_previousMessages.length < messages.length &&
-                    latestMessage != null &&
-                    latestMessage.userId != _myUserId) {
-                  NotificationService.showInstantNotification(
-  id: 1,
-  title: "Evaluación completada",
-  body: "Has terminado de evaluar a Juan Pérez",
-  payload: "evaluacion_completa_juan",
-);
-                }
-                _previousMessages = List.from(messages);
+                      bool showDateHeader = false;
+                      if (previousDate == null ||
+                          !isSameDay(currentDate, previousDate)) {
+                        showDateHeader = true;
+                      }
 
-                return ListView.builder(
-                  controller: _scrollController,
-                  reverse: false, // Mostrar mensajes en orden natural
-                  padding: const EdgeInsets.all(6),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = messages[index];
-                    final isMe = msg.userId == _myUserId;
-                    final isImage = msg.content.startsWith('http');
+                      final isMe = currentMessage.userId == _myUserId;
+                      final isImage = currentMessage.content.startsWith('http');
 
-                    return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 3),
-                        padding: const EdgeInsets.all(10),
-                        constraints: BoxConstraints(maxWidth: drawerWidth * 0.75),
-                        decoration: BoxDecoration(
-                          color: isMe ? chatColor : receivedColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            isImage
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      msg.content,
-                                      fit: BoxFit.cover,
-                                      width: drawerWidth * 0.65,
-                                    ),
-                                  )
-                                : Text(
-                                    msg.content,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: isMe ? Colors.white : Colors.black87,
-                                    ),
-                                  ),
-                            const SizedBox(height: 2),
-                            Text(
-                              DateFormat('HH:mm').format(
-                                msg.createdAt is String
-                                    ? DateTime.parse(msg.createdAt as String)
-                                    : msg.createdAt,
-                              ),
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: isMe ? Colors.white70 : Colors.black45,
+                      return Column(
+                        children: [
+                          if (showDateHeader)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                formatDateHeader(currentDate),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                ),
                               ),
                             ),
-                          ],
+                          Align(
+                            alignment:
+                                isMe ? Alignment.centerRight : Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              padding: const EdgeInsets.all(12),
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.of(context).size.width * 0.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isMe ? chatColor : receivedColor,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  isImage
+                                      ? Image.network(currentMessage.content)
+                                      : Text(
+                                          currentMessage.content,
+                                          style: TextStyle(
+                                            color: isMe
+                                                ? Colors.white
+                                                : Colors.black87,
+                                          ),
+                                        ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    DateFormat('HH:mm').format(currentDate),
+                                    style: TextStyle(
+                                      color: isMe
+                                          ? Colors.white70
+                                          : Colors.black54,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.camera_alt, color: chatColor),
+                    onPressed: _tomarYSubirFoto,
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _textController,
+                      decoration: InputDecoration(
+                        hintText: 'Escribe un mensaje...',
+                        hintStyle: TextStyle(color: Colors.grey.shade500),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        suffixIcon: IconButton(
+                          // ignore: deprecated_member_use
+                          icon: Icon(Icons.emoji_emotions_outlined, color: chatColor.withOpacity(0.7)),
+                          onPressed: () {},
                         ),
                       ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.camera_alt, color: chatColor),
-                  onPressed: _tomarYSubirFoto,
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Mensaje...',
-                      hintStyle: TextStyle(color: Colors.grey.shade500),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      style: const TextStyle(fontSize: 14),
                     ),
-                    onSubmitted: (text) async {
-                      final trimmed = text.trim();
-                      if (trimmed.isNotEmpty) {
-                        await _chatService.sendMessage(_myUserId, trimmed);
-                        _textController.clear();
-                        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-                      }
-                    },
                   ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.send, color: chatColor),
-                  onPressed: () async {
-                    final text = _textController.text.trim();
-                    if (text.isNotEmpty) {
+                  IconButton(
+                    icon: Icon(Icons.send, color: chatColor),
+                    onPressed: () async {
+                      final text = _textController.text.trim();
+                      if (text.isEmpty) return;
                       await _chatService.sendMessage(_myUserId, text);
                       _textController.clear();
-                      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-                    }
-                  },
-                ),
-              ],
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  @override
-  void dispose() {
-    super.dispose();
+  bool isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String formatDateHeader(DateTime date) {
+    final now = DateTime.now();
+    if (isSameDay(date, now)) {
+      return 'HOY';
+    } else if (isSameDay(date, now.subtract(const Duration(days: 1)))) {
+      return 'AYER';
+    } else {
+      return DateFormat('dd/MM/yyyy').format(date);
+    }
   }
 }

@@ -31,7 +31,7 @@ class LentesMadurezPorRolTable extends StatelessWidget {
             headingTextStyle: TextStyle(
               fontSize: 12 * scaleFactor,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF003056),
+              color: const Color(0xFF003056),
             ),
             dataTextStyle: TextStyle(
               fontSize: 12 * scaleFactor,
