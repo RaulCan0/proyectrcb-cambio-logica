@@ -6,8 +6,6 @@ import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 
-final ScrollController _verticalController = ScrollController();
-final ScrollController _horizontalController = ScrollController();
 
 extension CapitalizeExtension on String {
   String capitalize() {
@@ -110,6 +108,8 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
   };
 
   late List<String> dimensiones;
+  final ScrollController verticalScrollController = ScrollController();
+  final ScrollController horizontalScrollController = ScrollController();
 
   @override
   void initState() {
@@ -121,8 +121,8 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
 
   @override
   void dispose() {
-    _verticalController.dispose();
-    _horizontalController.dispose();
+    verticalScrollController.dispose();
+    horizontalScrollController.dispose();
     TablasDimensionScreen.dataChanged.removeListener(_onDataChanged);
     super.dispose();
   }
@@ -145,6 +145,9 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    dimensiones = dimensionInterna.keys.toList();
+
     return DefaultTabController(
       length: dimensiones.length,
       child: Scaffold(
@@ -239,17 +242,16 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
       ),
       child: Scrollbar(
         thumbVisibility: true,
-        controller: _verticalController,
+        controller: verticalScrollController,
         child: SingleChildScrollView(
-          controller: _verticalController,
           scrollDirection: Axis.vertical,
+          controller: verticalScrollController,
           child: Scrollbar(
             thumbVisibility: true,
-            controller: _horizontalController,
-            notificationPredicate: (_) => true,
+            controller: horizontalScrollController,
             child: SingleChildScrollView(
-              controller: _horizontalController,
               scrollDirection: Axis.horizontal,
+              controller: horizontalScrollController,
               padding: const EdgeInsets.all(8),
               child: DataTable(
                 columnSpacing: 36,
@@ -322,7 +324,8 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
       for (var f in filas) {
         final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
         final valor = (f['valor'] ?? 0).toDouble();
-        final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
+        final sistemas =
+            (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
         sumasNivel[nivel] = sumasNivel[nivel]! + valor;
         conteosNivel[nivel] = conteosNivel[nivel]! + 1;
         sistemasPromedio.agregar(nivel, sistemas);
@@ -404,9 +407,11 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen>
           conteos[principio]![comportamiento]![nivel]! + 1;
 
       for (var s in sistemas) {
+        sistemasPorNivel[principio]![comportamiento]![nivel] ??= <String>{};
         sistemasPorNivel[principio]![comportamiento]![nivel]!.add(s);
       }
       if (observacion.toString().trim().isNotEmpty) {
+        observacionesPorNivel[principio]![comportamiento]![nivel] ??= <String>[];
         observacionesPorNivel[principio]![comportamiento]![nivel]!.add(observacion);
       }
     }

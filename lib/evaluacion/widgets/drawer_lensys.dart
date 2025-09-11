@@ -1,19 +1,19 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:applensys/auth/loader.dart';
-import 'package:applensys/evaluacion/models/empresa.dart';
-import 'package:applensys/evaluacion/providers/text_size_provider.dart';
-import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
 
-import 'package:applensys/evaluacion/screens/empresas_screen.dart';
-import 'package:applensys/evaluacion/screens/historial_screen.dart';
-import 'package:applensys/evaluacion/screens/perfil_screen.dart';
-import 'package:applensys/evaluacion/screens/tablas_screen.dart';
-
+import '../models/empresa.dart';
+import '../screens/dashboard_screen.dart';
+import '../screens/detalles_evaluacion.dart';
+import '../screens/empresas_screen.dart';
+import '../screens/historial_screen.dart';
+import '../screens/perfil_screen.dart';
+import '../screens/tablas_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/text_size_provider.dart';
 
 class DrawerLensys extends ConsumerWidget {
   const DrawerLensys({super.key});
@@ -84,9 +84,20 @@ class DrawerLensys extends ConsumerWidget {
                 );
               },
             ),
-             ListTile(
+            ListTile(
+              leading: Icon(Icons.home, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
+              title: Text("Inicio", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
+              onTap: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EmpresasScreen()),
+                  (route) => false,
+                );
+              },
+            ),
+            ListTile(
               leading: Icon(Icons.table_chart, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
-              title: Text("", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
+              title: Text("Resultados", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
               onTap: () {
                 Navigator.push(
                   context,
@@ -103,7 +114,7 @@ class DrawerLensys extends ConsumerWidget {
                         sector: 'Default Sector',
                         createdAt: DateTime.now(),
                       ),
-                      evaluacionId: '', empresaId: '', dimension: '', asociadoId: '',
+                      evaluacionId: '', asociadoId: '', empresaId: '', dimension: '', 
                     ),
                   ),
                 );
@@ -111,7 +122,7 @@ class DrawerLensys extends ConsumerWidget {
             ),
             ListTile(
               leading: Icon(Icons.insert_chart, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
-              title: Text("", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
+              title: Text("Detalle Evaluación", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
               onTap: () {
                 Navigator.push(
                   context,
@@ -130,26 +141,12 @@ class DrawerLensys extends ConsumerWidget {
                         sector: '',
                         createdAt: DateTime.now(),
                       ),
-                      evaluacionId: '', dimension: '',
+                      evaluacionId: '', dimension: '', 
                     ),
                   ),
                 );
               },
             ),
-            ListTile(
-              leading: Icon(Icons.home, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
-              title: Text("Inicio", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
-              onTap: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const EmpresasScreen()),
-                  (route) => false,
-                );
-              },
-            ),
-           
-           
-            
             ListTile(
               leading: Icon(Icons.history, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
               title: Text("Historial", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
@@ -157,9 +154,10 @@ class DrawerLensys extends ConsumerWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => HistorialScreen() // Proporcionar una lista vacía o los datos reales
+                    builder: (_) => const HistorialScreen(
+                   // Proporcionar una lista vacía o los datos reales
                     ),
-                  
+                  ),
                 );
               },
             ),
@@ -173,7 +171,31 @@ class DrawerLensys extends ConsumerWidget {
                 );
               },
             ),
-          
+            ListTile(
+              leading: Icon(Icons.dashboard, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
+              title: Text("Dashboard", style: TextStyle(fontSize: 14 * scaleFactor, color: Theme.of(context).textTheme.bodyLarge?.color)),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DashboardScreen(
+                      empresa: Empresa(
+                        id: '',
+                        nombre: '',
+                        tamano: '',
+                        empleadosTotal: 0,
+                        empleadosAsociados: [],
+                        unidades: '',
+                        areas: 0,
+                        sector: '',
+                        createdAt: DateTime.now(),
+                      ),
+                      evaluacionId: '',
+                    ),
+                  ),
+                );
+              },
+            ),
             const Divider(),
             ListTile(
               leading: Icon(Icons.chat, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),
@@ -184,8 +206,6 @@ class DrawerLensys extends ConsumerWidget {
                 Scaffold.of(context).openDrawer();
               },
             ),
-          
-            const Divider(),
             // Selector de tamaño de letra
             ListTile(
               leading: Icon(Icons.text_fields, color: Theme.of(context).iconTheme.color, size: 24 * scaleFactor),

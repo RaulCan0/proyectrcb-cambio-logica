@@ -1,4 +1,4 @@
-import 'package:applensys/evaluacion/services/release_service.dart';
+import 'package:applensys/evaluacion/services/release.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final releasesServiceProvider = Provider<ReleasesService>((ref) {

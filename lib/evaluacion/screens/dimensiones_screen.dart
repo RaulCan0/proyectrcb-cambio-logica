@@ -10,6 +10,7 @@ import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:applensys/evaluacion/services/supabase_service.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
 class DimensionesScreen extends StatefulWidget {
   final Empresa empresa;
@@ -333,5 +334,80 @@ class _DimensionesScreenState extends State<DimensionesScreen> {
         ),
       ),
     );
+  }
+}
+class AuxTablaService {
+  static const Map<String, String> dimensionInterna = {
+    'IMPULSORES CULTURALES': 'Dimensión 1',
+    'MEJORA CONTINUA': 'Dimensión 2',
+    'ALINEAMIENTO EMPRESARIAL': 'Dimensión 3',
+  };
+
+  static const Map<String, String> dimensionId = {
+    'Dimensión 1': '1',
+    'Dimensión 2': '2',
+    'Dimensión 3': '3',
+  };
+
+  static Map<String, Map<String, double>> obtenerPromediosPorDimensionYCargo() {
+    final Map<String, Map<String, double>> resultado = {};
+
+    for (final entry in dimensionInterna.entries) {
+      final nombre = entry.key;
+      final keyInterna = entry.value;
+      final id = dimensionId[keyInterna]!;
+
+      final filas = TablasDimensionScreen.tablaDatos[keyInterna]?.values.expand((l) => l).toList() ?? [];
+
+      final suma = {'Ejecutivo': 0.0, 'Gerente': 0.0, 'Miembro': 0.0};
+      final conteo = {'Ejecutivo': 0, 'Gerente': 0, 'Miembro': 0};
+
+      for (final fila in filas) {
+        final cargo = _normalizarNivel(fila['cargo_raw'] ?? '');
+        final valor = (fila['valor'] ?? 0).toDouble();
+
+        if (suma.containsKey(cargo)) {
+          suma[cargo] = suma[cargo]! + valor;
+          conteo[cargo] = conteo[cargo]! + 1;
+        }
+      }
+
+      resultado[id] = {
+        'EJECUTIVOS': conteo['Ejecutivo']! > 0 ? suma['Ejecutivo']! / conteo['Ejecutivo']! : 0.0,
+        'GERENTES': conteo['Gerente']! > 0 ? suma['Gerente']! / conteo['Gerente']! : 0.0,
+        'MIEMBROS DE EQUIPO': conteo['Miembro']! > 0 ? suma['Miembro']! / conteo['Miembro']! : 0.0,
+      };
+    }
+
+    return resultado;
+  }
+
+  static String _normalizarNivel(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('miembro')) return 'Miembro';
+    if (lower.contains('gerente')) return 'Gerente';
+    return 'Ejecutivo';
+  }
+
+  static double obtenerTotalPuntosGlobal() {
+    final promedios = obtenerPromediosPorDimensionYCargo();
+    final config = {
+      '1': {'EJECUTIVOS': 125.0, 'GERENTES': 75.0, 'MIEMBROS DE EQUIPO': 50.0},
+      '2': {'EJECUTIVOS': 70.0, 'GERENTES': 105.0, 'MIEMBROS DE EQUIPO': 175.0},
+      '3': {'EJECUTIVOS': 110.0, 'GERENTES': 60.0, 'MIEMBROS DE EQUIPO': 30.0},
+    };
+
+    double total = 0;
+
+    for (final id in promedios.keys) {
+      final cargos = promedios[id]!;
+      final pesos = config[id]!;
+
+      cargos.forEach((cargo, prom) {
+        total += (prom / 5.0) * pesos[cargo]!;
+      });
+    }
+
+    return total; // Máximo 800
   }
 }

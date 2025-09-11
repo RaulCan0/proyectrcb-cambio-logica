@@ -208,9 +208,9 @@ class _DetallesEvaluacionScreenState extends State<DetallesEvaluacionScreen>
                         ),
                       ),
                       topTitles:
-                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                       rightTitles:
-                           AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     ),
                     gridData: FlGridData(show: true, horizontalInterval: 1),
                     borderData: FlBorderData(show: false),

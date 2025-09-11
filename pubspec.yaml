@@ -2,7 +2,6 @@ name: applensys
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.0+1
 
 environment:
   sdk: ^3.7.2
@@ -10,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   supabase_flutter: ^2.0.0
   cupertino_icons: ^1.0.8
   uuid: ^4.3.1
@@ -49,14 +47,12 @@ dependencies:
   excel: ^4.0.6
   docx_template: ^0.4.0
   open_filex: ^4.7.0
-  hive_flutter: ^1.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0 
   pubspec_checker: ^1.0.9
-
 
 flutter:
   uses-material-design: true

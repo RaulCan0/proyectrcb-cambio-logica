@@ -1,7 +1,6 @@
-import 'package:applensys/evaluacion/models/calificacion.dart';
-import 'package:applensys/evaluacion/models/evaluacion.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:applensys/evaluacion/models/evaluacion.dart';
+import 'package:applensys/evaluacion/models/calificacion.dart';
 import 'package:uuid/uuid.dart';
 
 /// Servicio para gestión de evaluaciones
@@ -116,16 +115,18 @@ class EvaluacionService {
     required int idDimension,
     required String comportamiento,
   }) async {
-    const String selectColumns = 'id, id_asociado, id_empresa, id_dimension, comportamiento, puntaje, fecha_evaluacion, observaciones, sistemas, evidencia_url';
     final res = await _client
         .from('calificaciones')
-        .select(selectColumns) // Especificar columnas
+        .select()
         .eq('id_asociado', idAsociado)
         .eq('id_empresa', idEmpresa)
         .eq('id_dimension', idDimension)
         .eq('comportamiento', comportamiento)
-        .maybeSingle();
-    if (res == null) return null;
+        .maybeSingle(); // Devuelve un solo registro o null
+
+    if (res == null) {
+      return null;
+    }
     return Calificacion.fromMap(res);
   }
 }

@@ -47,12 +47,11 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
   }
 
   String obtenerNombreDimensionInterna(String id) {
-    // Puedes adaptar esto según tus necesidades internas de nombres
     switch (id) {
       case '1': return 'impulsores_culturales';
       case '2': return 'mejora_continua';
       case '3': return 'alineamiento_empresarial';
-      default: return 'desconocida';
+      default: return 'dimension_desconocida';
     }
   }
 
@@ -134,10 +133,8 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                 MaterialPageRoute(
                   builder: (_) => tablas_screen.TablasDimensionScreen(
                     empresa: widget.empresa,
-                    evaluacionId: widget.evaluacionId,
-                    asociadoId: widget.asociado.id,
-                    empresaId: widget.empresa.id,
-                    dimension: nombreDimensionInternaActual,
+                    evaluacionId: widget.evaluacionId, asociadoId: '', empresaId: '', dimension: '',
+                    
                   ),
                 ),
               );
@@ -269,8 +266,7 @@ class _PrincipiosScreenState extends State<PrincipiosScreen> {
                                                 dimensionId: widget.dimensionId,
                                                 empresaId: widget.empresa.id,
                                                 asociadoId: widget.asociado.id,
-                                                dimension: widget.dimensionId,
-                                                calificacionExistente: calificacionActual,
+                                                calificacionExistente: calificacionesExistentes[comportamientoNombre],
                                               ),
                                             ),
                                           );
@@ -330,3 +326,20 @@ extension ProgresoSupabase on SupabaseService {
   }
 }
 
+extension EditarCalificacionSupabase on SupabaseService {
+  Future<void> actualizarPuntajeComportamiento({
+    required String empresaId,
+    required String asociadoId,
+    required String dimensionId,
+    required String comportamiento,
+    required int nuevoPuntaje,
+  }) async {
+    await Supabase.instance.client
+        .from('calificaciones')
+        .update({'puntaje': nuevoPuntaje})
+        .eq('id_asociado', asociadoId)
+        .eq('id_empresa', empresaId)
+        .eq('id_dimension', int.tryParse(dimensionId) ?? 0)
+        .eq('comportamiento', comportamiento);
+  }
+}
