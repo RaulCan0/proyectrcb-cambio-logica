@@ -1,16 +1,107 @@
-import 'dart:io';
-import 'dart:typed_data';
+// Supabase Service para Empresas, Evaluaciones, Empleados y Calificaciones
 
-import 'package:applensys/evaluacion/models/asociado.dart';
-import 'package:applensys/evaluacion/models/calificacion.dart';
-import 'package:applensys/evaluacion/models/empresa.dart';
-import 'package:applensys/evaluacion/models/evaluacion.dart';
-import 'package:applensys/evaluacion/models/level_averages.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/empresa.dart';
+import '../models/evaluacion_empresa.dart';
+import '../models/emplado_evaluacion.dart';
+import '../models/calificacion.dart';
+
 class SupabaseService {
   final SupabaseClient _client = Supabase.instance.client;
+
+  /// Crear una nueva empresa y su evaluación activa
+  Future<void> crearEmpresaConEvaluacion(Empresa empresa, List<EmpleadoEvaluacion> empleados) async {
+    final String empresaId = empresa.id;
+    final String evaluacionId = const Uuid().v4();
+
+    await _client.from('empresas').insert(empresa.toMap());
+
+    final evaluacion = EvaluacionEmpresa(
+      id: evaluacionId,
+      idEmpresa: empresa.id,
+      empresaNombre: empresa.nombre,
+      fecha: DateTime.now(),
+      puntosDimensiones: 0,
+      puntosResultados: 0,
+      finalizada: false, 
+    );
+
+    await _client.from('evaluaciones').insert(evaluacion.toJson());
+
+    // Insertar empleados vinculados a esta evaluación
+    for (final empleado in empleados) {
+      final empEval = {
+        'id': empleado.id,
+        'evaluacion_id': evaluacionId,
+        'nombre_completo': empleado.nombreCompleto,
+        'puesto': empleado.puesto,
+        'cargo': empleado.cargo,
+        'antiguedad': empleado.antiguedad,
+      };
+      await _client.from('empleados_evaluacion').insert(empEval);
+    }
+  }
+
+  /// Eliminar empresa (y relaciones si aplica)
+  Future<void> eliminarEmpresa(String empresaId) async {
+    await _client.from('empresas').delete().eq('id', empresaId);
+  }
+
+  /// Obtener todas las empresas
+  Future<List<Empresa>> getEmpresas() async {
+    final res = await _client.from('empresas').select();
+    return (res as List).map((e) => Empresa.fromMap(e)).toList();
+  }
+
+  /// Agregar calificación
+  Future<void> addCalificacion(
+    CalificacionComportamiento calificacion, {
+    required String id,
+    required String idEmpleado,
+  }) async {
+    await _client.from('calificaciones').insert(calificacion.toJson());
+  }
+
+  /// Editar solo puntaje
+  Future<void> updateCalificacion(String id, int nuevoPuntaje) async {
+    await _client.from('calificaciones').update({'puntaje': nuevoPuntaje}).eq('id', id);
+  }
+
+  /// Editar campos específicos
+  Future<void> updateEditableCalificacionFields({
+    required String id,
+    required int puntaje,
+    String? observacion,
+    List<String>? sistemasAsociados,
+    String? evidenciaUrl,
+  }) async {
+    await _client.from('calificaciones').update({
+      'puntaje': puntaje,
+      'observacion': observacion,
+      'sistemas_asociados': sistemasAsociados,
+      'evidencia_url': evidenciaUrl,
+    }).eq('id', id);
+  }
+
+  /// Eliminar calificación
+  Future<void> deleteCalificacion(String id) async {
+    await _client.from('calificaciones').delete().eq('id', id);
+  }
+
+  /// Obtener calificaciones por asociado
+  Future<List<CalificacionComportamiento>> getCalificacionesPorAsociado(String idEmpleado) async {
+    final res = await _client.from('calificaciones').select().eq('empleado_id', idEmpleado);
+    return (res as List).map((e) => CalificacionComportamiento.fromJson(e)).toList();
+  }
+
+  /// Obtener calificaciones por evaluación
+  Future<List<CalificacionComportamiento>> getCalificacionesPorEvaluacion(String evaluacionId) async {
+    final res = await _client.from('calificaciones').select().eq('evaluacion_id', evaluacionId);
+    return (res as List).map((e) => CalificacionComportamiento.fromJson(e)).toList();
+  }
+}
 
   // AUTH
   Future<Map<String, dynamic>> register(String email, String password, String telefono) async {
@@ -313,11 +404,12 @@ class SupabaseService {
           fileOptions: const FileOptions(upsert: true),
         );
 
-    // Solo guarda el path relativo en la base de datos, no la URL completa
-    await _client.from('usuarios').update({'foto_url': storagePath}).eq('id', userId);
+    final publicUrl = _client.storage.from('perfil').getPublicUrl(storagePath);
 
-    // Devuelve solo el path relativo
-    return storagePath;
+    // Guarda la URL en la tabla usuarios
+    await _client.from('usuarios').update({'foto_url': publicUrl}).eq('id', userId);
+
+    return publicUrl;
   }
 
   // NUEVO: Buscar evaluacion existente

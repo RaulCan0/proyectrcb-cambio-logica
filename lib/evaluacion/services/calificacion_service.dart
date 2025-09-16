@@ -1,46 +1,52 @@
 import 'package:applensys/evaluacion/models/calificacion.dart';
-import 'package:applensys/evaluacion/services/supabase_service.dart';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CalificacionService {
-  final SupabaseService _remote = SupabaseService();
- 
-  Future<void> addCalificacion(Calificacion calificacion) async {
-    await _remote.addCalificacion(
-      calificacion,
-      id: calificacion.id,
-      idAsociado: calificacion.idAsociado,
-    );
+  final SupabaseClient _client = Supabase.instance.client;
+
+  /// Agregar una nueva calificación de comportamiento
+  Future<void> addCalificacion(CalificacionComportamiento calificacion) async {
+    await _client.from('calificaciones').insert(calificacion.toJson());
   }
- 
+
+  /// Editar solo el puntaje de una calificación (por ID)
   Future<void> updateCalificacion(String id, int nuevoPuntaje) async {
-    await _remote.updateCalificacion(id, nuevoPuntaje);
+    await _client.from('calificaciones').update({
+      'puntaje': nuevoPuntaje,
+    }).eq('id', id);
   }
- 
-  Future<void> updateCalificacionFull(Calificacion calificacion) async {
-    await _remote.updateCalificacionFull(calificacion);
-  }
- 
-  Future<void> deleteCalificacion(String id) async {
-    await _remote.deleteCalificacion(id);
-  }
- 
-  Future<List<Calificacion>> getCalificacionesPorAsociado(String idAsociado) async {
-    return await _remote.getCalificacionesPorAsociado(idAsociado);
-  }
- 
-  Future<Calificacion?> getCalificacionExistente({
-    required String idAsociado,
-    required String idEmpresa,
-    required int idDimension,
-    required String comportamiento,
+
+  /// Editar solo campos permitidos (puntaje, observación, evidencia, sistemas)
+  Future<void> updateEditableCalificacionFields({
+    required String id,
+    required int puntaje,
+    String? observacion,
+    List<String>? sistemasAsociados,
+    String? evidenciaUrl,
   }) async {
-    final lista = await getCalificacionesPorAsociado(idAsociado);
-    return lista.cast<Calificacion?>().firstWhere(
-      (c) => c != null &&
-             c.idEmpresa == idEmpresa &&
-             c.idDimension == idDimension &&
-             c.comportamiento == comportamiento,
-      orElse: () => null,
-    );
+    await _client.from('calificaciones').update({
+      'puntaje': puntaje,
+      'observacion': observacion,
+      'sistemas_asociados': sistemasAsociados,
+      'evidencia_url': evidenciaUrl,
+    }).eq('id', id);
   }
- }
+
+  /// Eliminar una calificación por ID
+  Future<void> deleteCalificacion(String id) async {
+    await _client.from('calificaciones').delete().eq('id', id);
+  }
+
+  /// Obtener todas las calificaciones de un empleado
+  Future<List<CalificacionComportamiento>> getCalificacionesPorAsociado(String idEmpleado) async {
+    final res = await _client.from('calificaciones').select().eq('empleado_id', idEmpleado);
+    return (res as List).map((e) => CalificacionComportamiento.fromJson(e)).toList();
+  }
+
+  /// Obtener todas las calificaciones de una evaluación
+  Future<List<CalificacionComportamiento>> getCalificacionesPorEvaluacion(String evaluacionId) async {
+    final res = await _client.from('calificaciones').select().eq('evaluacion_id', evaluacionId);
+    return (res as List).map((e) => CalificacionComportamiento.fromJson(e)).toList();
+  }
+}

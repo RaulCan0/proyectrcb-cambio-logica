@@ -1,6 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'package:applensys/evaluacion/screens/historial_screen.dart';
+import 'package:applensys/evaluacion/screens/historial_reportes.dart';
 import 'package:applensys/evaluacion/services/empresa_service.dart';
 import 'package:applensys/evaluacion/widgets/chat_screen.dart';
 import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
@@ -414,7 +414,6 @@ class _EmpresasScreenState extends State<EmpresasScreen> {
                   nombre: nombre,
                   tamano: tamano,
                   empleadosTotal: int.tryParse(empleadosController.text.trim()) ?? 0,
-                  empleadosAsociados: [],
                   unidades: unidadesController.text.trim(),
                   areas: int.tryParse(areasController.text.trim()) ?? 0,
                   sector: sectorController.text.trim(),

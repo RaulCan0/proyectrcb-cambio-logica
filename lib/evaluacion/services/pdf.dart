@@ -2,14 +2,14 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-class NivelEvaluacion {
+class CargoEvaluacion {
   final double promedio;
   final String interpretacion;
   final String benchmarkPorCargo;
   final String obs;
   final List<String> sistemasSeleccionados;
 
-  NivelEvaluacion({
+  CargoEvaluacion({
     required this.promedio,
     required this.interpretacion,
     required this.benchmarkPorCargo,
@@ -21,12 +21,12 @@ class NivelEvaluacion {
 class ReporteComportamiento {
   final String nombre;
   final String benchmarkGeneral;
-  final Map<String, NivelEvaluacion> niveles;
+  final Map<String, CargoEvaluacion> cargos;
 
   ReporteComportamiento({
     required this.nombre,
     required this.benchmarkGeneral,
-    required this.niveles,
+    required this.cargos,
   });
 }
 
@@ -77,7 +77,7 @@ class ReportePdfService {
 
               // Encabezado
               _fila(
-                nivel: "Nivel",
+                cargo: "Cargo",
                 promedio: "Promedio",
                 interp: "Interpretación",
                 benchmark: "Benchmark por Cargo",
@@ -89,14 +89,14 @@ class ReportePdfService {
 
               // Filas por nivel
               for (final n in const ["E", "G", "M"])
-                if (comp.niveles[n] != null)
+                if (comp.cargos[n] != null)
                   _fila(
-                    nivel: n == "E" ? "Ejecutivo" : n == "G" ? "Gerente" : "Miembro",
-                    promedio: comp.niveles[n]!.promedio.toStringAsFixed(2),
-                    interp: comp.niveles[n]!.interpretacion,
-                    benchmark: comp.niveles[n]!.benchmarkPorCargo,
-                    sistemas: comp.niveles[n]!.sistemasSeleccionados.join(", "),
-                    hallazgos: comp.niveles[n]!.obs,
+                    cargo: n == "E" ? "Ejecutivo" : n == "G" ? "Gerente" : "Miembro",
+                    promedio: comp.cargos[n]!.promedio.toStringAsFixed(2),
+                    interp: comp.cargos[n]!.interpretacion,
+                    benchmark: comp.cargos[n]!.benchmarkPorCargo,
+                    sistemas: comp.cargos[n]!.sistemasSeleccionados.join(", "),
+                    hallazgos: comp.cargos[n]!.obs,
                     txtSmall: txtSmall,
                   ),
 
@@ -118,9 +118,9 @@ class ReportePdfService {
   }
 
   /// Distribución de anchos (solo ancho, misma fuente):
-  /// Nivel(1) | Promedio(1) | Interpretación(8) | Benchmark(8) | Sistemas(1) | Hallazgos(1)
+  /// Cargo(1) | Promedio(1) | Interpretación(8) | Benchmark(8) | Sistemas(1) | Hallazgos(1)
   static pw.Widget _fila({
-    required String nivel,
+    required String cargo,
     required String promedio,
     required String interp,
     required String benchmark,
@@ -147,7 +147,7 @@ class ReportePdfService {
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Expanded(flex: 1, child: pw.Text(nivel, style: style, textAlign: pw.TextAlign.center)),
+          pw.Expanded(flex: 1, child: pw.Text(cargo, style: style, textAlign: pw.TextAlign.center)),
           pw.Expanded(flex: 1, child: pw.Text(promedio, style: style, textAlign: pw.TextAlign.center)),
           pw.Expanded(flex: 5, child: pw.Text(interp, style: style)),
           pw.Expanded(flex: 5, child: pw.Text(benchmark, style: style)),
@@ -162,9 +162,9 @@ class ReportePdfService {
   static pw.Widget _buildVerticalBarChart(ReporteComportamiento comp) {
     final labels = ['Ejecutivo', 'Gerente', 'Miembro'];
     final values = [
-      comp.niveles['E']?.promedio ?? 0,
-      comp.niveles['G']?.promedio ?? 0,
-      comp.niveles['M']?.promedio ?? 0,
+      comp.cargos['E']?.promedio ?? 0,
+      comp.cargos['G']?.promedio ?? 0,
+      comp.cargos['M']?.promedio ?? 0,
     ];
     final colors = [PdfColors.orange, PdfColors.green, PdfColors.blue];
 

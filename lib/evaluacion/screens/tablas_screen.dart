@@ -1,9 +1,6 @@
-import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
-import 'package:applensys/evaluacion/services/evaluacion_cache_service.dart';
 import 'package:flutter/material.dart';
-import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
-import 'package:applensys/evaluacion/widgets/drawer_lensys.dart';
-import 'package:applensys/evaluacion/models/empresa.dart';
+
+
 
 extension CapitalizeExtension on String {
   String capitalize() {
@@ -19,14 +16,6 @@ class TablasDimensionScreen extends StatefulWidget {
     'Dimensión 3': {},
   };
 
-  /// Carga los datos persistidos desde cache al iniciar la app
-  static Future<void> cargarDatosPersistidos() async {
-    final data = await EvaluacionCacheService().cargarTablas();
-    if (data.isNotEmpty) {
-      tablaDatos = data;
-      dataChanged.value = !dataChanged.value;
-    }
-  }
 
   static final ValueNotifier<bool> dataChanged = ValueNotifier<bool>(false);
 
@@ -85,53 +74,33 @@ class TablasDimensionScreen extends StatefulWidget {
       });
     }
 
-    await EvaluacionCacheService().guardarTablas(tablaDatos);
-    dataChanged.value = !dataChanged.value;
-  }
-
   
 
   @override
   State<TablasDimensionScreen> createState() => _TablasDimensionScreenState();
 }
 
-class _TablasDimensionScreenState extends State<TablasDimensionScreen> with TickerProviderStateMixin {
-  final Map<String, String> dimensionInterna = {
-    'IMPULSORES CULTURALES': 'Dimensión 1',
-    'MEJORA CONTINUA': 'Dimensión 2',
-    'ALINEAMIENTO EMPRESARIAL': 'Dimensión 3',
-  };
+
 
   List<String> dimensiones = [];
 
   @override
   void initState() {
     super.initState();
-    TablasDimensionScreen.dataChanged.addListener(_onDataChanged);
-    _cargarDesdeCache();
+    TablasDimensionScreen.dataChanged.addListener(onDataChanged);
   }
 
   @override
   void dispose() {
-    TablasDimensionScreen.dataChanged.removeListener(_onDataChanged);
+    TablasDimensionScreen.dataChanged.removeListener(onDataChanged);
     super.dispose();
   }
 
-  void _onDataChanged() => setState(() {});
+  void onDataChanged() => setState(() {});
 
-  Future<void> _cargarDesdeCache() async {
-    final data = await EvaluacionCacheService().cargarTablas();
-    if (data.values.any((m) => m.isNotEmpty)) {
-      setState(() => TablasDimensionScreen.tablaDatos = data);
-    }
-    if (mounted) {
-      setState(() {
-        dimensiones = dimensionInterna.keys.toList();
-      });
-    }
-  }
-
-  String _normalizeNivel(String raw) {
+ 
+    
+  String normalizeNivel(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('miembro')) return 'Miembro';
     if (lower.contains('gerente')) return 'Gerente';
@@ -140,7 +109,6 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
 
   @override
   Widget build(BuildContext context) {
-    dimensiones = dimensionInterna.keys.toList();
 
     return DefaultTabController(
       length: dimensiones.length,
@@ -163,8 +131,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
                   context,
                   MaterialPageRoute(
                     builder: (_) => DashboardScreen(
-                      evaluacionId: widget.evaluacionId,
-                      empresa: widget.empresa,
+                    
                     ),
                   ),
                 );
@@ -184,7 +151,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
             tabs: dimensiones.map((d) => Tab(child: Text(d))).toList(),
           ),
         ),
-        endDrawer: const DrawerLensys(),
+      /*  endDrawer: const DrawerLensys(),*/
         body: Column(
           children: [
             Padding(
@@ -196,7 +163,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
                       backgroundColor: const Color(0xFF003056),
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: () => _irADetalles(innerContext),
+                    onPressed: () => irADetalles(innerContext),
                     child: const Text('Ver detalles y avance'),
                   ),
                 ),
@@ -244,7 +211,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
                             DataColumn(label: Text('Gerente observaciones', style: TextStyle(color: Colors.white))),
                             DataColumn(label: Text('Miembro observaciones', style: TextStyle(color: Colors.white))),
                           ],
-                          rows: _buildRowsPrincipioPromedio(filas),
+                          rows: buildRowsPrincipioPromedio(filas),
                         ),
                       ),
                     ),
@@ -259,7 +226,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
   }
 
 
-  void _irADetalles(BuildContext context) {
+  void irADetalles(BuildContext context) {
     final currentIndex = DefaultTabController.of(context).index;
     final dimensionActual = dimensiones[currentIndex];
 
@@ -273,7 +240,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
       final sistemasPromedio = SistemasPromedio();
 
       for (var f in filas) {
-        final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
+        final nivel = normalizeNivel(f['cargo_raw'] ?? '');
         final valor = (f['valor'] ?? 0).toDouble();
         final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
         sumasNivel[nivel] = sumasNivel[nivel]! + valor;
@@ -297,20 +264,13 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => DetallesEvaluacionScreen(
-          dimensionesPromedios: promediosPorDimension,
-          empresa: widget.empresa,
-          evaluacionId: widget.evaluacionId,
-          promedios: promediosPorDimension[dimensionActual],
-          dimension: dimensionActual,
-          initialTabIndex: currentIndex,
-        ),
+        builder: (_) => 
       ),
     );
   }
 
   /// Fila de promedio PRINCIPIO para cada nivel, luego filas normales de comportamiento
-  List<DataRow> _buildRowsPrincipioPromedio(List<Map<String, dynamic>> filas) {
+  List<DataRow> buildRowsPrincipioPromedio(List<Map<String, dynamic>> filas) {
     final sumas = <String, Map<String, Map<String, int>>>{};
     final conteos = <String, Map<String, Map<String, int>>>{};
     final sistemasPorNivel = <String, Map<String, Map<String, Set<String>>>>{};
@@ -319,7 +279,7 @@ class _TablasDimensionScreenState extends State<TablasDimensionScreen> with Tick
     for (var f in filas) {
       final principio = f['principio'] ?? '';
       final comportamiento = f['comportamiento'] ?? '';
-      final nivel = _normalizeNivel(f['cargo_raw'] ?? '');
+      final nivel = normalizeNivel(f['cargo_raw'] ?? '');
       final int valor = ((f['valor'] ?? 0) as num).toInt();
       final sistemas = (f['sistemas'] as List?)?.whereType<String>().toList() ?? [];
       final observacion = f['observaciones'] ?? '';
@@ -429,7 +389,13 @@ class SistemasPromedio {
     final nivelesConSistemas = _sistemasPorNivel.values.where((set) => set.isNotEmpty).length;
     return nivelesConSistemas == 0 ? 0.0 : totalSistemas / _sistemasPorNivel.length;
   }
-}class AuxTablaService {
+
+
+
+}}
+
+
+class AuxTablaService {
   static const Map<String, String> dimensionInterna = {
     'IMPULSORES CULTURALES': 'Dimensión 1',
     'MEJORA CONTINUA': 'Dimensión 2',

@@ -55,7 +55,7 @@ class ReporteExcelService {
 
       // Filas de datos (E, G, M)
       for (final nivelKey in const ['E', 'G', 'M']) {
-        final nivel = comp.niveles[nivelKey];
+        final nivel = comp.cargos[nivelKey];
         if (nivel == null) continue;
 
         final nivelNombre = switch (nivelKey) {

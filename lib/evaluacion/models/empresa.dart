@@ -5,7 +5,6 @@ class Empresa {
   final String nombre;
   final String tamano;
   final int empleadosTotal;
-  final List<String> empleadosAsociados;
   final String unidades;
   final int areas;
   final String sector;
@@ -16,7 +15,6 @@ class Empresa {
     required this.nombre,
     required this.tamano,
     required this.empleadosTotal,
-    required this.empleadosAsociados,
     required this.unidades,
     required this.areas,
     required this.sector,
@@ -40,7 +38,6 @@ class Empresa {
       nombre: map['nombre'] as String,
       tamano: map['tamano'] as String,
       empleadosTotal: map['empleados_total'] as int,
-      empleadosAsociados: asociados,
       unidades: map['unidades'] as String,
       areas: map['areas'] as int,
       sector: map['sector'] as String,
@@ -53,7 +50,6 @@ class Empresa {
         'nombre': nombre,
         'tamano': tamano,
         'empleados_total': empleadosTotal,
-        'empleados_asociados': jsonEncode(empleadosAsociados),
         'unidades': unidades,
         'areas': areas,
         'sector': sector,

@@ -5,7 +5,7 @@ import 'package:applensys/evaluacion/models/empresa.dart';
 import 'package:applensys/evaluacion/screens/dashboard_screen.dart';
 import 'package:applensys/evaluacion/screens/detalles_evaluacion.dart';
 import 'package:applensys/evaluacion/screens/empresas_screen.dart';
-import 'package:applensys/evaluacion/screens/historial_screen.dart';
+import 'package:applensys/evaluacion/screens/historial_reportes.dart';
 import 'package:applensys/evaluacion/screens/perfil_screen.dart';
 import 'package:applensys/evaluacion/screens/tablas_screen.dart';
 import 'package:flutter/material.dart';
@@ -106,7 +106,6 @@ class DrawerLensys extends ConsumerWidget {
                         nombre: 'Default Empresa',
                         tamano: 'Default Tamano',
                         empleadosTotal: 0,
-                        empleadosAsociados: [],
                         unidades: 'Default Unidades',
                         areas: 0,
                         sector: 'Default Sector',
@@ -132,7 +131,6 @@ class DrawerLensys extends ConsumerWidget {
                         nombre: '',
                         tamano: '',
                         empleadosTotal: 0,
-                        empleadosAsociados: [],
                         unidades: '',
                         areas: 0,
                         sector: '',
@@ -180,7 +178,6 @@ class DrawerLensys extends ConsumerWidget {
                         nombre: '',
                         tamano: '',
                         empleadosTotal: 0,
-                        empleadosAsociados: [],
                         unidades: '',
                         areas: 0,
                         sector: '',
